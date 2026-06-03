@@ -21,6 +21,7 @@ from src.shared.enums.skill_enums import SkillProgressState
 from src.shared.schemas.loot import CorpseDTO, LootItemDTO, LootTimestamps
 
 if TYPE_CHECKING:
+    from src.backend.features.combat.integrations import CombatSessionIntegration
     from src.backend.features.expedition.models import CharacterExpedition
     from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher
 
@@ -43,11 +44,13 @@ class ExpeditionService:
         commit_on_write: bool = False,
         game_config: Any | None = None,
         notice_publisher: PlayerNoticePublisher | None = None,
+        combat_session_integration: CombatSessionIntegration | None = None,
     ) -> None:
         self.session = session
         self.character_sessions = character_sessions
         self.expedition_repo = expedition_repo or CharacterExpeditionRepository(session)
         self.expedition_manager = expedition_manager
+        self.combat_session_integration = combat_session_integration
         self.loot_manager = loot_manager
         self.world_store = world_store
         self.commit_on_write = commit_on_write
@@ -636,6 +639,10 @@ class ExpeditionService:
                 "$.pending_progress": self._empty_pending(),
             },
         )
+        if self.combat_session_integration is not None:
+            clear_latest = getattr(self.combat_session_integration, "clear_latest_finalization_id_for_character", None)
+            if clear_latest is not None:
+                await clear_latest(char_id)
         restored_vitals = await self.character_sessions.restore_vitals_to_max(char_id)
         character = await self.session.get(Character, char_id)
         if character is not None:

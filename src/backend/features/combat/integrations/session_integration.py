@@ -111,6 +111,12 @@ class CombatSessionIntegration:
             return None
         return await getter(char_id)
 
+    async def clear_latest_finalization_id_for_character(self, char_id: int | str) -> None:
+        clearer = getattr(self.combat_manager, "clear_latest_finalization_id_for_character", None)
+        if clearer is None:
+            return
+        await clearer(char_id)
+
     async def get_actor_state(self, session_id: str, actor_id: int | str) -> dict[str, Any] | None:
         return await self.combat_manager.get_actor_state(session_id, actor_id)
 

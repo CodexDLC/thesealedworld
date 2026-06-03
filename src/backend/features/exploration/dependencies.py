@@ -5,6 +5,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.database import get_db
+from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.expedition import ExpeditionService
 from src.backend.features.exploration.gateway import ExplorationGateway
 from src.backend.features.exploration.integrations.encounter_integration import EncounterIntegration
@@ -38,6 +39,7 @@ def build_exploration_service(
         expedition_manager=request.app.state.redis_managers.expeditions,
         loot_manager=loot_manager,
         world_store=world_store,
+        combat_session_integration=CombatSessionIntegration.from_redis(redis) if redis is not None else None,
         commit_on_write=True,
         notice_publisher=PlayerNoticePublisher(event_bus) if event_bus is not None else None,
     )
@@ -83,6 +85,7 @@ def build_exploration_gateway(
         expedition_manager=request.app.state.redis_managers.expeditions,
         loot_manager=loot_manager,
         world_store=world_store,
+        combat_session_integration=CombatSessionIntegration.from_redis(redis) if redis is not None else None,
         commit_on_write=True,
         notice_publisher=PlayerNoticePublisher(event_bus) if event_bus is not None else None,
     )

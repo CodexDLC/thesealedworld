@@ -11,6 +11,7 @@ from src.backend.features.character.repositories import (
     CharacterRepository,
     SkillRepository,
 )
+from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.expedition import CharacterExpeditionRepository, ExpeditionService
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
 from src.backend.features.game_session.integrations import GameSessionIntegrator
@@ -55,6 +56,7 @@ def get_game_session_service(
             expedition_manager=request.app.state.redis_managers.expeditions,
             loot_manager=LootManager(redis),
             world_store=request.app.state.world_locations,
+            combat_session_integration=CombatSessionIntegration.from_redis(redis) if redis is not None else None,
             commit_on_write=True,
             game_config=getattr(request.app.state, "game_config", None),
             notice_publisher=(

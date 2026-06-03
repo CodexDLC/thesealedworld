@@ -30,6 +30,7 @@ AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
 MIN_TIMEOUT = 20
 LOG_PAGE_SIZE = 20
 
+
 class NullArqQueue:
     async def enqueue_job(self, function: str, *args: Any, **kwargs: Any) -> Any | None:
         return None
@@ -330,6 +331,10 @@ class CombatSessionService:
             char_id,
             combat_id=current_finalization_id,
         )
+        clear_latest = getattr(self.store, "clear_latest_finalization_id_for_character", None)
+        if clear_latest is not None:
+            with contextlib.suppress(Exception):
+                await clear_latest(char_id)
         target_state = self._core_domain(target)
         return StateTransitionDTO(
             char_id=char_id,

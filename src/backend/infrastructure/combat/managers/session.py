@@ -794,6 +794,9 @@ class CombatSessionManager:
             return None
         return self._decode(value)
 
+    async def clear_latest_finalization_id_for_character(self, char_id: int | str) -> None:
+        await self._client().delete(self.character_finalization_key(char_id))
+
     async def add_log(self, session_id: str, text: str, tags: list[str] | None = None) -> None:
         await self.append_log(session_id, {"text": text, "timestamp": time.time(), "tags": tags or []})
 

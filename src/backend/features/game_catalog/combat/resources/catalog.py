@@ -88,6 +88,8 @@ class CombatResourceCatalogService:
                     public[field] = technical[field]
             if id_field == "ability_id":
                 public.update(self._ability_public_details(technical))
+            elif id_field == "feint_id":
+                public.update(self._feint_public_details(technical))
             public["catalog_key"] = data["key"]
             catalog[entry_id] = public
         return catalog
@@ -157,6 +159,66 @@ class CombatResourceCatalogService:
             "default_taxonomy": default_taxonomy,
             "taxonomy_variants": variants,
         }
+
+    @classmethod
+    def _feint_public_details(cls, technical: dict[str, Any]) -> dict[str, Any]:
+        details: dict[str, Any] = {}
+        tags = technical.get("applicability_tags") or []
+        if tags:
+            details["applicability_tags"] = list(tags)
+        bonus = technical.get("hit_damage_bonus_per_tier")
+        if bonus:
+            details["hit_damage_bonus_per_tier"] = bonus
+        effects = technical.get("effects") or []
+        if effects:
+            details["effects"] = effects
+        preparation = technical.get("preparation_effects") or []
+        if preparation:
+            details["preparation_effects"] = preparation
+        mutations = technical.get("pipeline_mutations") or []
+        if mutations:
+            details["pipeline_mutations"] = mutations
+        purchase_group = technical.get("purchase_group")
+        if purchase_group:
+            details["purchase_group"] = purchase_group
+        mechanics = cls._feint_mechanics(technical)
+        if mechanics:
+            details["mechanics"] = mechanics
+        return details
+
+    @classmethod
+    def _feint_mechanics(cls, technical: dict[str, Any]) -> list[str]:
+        mechanics: list[str] = []
+        bonus = technical.get("hit_damage_bonus_per_tier")
+        if bonus:
+            mechanics.append(f"Бонус урона: +{cls._number_text(bonus)} за уровень")
+        for mutation in technical.get("pipeline_mutations") or []:
+            mutation_id = str(mutation.get("mutation_id") or "") if isinstance(mutation, dict) else ""
+            if mutation_id:
+                mechanics.append(f"Эффект пайплайна: {cls._pipeline_mutation_label(mutation_id)}")
+        for application in technical.get("modifier_applications") or []:
+            text = cls._modifier_text(application)
+            if text:
+                mechanics.append(text)
+        for effect in technical.get("effects") or []:
+            text = cls._effect_text(effect)
+            if text:
+                mechanics.append(text)
+        for effect in technical.get("preparation_effects") or []:
+            text = cls._effect_text(effect)
+            if text:
+                mechanics.append(f"Подготовка: {text}")
+        return mechanics
+
+    @staticmethod
+    def _pipeline_mutation_label(mutation_id: str) -> str:
+        labels = {
+            "ignore_miss": "удар не может промахнуться",
+            "damage_mult": "множитель урона",
+            "parry_window": "открыт парирующий контр",
+            "force_crit": "гарантированный крит",
+        }
+        return labels.get(mutation_id, mutation_id.replace("_", " "))
 
     @classmethod
     def _ability_public_details(cls, technical: dict[str, Any]) -> dict[str, Any]:

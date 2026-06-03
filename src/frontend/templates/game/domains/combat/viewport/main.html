@@ -354,7 +354,42 @@
                     </article>
                 </section>
 
-                <section class="game-action-panel game-action-panel--bottom combat-action-panel" hx-sync="this:drop" aria-label="Combat action panel">
+                {% set feint_slots = combat_screen.feint_options[:3] %}
+                <section class="game-action-panel game-action-panel--bottom combat-action-panel"
+                         hx-sync="this:drop"
+                         aria-label="Combat action panel"
+                         x-data='{
+                            selectedFeintId: null,
+                            selectedFeintLabel: "",
+                            selectFeint(id) {
+                                if (!id) return;
+                                if (this.selectedFeintId === id) { this.deselectFeint(); return; }
+                                this.selectedFeintId = id;
+                                const button = this.$root.querySelector(".combat-feint-option[data-feint-id=\"" + id + "\"]");
+                                const title = button ? button.querySelector(".combat-feint-title") : null;
+                                this.selectedFeintLabel = title ? (title.textContent || "").trim() : id;
+                                this.$nextTick(() => {
+                                    this.$root.querySelectorAll(".combat-feint-option").forEach((node) => {
+                                        if (!node._tippy) return;
+                                        if (node.dataset.feintId === id) {
+                                            node._tippy.show();
+                                        } else {
+                                            node._tippy.hide();
+                                        }
+                                    });
+                                });
+                            },
+                            deselectFeint() {
+                                this.selectedFeintId = null;
+                                this.selectedFeintLabel = "";
+                                this.$root.querySelectorAll(".combat-feint-option").forEach((node) => {
+                                    if (node._tippy) node._tippy.hide();
+                                });
+                            },
+                            attackAfter() {
+                                this.$nextTick(() => this.deselectFeint());
+                            }
+                         }'>
                     <div class="game-action-panel__head combat-command-head">
                         <span>ACTION PANEL</span>
                         <strong>{{ hero.name }}</strong>
@@ -428,11 +463,11 @@
                                 </div>
                             </section>
 
-                            <div class="combat-action-list">
-                                {% set feint_slots = combat_screen.feint_options[:3] %}
+                            <div class="combat-action-list" @click.outside="deselectFeint()">
                                 {% for action in feint_slots %}
                                     {% set feint_tooltip_parts = [action.label, action.cost_tooltip, action.reason] | select | list %}
-                                    <div class="combat-feint-row {% if action.pinned %}combat-feint-row--pinned{% endif %}">
+                                    <div class="combat-feint-row {% if action.pinned %}combat-feint-row--pinned{% endif %}"
+                                         :class="{ 'is-selected': selectedFeintId === {{ (action.feint_id or '') | tojson }} }">
                                         <button type="button"
                                                 class="game-action-button game-action-button--icon combat-feint-pin"
                                                 hx-post="/game/combat/feint-pin"
@@ -448,21 +483,16 @@
                                         </button>
                                         <button type="button"
                                                 class="game-action-button combat-feint-option"
-                                                hx-post="/game/combat/move"
-                                                hx-target="#main-content .shell-constrained"
-                                                hx-swap="innerHTML"
-                                                hx-disabled-elt="this"
-                                                hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ action.target_id or (combat_screen.primary_attack.target_id if combat_screen.primary_attack else "") }}", "feint_id": "{{ action.feint_id or "" }}"}'
+                                                data-feint-id="{{ action.feint_id or '' }}"
+                                                @click="selectFeint({{ (action.feint_id or '') | tojson }})"
+                                                :aria-pressed="selectedFeintId === {{ (action.feint_id or '') | tojson }} ? 'true' : 'false'"
                                                 {% if action.catalog and action.catalog_key %}
                                                 data-catalog="{{ action.catalog }}"
                                                 data-catalog-key="{{ action.catalog_key }}"
-                                                data-catalog-tooltip="description"
-                                                {% endif %}
-                                                {% if action.cost_tooltip %}
-                                                data-catalog-tooltip-extra="{{ action.cost_tooltip }}"
+                                                data-catalog-tooltip="feint"
                                                 {% endif %}
                                                 data-tippy-content="{{ feint_tooltip_parts | join(' // ') }}"
-                                                data-tippy-theme="game-hint"
+                                                data-tippy-theme="game-feint"
                                                 {% if not action.enabled %}disabled{% endif %}>
                                             <img class="combat-feint-icon" src="{{ action.icon_url }}" alt="">
                                             <span class="combat-feint-main">
@@ -496,18 +526,22 @@
                                     <span>ОБНОВИТЬ</span>
                                 </button>
                                 {% if combat_screen.primary_attack %}
+                                    {% set primary_label = combat_screen.primary_attack.label %}
+                                    {% set primary_target_id = combat_screen.primary_attack.target_id or '' %}
                                     <button type="button"
                                             class="game-action-button game-action-button--primary combat-primary-action"
+                                            :class="{ 'combat-primary-action--with-feint': selectedFeintId }"
                                             hx-post="/game/combat/move"
                                             hx-target="#main-content .shell-constrained"
                                             hx-swap="innerHTML"
                                             hx-disabled-elt="this"
-                                            hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": "{{ combat_screen.primary_attack.target_id or "" }}"}'
+                                            :hx-vals="JSON.stringify(Object.assign({char_id: {{ char_id }}, action: 'exchange', target_id: {{ primary_target_id | tojson }}}, selectedFeintId ? {feint_id: selectedFeintId} : {}))"
+                                            @click="attackAfter()"
                                             data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
                                             data-tippy-theme="game-hint"
                                             {% if not combat_screen.primary_attack.enabled %}disabled{% endif %}>
                                         <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
-                                        <span>{{ combat_screen.primary_attack.label }}</span>
+                                        <span x-text="selectedFeintId ? ('АТАКА С ПРИЁМОМ: ' + (selectedFeintLabel || selectedFeintId)) : {{ primary_label | tojson }}">{{ primary_label }}</span>
                                     </button>
                                 {% else %}
                                     {% if combat_screen.action_state == 'ACTION_LOCKED' %}

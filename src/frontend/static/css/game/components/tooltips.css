@@ -30,3 +30,145 @@
 .tippy-box[data-theme~='game-catalog'] .tippy-arrow {
     color: rgba(255, 170, 0, .28);
 }
+
+.tippy-box[data-theme~='game-feint'] {
+    border: 1px solid rgba(77, 220, 132, .42);
+    background:
+        linear-gradient(180deg, rgba(77, 220, 132, .10), transparent 42%),
+        rgba(8, 10, 12, .96);
+    color: var(--col-parchment);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    line-height: 1.4;
+    max-width: 320px;
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, .55),
+        0 0 22px rgba(77, 220, 132, .12);
+    clip-path: var(--clip-node-sm);
+}
+
+.tippy-box[data-theme~='game-feint'] .tippy-content {
+    padding: 0;
+}
+
+.tippy-box[data-theme~='game-feint'] .tippy-arrow {
+    color: rgba(77, 220, 132, .42);
+}
+
+.combat-feint-tip {
+    display: grid;
+    gap: 6px;
+    min-width: 220px;
+    padding: 10px 12px;
+}
+
+.combat-feint-tip__title {
+    color: rgba(190, 255, 210, .98);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+}
+
+.combat-feint-tip__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+
+.combat-feint-tip__cost-label {
+    color: rgba(210, 180, 140, .62);
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-right: 2px;
+}
+
+.combat-feint-tip__cost-empty {
+    color: rgba(210, 180, 140, .48);
+    font-style: italic;
+    font-size: 10px;
+}
+
+.combat-feint-tip__chip,
+.combat-feint-tip__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    background: rgba(0, 0, 0, .36);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+
+.combat-feint-tip__chip img,
+.combat-feint-tip__badge img {
+    width: 13px;
+    height: 13px;
+    filter: invert(84%) sepia(38%) saturate(729%) hue-rotate(352deg) brightness(99%) contrast(101%);
+}
+
+.combat-feint-tip__chip b,
+.combat-feint-tip__badge b {
+    color: #ffd76a;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.combat-feint-tip__chip span,
+.combat-feint-tip__badge span {
+    color: rgba(255, 232, 200, .82);
+}
+
+.combat-feint-tip__badge--damage {
+    border-color: rgba(255, 120, 70, .42);
+    background: rgba(50, 14, 8, .54);
+}
+
+.combat-feint-tip__badge--damage img {
+    filter: invert(48%) sepia(72%) saturate(1860%) hue-rotate(348deg) brightness(102%) contrast(98%);
+}
+
+.combat-feint-tip__badge--control {
+    border-color: rgba(255, 215, 70, .48);
+    background: rgba(48, 36, 8, .52);
+}
+
+.combat-feint-tip__badge--control img {
+    filter: invert(82%) sepia(64%) saturate(820%) hue-rotate(2deg) brightness(102%) contrast(101%);
+}
+
+.combat-feint-tip__badge--debuff {
+    border-color: rgba(160, 100, 220, .46);
+    background: rgba(28, 14, 42, .54);
+}
+
+.combat-feint-tip__badge--debuff img {
+    filter: invert(58%) sepia(58%) saturate(1280%) hue-rotate(232deg) brightness(102%) contrast(102%);
+}
+
+.combat-feint-tip__badge--tactical {
+    border-color: rgba(80, 200, 255, .48);
+    background: rgba(8, 28, 44, .54);
+}
+
+.combat-feint-tip__badge--tactical img {
+    filter: invert(64%) sepia(48%) saturate(1280%) hue-rotate(170deg) brightness(102%) contrast(101%);
+}
+
+.combat-feint-tip__body {
+    margin-top: 2px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    color: rgba(255, 232, 200, .88);
+    font-family: var(--font-text);
+    font-size: 12px;
+    line-height: 1.45;
+}

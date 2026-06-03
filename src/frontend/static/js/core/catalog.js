@@ -164,6 +164,140 @@ window.GameCatalogCache = {
         return this.getNested(variant, field) || '';
     },
 
+    formatFeintTooltip(entry, taxonomy = 'humanoid') {
+        if (!entry) return '';
+        const title = this.escapeHtml(this.getField(entry, 'title', taxonomy) || this.getField(entry, 'label', taxonomy) || '');
+        const description = this.escapeHtml(this.getField(entry, 'long_description', taxonomy) || this.getField(entry, 'description', taxonomy) || '');
+        const cost = this.renderFeintCost(entry.cost);
+        const badges = this.renderFeintBadges(entry);
+        const parts = [];
+        if (title) parts.push(`<div class="combat-feint-tip__title">${title}</div>`);
+        if (cost) parts.push(`<div class="combat-feint-tip__row combat-feint-tip__cost">${cost}</div>`);
+        if (badges) parts.push(`<div class="combat-feint-tip__row combat-feint-tip__badges">${badges}</div>`);
+        if (description) parts.push(`<div class="combat-feint-tip__body">${description}</div>`);
+        return `<div class="combat-feint-tip">${parts.join('')}</div>`;
+    },
+
+    renderFeintCost(cost) {
+        if (!cost || typeof cost !== 'object') return '';
+        const tactics = cost.tactics || {};
+        const items = Object.entries(tactics).filter(([, amount]) => amount);
+        if (!items.length) return '<span class="combat-feint-tip__cost-empty">Без стоимости</span>';
+        const chips = items.map(([token, amount]) => {
+            const icon = this.tokenIconFile(token);
+            const label = this.escapeHtml(this.formatCombatToken(token));
+            return `<span class="combat-feint-tip__chip" data-token="${this.escapeHtml(token)}">`
+                + `<img src="/static/images/ui/combat-icons/${icon}.svg" alt="">`
+                + `<b>${amount}</b><span>${label}</span></span>`;
+        });
+        return `<span class="combat-feint-tip__cost-label">Стоимость</span>${chips.join('')}`;
+    },
+
+    renderFeintBadges(entry) {
+        const badges = this.buildFeintBadges(entry);
+        if (!badges.length) return '';
+        const chips = badges.map((badge) => {
+            const icon = `/static/images/ui/combat-icons/${badge.icon}.svg`;
+            const value = badge.value ? `<b>${this.escapeHtml(String(badge.value))}</b>` : '';
+            const label = this.escapeHtml(badge.label);
+            return `<span class="combat-feint-tip__badge combat-feint-tip__badge--${this.escapeHtml(badge.kind)}">`
+                + `<img src="${icon}" alt="">${value}<span>${label}</span></span>`;
+        });
+        return chips.join('');
+    },
+
+    buildFeintBadges(entry) {
+        if (!entry) return [];
+        const badges = [];
+        const tags = new Set(Array.isArray(entry.applicability_tags) ? entry.applicability_tags : []);
+        const damageBonus = entry.hit_damage_bonus_per_tier;
+        if (damageBonus) {
+            badges.push({ kind: 'damage', icon: 'token-hit', value: `+${damageBonus}`, label: 'Бонус урона' });
+        }
+        if (tags.has('ignore_miss')) {
+            badges.push({ kind: 'tactical', icon: 'token-hit', label: 'Без промаха' });
+        }
+        if (tags.has('tempo')) {
+            badges.push({ kind: 'tactical', icon: 'token-tempo', label: 'Темп' });
+        }
+        if (tags.has('punish')) {
+            badges.push({ kind: 'tactical', icon: 'token-counter', label: 'Кара' });
+        }
+        if (tags.has('parry_window')) {
+            badges.push({ kind: 'tactical', icon: 'token-parry', label: 'Парирование' });
+        }
+        const mutations = Array.isArray(entry.pipeline_mutations) ? entry.pipeline_mutations : [];
+        const mutationIds = new Set(mutations.map((m) => (m && m.mutation_id) || ''));
+        if (mutationIds.has('force_crit')) {
+            badges.push({ kind: 'damage', icon: 'token-crit', label: 'Крит гарантирован' });
+        }
+        const effects = Array.isArray(entry.effects) ? entry.effects : [];
+        for (const effect of effects) {
+            if (!effect || typeof effect !== 'object') continue;
+            const id = String(effect.id || '');
+            const target = String(effect.target_actor || 'target');
+            const params = effect.params || {};
+            const duration = params.duration ? `${params.duration} р.` : '';
+            const meta = this.feintEffectMeta(id, target);
+            if (!meta) continue;
+            badges.push({ kind: meta.kind, icon: meta.icon, value: duration, label: meta.label });
+        }
+        const prep = Array.isArray(entry.preparation_effects) ? entry.preparation_effects : [];
+        for (const effect of prep) {
+            if (!effect || typeof effect !== 'object') continue;
+            const id = String(effect.id || '');
+            const meta = this.feintEffectMeta(id, 'self');
+            if (!meta) continue;
+            badges.push({ kind: 'tactical', icon: meta.icon, label: `Подг. ${meta.label}` });
+        }
+        return badges;
+    },
+
+    feintEffectMeta(effectId, targetActor) {
+        const control = { stun: 'Оглушение', slow: 'Замедление', immobilize: 'Обездв.', stagger: 'Сбив' };
+        const debuff = {
+            debuff_accuracy: 'Точность −',
+            debuff_damage: 'Урон −',
+            bleed: 'Кровотечение',
+            poison: 'Яд',
+            burn: 'Поджог',
+            expose: 'Открытость',
+            mark: 'Метка',
+        };
+        const damage = { bonus_damage: 'Бонус урона' };
+        if (control[effectId]) return { kind: 'control', icon: 'stun', label: control[effectId] };
+        if (debuff[effectId]) {
+            const icon = effectId === 'bleed' ? 'bleeding' : effectId === 'poison' ? 'poison' : effectId === 'burn' ? 'burn' : 'token-pressure';
+            const label = debuff[effectId];
+            const prefix = targetActor === 'target' ? '' : '(вы) ';
+            return { kind: 'debuff', icon, label: `${prefix}${label}` };
+        }
+        if (damage[effectId]) return { kind: 'damage', icon: 'token-hit', label: damage[effectId] };
+        return null;
+    },
+
+    tokenIconFile(token) {
+        const map = {
+            tempo: 'token-tempo',
+            hit: 'token-hit',
+            crit: 'token-crit',
+            dodge: 'token-dodge',
+            parry: 'token-parry',
+            block: 'token-block',
+            pressure: 'token-pressure',
+            blood: 'token-blood',
+            gift: 'token-gift',
+            counter: 'token-counter',
+        };
+        return map[token] || 'token';
+    },
+
+    escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[ch]));
+    },
+
     formatAbilityTooltip(entry, taxonomy = 'humanoid') {
         if (!entry) return '';
         const title = this.getField(entry, 'title', taxonomy) || this.getField(entry, 'label', taxonomy);
@@ -274,9 +408,15 @@ window.GameCatalogCache = {
                 if (value) node.textContent = value;
             }
             if (tooltipField) {
-                const tooltip = tooltipField === 'ability'
-                    ? this.formatAbilityTooltip(entry, taxonomy)
-                    : this.getField(entry, tooltipField, taxonomy);
+                let tooltip;
+                if (tooltipField === 'ability') {
+                    tooltip = this.formatAbilityTooltip(entry, taxonomy);
+                } else if (tooltipField === 'feint') {
+                    tooltip = this.formatFeintTooltip(entry, taxonomy);
+                    node.dataset.tippyHtml = '1';
+                } else {
+                    tooltip = this.getField(entry, tooltipField, taxonomy);
+                }
                 const tooltipParts = [tooltip, tooltipExtra].filter(Boolean);
                 if (tooltipParts.length) node.setAttribute('data-tippy-content', tooltipParts.join(' /' + '/ '));
             }
@@ -284,22 +424,28 @@ window.GameCatalogCache = {
 
         if (typeof tippy !== 'undefined') {
             const tooltipNodes = root.querySelectorAll('[data-tippy-content]');
-            const tooltipContent = (node) => (node.getAttribute('data-tippy-content') || '').replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
+            const isHtmlNode = (node) => node.dataset.tippyHtml === '1';
+            const tooltipContent = (node) => {
+                const raw = node.getAttribute('data-tippy-content') || '';
+                if (isHtmlNode(node)) return raw;
+                return raw.replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
+            };
             tooltipNodes.forEach((node) => {
                 node.removeAttribute('title');
                 if (node._tippy) {
+                    node._tippy.setProps({ allowHTML: isHtmlNode(node) });
                     node._tippy.setContent(tooltipContent(node));
                 }
             });
             Array.from(tooltipNodes).filter((node) => !node._tippy).forEach((node) => {
                 tippy(node, {
-                    allowHTML: false,
+                    allowHTML: isHtmlNode(node),
                     appendTo: document.body,
                     content(reference) {
                         return tooltipContent(reference);
                     },
                     delay: [120, 40],
-                    maxWidth: 320,
+                    maxWidth: 360,
                     theme: node.getAttribute('data-tippy-theme') || 'game-catalog',
                 });
             });

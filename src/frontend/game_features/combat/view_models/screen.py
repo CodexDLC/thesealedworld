@@ -35,6 +35,14 @@ BASIC_ABILITY_ICON_FILES: dict[str, str] = {
     "basic_last_push": "basic_last_push",
 }
 
+FEINT_GROUP_ICON_FILES: dict[str, str] = {
+    "basic": "group-basic",
+    "tactical": "group-tactical",
+    "weapon": "group-weapon",
+}
+
+FEINT_SPECIFIC_ICON_FILES: set[str] = set()
+
 
 class CombatEffectBadgeVM(BaseModel):
     effect_id: str
@@ -1324,7 +1332,7 @@ def _split_actions(
                 id=feint.feint_id,
                 label=feint.feint_id,
                 kind="feint",
-                icon_url=f"{COMBAT_ICON_ROOT}/feint.svg",
+                icon_url=_feint_icon_url(feint.feint_id, feint.purchase_group),
                 enabled=enabled,
                 target_id=primary.target_id if primary else None,
                 feint_id=feint.feint_id,
@@ -1368,6 +1376,16 @@ def _ability_icon(ability_id: str | None) -> str:
     if icon_file:
         return f"abilities/{icon_file}"
     return "gift-token"
+
+
+def _feint_icon_url(feint_id: str | None, purchase_group: str | None) -> str:
+    fid = str(feint_id or "")
+    if fid and fid in FEINT_SPECIFIC_ICON_FILES:
+        return f"{COMBAT_ICON_ROOT}/feints/{fid}.svg"
+    group_file = FEINT_GROUP_ICON_FILES.get(str(purchase_group or "basic"))
+    if group_file:
+        return f"{COMBAT_ICON_ROOT}/feints/{group_file}.svg"
+    return f"{COMBAT_ICON_ROOT}/feint.svg"
 
 
 def _action_catalog(kind: str) -> str | None:

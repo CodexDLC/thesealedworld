@@ -1227,19 +1227,34 @@ class CombatViewService:
 
     @staticmethod
     def _feints(meta: dict[str, Any]) -> list[CombatFeintOptionDTO]:
+        from src.backend.features.game_catalog.combat.resources.feints import get_feint_catalog_entry
+
         feints_raw = meta.get("feints")
         feints = feints_raw if isinstance(feints_raw, dict) else {}
         hand_raw = feints.get("hand")
         hand = hand_raw if isinstance(hand_raw, dict) else {}
         pinned = str(feints.get("pinned")) if feints.get("pinned") is not None else None
-        return [
-            CombatFeintOptionDTO(
-                feint_id=str(feint_id),
-                cost={str(k): CombatViewService._int(v) for k, v in cost.items()} if isinstance(cost, dict) else {},
-                pinned=str(feint_id) == pinned,
+        options: list[CombatFeintOptionDTO] = []
+        for feint_id, cost in hand.items():
+            entry = get_feint_catalog_entry(str(feint_id))
+            purchase_group = "basic"
+            icon = ""
+            if entry is not None:
+                purchase_group = getattr(entry.technical, "purchase_group", "basic") or "basic"
+                variant = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
+                variant = variant or entry.descriptive.variants.get("humanoid")
+                if variant is not None:
+                    icon = variant.icon or ""
+            options.append(
+                CombatFeintOptionDTO(
+                    feint_id=str(feint_id),
+                    cost={str(k): CombatViewService._int(v) for k, v in cost.items()} if isinstance(cost, dict) else {},
+                    pinned=str(feint_id) == pinned,
+                    purchase_group=purchase_group,
+                    icon=icon,
+                )
             )
-            for feint_id, cost in hand.items()
-        ]
+        return options
 
     @classmethod
     def _visible_tokens(cls, meta: dict[str, Any]) -> dict[str, int]:

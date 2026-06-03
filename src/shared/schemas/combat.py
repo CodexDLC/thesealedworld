@@ -190,6 +190,8 @@ class CombatFeintOptionDTO(CombatJsonDTO):
     feint_id: str = "NO_DATA"
     cost: dict[str, int] = Field(default_factory=dict)
     pinned: bool = False
+    purchase_group: str = "basic"
+    icon: str = ""
 
 
 class CombatActionOptionDTO(CombatJsonDTO):

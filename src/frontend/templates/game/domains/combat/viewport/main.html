@@ -535,6 +535,7 @@
                                             hx-target="#main-content .shell-constrained"
                                             hx-swap="innerHTML"
                                             hx-disabled-elt="this"
+                                            hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": {{ primary_target_id | tojson }}}'
                                             :hx-vals="JSON.stringify(Object.assign({char_id: {{ char_id }}, action: 'exchange', target_id: {{ primary_target_id | tojson }}}, selectedFeintId ? {feint_id: selectedFeintId} : {}))"
                                             @click="attackAfter()"
                                             data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"

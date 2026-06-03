@@ -14133,7 +14133,85 @@ html, body {
     display: -webkit-box;
     text-overflow: ellipsis;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
+    color: rgba(220, 255, 240, .96);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .14em;
+}
+
+.combat-feint-badges {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+}
+
+.combat-feint-badges.is-empty {
+    display: none;
+}
+
+.combat-feint-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 4px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(0, 0, 0, .42);
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    line-height: 1;
+}
+
+.combat-feint-badge img {
+    width: 10px;
+    height: 10px;
+    filter: invert(84%) sepia(38%) saturate(729%) hue-rotate(352deg) brightness(99%) contrast(101%);
+}
+
+.combat-feint-badge b {
+    color: #ffd76a;
+    font-family: var(--font-mono);
+    font-size: 9px;
+}
+
+.combat-feint-badge--damage {
+    border-color: rgba(255, 120, 70, .42);
+    background: rgba(50, 14, 8, .54);
+}
+
+.combat-feint-badge--damage img {
+    filter: invert(48%) sepia(72%) saturate(1860%) hue-rotate(348deg) brightness(102%) contrast(98%);
+}
+
+.combat-feint-badge--control {
+    border-color: rgba(255, 215, 70, .48);
+    background: rgba(48, 36, 8, .52);
+}
+
+.combat-feint-badge--control img {
+    filter: invert(82%) sepia(64%) saturate(820%) hue-rotate(2deg) brightness(102%) contrast(101%);
+}
+
+.combat-feint-badge--debuff {
+    border-color: rgba(160, 100, 220, .46);
+    background: rgba(28, 14, 42, .54);
+}
+
+.combat-feint-badge--debuff img {
+    filter: invert(58%) sepia(58%) saturate(1280%) hue-rotate(232deg) brightness(102%) contrast(102%);
+}
+
+.combat-feint-badge--tactical {
+    border-color: rgba(80, 200, 255, .48);
+    background: rgba(8, 28, 44, .54);
+}
+
+.combat-feint-badge--tactical img {
+    filter: invert(64%) sepia(48%) saturate(1280%) hue-rotate(170deg) brightness(102%) contrast(101%);
 }
 
 .combat-ability-grid {

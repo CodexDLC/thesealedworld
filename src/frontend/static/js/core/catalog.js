@@ -206,6 +206,19 @@ window.GameCatalogCache = {
         return chips.join('');
     },
 
+    renderFeintBadgesMini(entry) {
+        const badges = this.buildFeintBadges(entry);
+        if (!badges.length) return '';
+        const chips = badges.slice(0, 5).map((badge) => {
+            const icon = `/static/images/ui/combat-icons/${badge.icon}.svg`;
+            const value = badge.value ? `<b>${this.escapeHtml(String(badge.value))}</b>` : '';
+            const label = this.escapeHtml(badge.label);
+            return `<span class="combat-feint-badge combat-feint-badge--${this.escapeHtml(badge.kind)}" title="${label}">`
+                + `<img src="${icon}" alt="" aria-hidden="true">${value}</span>`;
+        });
+        return chips.join('');
+    },
+
     buildFeintBadges(entry) {
         if (!entry) return [];
         const badges = [];
@@ -419,6 +432,10 @@ window.GameCatalogCache = {
                 }
                 const tooltipParts = [tooltip, tooltipExtra].filter(Boolean);
                 if (tooltipParts.length) node.setAttribute('data-tippy-content', tooltipParts.join(' /' + '/ '));
+            }
+            if (node.dataset.catalogBadges === 'feint') {
+                node.innerHTML = this.renderFeintBadgesMini(entry);
+                node.classList.toggle('is-empty', !node.innerHTML);
             }
         });
 

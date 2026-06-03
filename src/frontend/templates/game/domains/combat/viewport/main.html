@@ -500,8 +500,14 @@
                                                       {% if action.catalog and action.catalog_key %}
                                                       data-catalog="{{ action.catalog }}"
                                                       data-catalog-key="{{ action.catalog_key }}"
-                                                      data-catalog-field="label"
+                                                      data-catalog-field="title"
                                                       {% endif %}>{{ action.label }}</span>
+                                                {% if action.catalog and action.catalog_key %}
+                                                <span class="combat-feint-badges"
+                                                      data-catalog="{{ action.catalog }}"
+                                                      data-catalog-key="{{ action.catalog_key }}"
+                                                      data-catalog-badges="feint"></span>
+                                                {% endif %}
                                             </span>
                                         </button>
                                     </div>

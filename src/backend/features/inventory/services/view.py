@@ -670,11 +670,11 @@ class InventoryViewService:
         base_id = item.base_id.lower()
         tags = {str(tag).lower() for tag in item.tags}
         haystack = {base_id, *tags}
-        if base_id in {"greatsword", "katana"} or "two_handed" in haystack:
+        if base_id in {"greatsword", "katana", "flamberge"} or "two_handed" in haystack:
             return "weapon_two_hand"
         if haystack & {"bow", "archery", "ranged", "shortbow"}:
             return "weapon_bow"
-        if haystack & {"dagger", "knife", "stiletto", "main_gauche", "katar"}:
+        if haystack & {"dagger", "knife", "stiletto", "main_gauche", "katar", "kris"}:
             return "weapon_dagger"
         if haystack & {"axe", "hatchet", "battle_axe", "chop"}:
             return "weapon_axe"
@@ -996,6 +996,8 @@ class InventoryViewService:
             "dagger": (1, 2),
             "sword": (1, 3),
             "katana": (1, 4),
+            "flamberge": (1, 4),
+            "kris": (1, 2),
             "buckler": (2, 2),
             "shield": (2, 3),
             "leather_cap": (2, 2),

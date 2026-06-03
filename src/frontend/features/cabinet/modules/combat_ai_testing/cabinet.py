@@ -22,6 +22,7 @@ from src.frontend.integrations.backend_api.combat_ai_testing import CombatAiSimu
 _BASE = "/admin/combat-ai-testing"
 _LIVE_BATCH_ANALYSIS_COUNT = 50
 _LIVE_BATCH_ANALYSIS_MAX = 50
+_FAMILY_PRESSURE_TRIALS = 10
 _EHP_REFERENCE_HIT_DAMAGE = 20.0
 _EHP_REGEN_WINDOW_EXCHANGES = 5.0
 _SHIELD_TACTICAL_PART_ID = "style_shield_reflect"
@@ -42,7 +43,7 @@ _STARTER_IMPRINT_OPTIONS = [
     {"value": "starter_hunter_01", "label": "Слепок охотника [ЛК/ДБ/ЛБ]"},
     {"value": "starter_archer_01", "label": "Слепок лучника [ЛК/ДБ/ЛБ]"},
     {"value": "starter_heavy_guard_01", "label": "Слепок булавы и щита [БУ/ЩТ/ТБ]"},
-    {"value": "starter_tactician_01", "label": "Слепок мечника с баклером [МЕ/ЩТ/СБ]"},
+    {"value": "starter_tactician_01", "label": "Слепок фламберга [МЕ/ДВ/СБ]"},
     {"value": "starter_rift_survivor_01", "label": "Слепок алебардиста [ДК/ДВ/СБ]"},
 ]
 
@@ -196,7 +197,7 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "id": "family_pressure:rat_swarm",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "rat_swarm",
-                "runs": "5 на состав",
+                "runs": f"{_FAMILY_PRESSURE_TRIALS} на состав",
                 "mode": "последовательно, 1..6 + veteran/elite mixes",
                 "note": "выбери слепок; свежие HP/EN/stamina на каждый бой; отчёт по winrate и effective GS",
                 "seed": 3,
@@ -206,7 +207,7 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "id": "family_pressure:goblin_tribe",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "goblin_tribe",
-                "runs": "5 на состав",
+                "runs": f"{_FAMILY_PRESSURE_TRIALS} на состав",
                 "mode": "последовательно, horde ladder",
                 "note": "выбери слепок; проверяет, где гоблинская пачка начинает статистически ломать билд",
                 "seed": 7,
@@ -216,7 +217,7 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "id": "family_pressure:wolf_pack",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "wolf_pack",
-                "runs": "5 на состав",
+                "runs": f"{_FAMILY_PRESSURE_TRIALS} на состав",
                 "mode": "последовательно, pack ladder",
                 "note": "выбери слепок; проверяет pack-семью и сдвиг на одного монстра относительно swarm",
                 "seed": 11,
@@ -226,7 +227,7 @@ async def _family_pressure_launcher_provider(request: Request) -> TableWidgetMap
                 "id": "family_pressure:bandit_gang",
                 "scenario": "Стартовый слепок vs лестница семьи",
                 "family": "bandit_gang",
-                "runs": "5 на состав",
+                "runs": f"{_FAMILY_PRESSURE_TRIALS} на состав",
                 "mode": "последовательно, gang ladder",
                 "note": "выбери слепок; проверяет humanoid gang 1-3 и другую плотность action economy",
                 "seed": 13,
@@ -318,7 +319,7 @@ async def _battle_training_launcher_provider(request: Request) -> TableWidgetMap
                 "generations": 12,
                 "population": 8,
                 "seed": 0,
-                "note": "candidate против выбранной policy в live-like 5v5 боях; live-бой не меняет",
+                "note": "baseline 5v5 sanity + generated monster families PvE/family duels; live-бой не меняет",
                 "policy_options": policy_options,
             }
         ],
@@ -1550,8 +1551,12 @@ class CombatAiTestingAdmin(CabinetAdmin):
             await _run_live_demo_batch(request, request_id=request_id, policy_run_id=policy_run_id)
             return RedirectResponse(f"{_BASE}/reports", status_code=303)
         if request_id in _LIVE_LAUNCH_SCENARIOS:
-            seed = _auto_seed() if request_id == "starter_presets_random_draft_live" else 0
-            run = await _run_live_scenario(request, scenario_key=request_id, seed=seed, policy_run_id=policy_run_id)
+            run = await _run_live_scenario(
+                request,
+                scenario_key=request_id,
+                seed=_auto_seed(),
+                policy_run_id=policy_run_id,
+            )
             return RedirectResponse(f"{_BASE}/run-detail?id={run.id}", status_code=303)
         return RedirectResponse(_BASE, status_code=303)
 
@@ -1601,7 +1606,7 @@ async def _run_family_pressure(
         family_id=family_id,
         imprint_key=imprint_key,
         seed=seed,
-        trials=5,
+        trials=_FAMILY_PRESSURE_TRIALS,
         max_rounds=80,
         max_minions=6,
         max_scenarios=24,
@@ -1615,7 +1620,7 @@ async def _run_family_pressure_all_imprints(
     return await _api(request).run_family_pressure_batch(
         family_id=family_id,
         seed=seed,
-        trials=5,
+        trials=_FAMILY_PRESSURE_TRIALS,
         max_rounds=80,
         max_minions=6,
         max_scenarios=24,
@@ -1849,6 +1854,7 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
     damage: dict[str, int] = {}
     reflected: dict[str, int] = {}
     prevented: dict[str, int] = {}
+    chain_attempts: dict[str, int] = {}
     chain_hits: dict[str, int] = {}
     shield_branch: dict[str, int] = {}
     shield_damage: dict[str, int] = {}
@@ -1865,13 +1871,22 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
         _merge_tactical_nested_totals(damage, telemetry.get("tactical_damage_by_actor"))
         _merge_tactical_nested_totals(reflected, telemetry.get("tactical_reflected_by_actor"))
         _merge_tactical_nested_totals(prevented, telemetry.get("tactical_prevented_by_actor"))
+        _merge_tactical_nested_totals(chain_attempts, telemetry.get("tactical_chain_attempts_by_actor"))
         _merge_tactical_nested_totals(chain_hits, telemetry.get("tactical_chain_hits_by_actor"))
         _merge_tactical_shield_branch_totals(shield_branch, telemetry.get("tactical_shield_branch_by_actor"))
         _merge_tactical_nested_totals(shield_damage, telemetry.get("tactical_shield_damage_by_actor"))
         _merge_tactical_nested_totals(shield_absorbed, telemetry.get("tactical_shield_absorbed_by_actor"))
         _merge_tactical_nested_totals(shield_reflected, telemetry.get("tactical_shield_reflected_by_actor"))
 
-    part_ids = set(attempts) | set(successes) | set(damage) | set(reflected) | set(prevented) | set(chain_hits)
+    part_ids = (
+        set(attempts)
+        | set(successes)
+        | set(damage)
+        | set(reflected)
+        | set(prevented)
+        | set(chain_attempts)
+        | set(chain_hits)
+    )
     if shield_branch:
         part_ids.add("style_shield_reflect")
     part_ids |= set(shield_damage) | set(shield_absorbed) | set(shield_reflected)
@@ -1879,12 +1894,34 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
         {
             "part_id": part_id,
             "part": _tactical_part_label(part_id),
-            "attempts": _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
-            "successes": _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+            "attempts": _tactical_display_attempts(
+                part_id,
+                attempts=attempts,
+                chain_attempts=chain_attempts,
+                chain_hits=chain_hits,
+                shield_branch=shield_branch,
+            ),
+            "successes": _tactical_display_successes(
+                part_id,
+                successes=successes,
+                chain_hits=chain_hits,
+                shield_branch=shield_branch,
+            ),
             "rate": _round(
                 _pct(
-                    _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
-                    _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                    _tactical_display_successes(
+                        part_id,
+                        successes=successes,
+                        chain_hits=chain_hits,
+                        shield_branch=shield_branch,
+                    ),
+                    _tactical_display_attempts(
+                        part_id,
+                        attempts=attempts,
+                        chain_attempts=chain_attempts,
+                        chain_hits=chain_hits,
+                        shield_branch=shield_branch,
+                    ),
                 )
             ),
             "chain_hits": chain_hits.get(part_id, 0),
@@ -1907,7 +1944,13 @@ def _analytics_tactical_rows(runs: list[CombatAiSimulationRun]) -> list[dict[str
                 + chain_hits.get(part_id, 0)
                 + (shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0)
                 + (shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0),
-                _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                _tactical_display_attempts(
+                    part_id,
+                    attempts=attempts,
+                    chain_attempts=chain_attempts,
+                    chain_hits=chain_hits,
+                    shield_branch=shield_branch,
+                ),
             ),
         }
         for part_id in part_ids
@@ -2047,24 +2090,55 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
     damage = _tactical_damage_by_part(telemetry)
     reflected = _tactical_nested_totals(telemetry.get("tactical_reflected_by_actor"))
     prevented = _tactical_nested_totals(telemetry.get("tactical_prevented_by_actor"))
+    chain_attempts = _tactical_nested_totals(telemetry.get("tactical_chain_attempts_by_actor"))
     chain_hits = _tactical_nested_totals(telemetry.get("tactical_chain_hits_by_actor"))
     shield_branch = _tactical_shield_branch_totals(telemetry.get("tactical_shield_branch_by_actor"))
     shield_damage = _tactical_nested_totals(telemetry.get("tactical_shield_damage_by_actor"))
     shield_absorbed = _tactical_nested_totals(telemetry.get("tactical_shield_absorbed_by_actor"))
     shield_reflected = _tactical_nested_totals(telemetry.get("tactical_shield_reflected_by_actor"))
-    part_ids = set(attempts) | set(successes) | set(damage) | set(reflected) | set(prevented) | set(chain_hits)
+    part_ids = (
+        set(attempts)
+        | set(successes)
+        | set(damage)
+        | set(reflected)
+        | set(prevented)
+        | set(chain_attempts)
+        | set(chain_hits)
+    )
     if shield_branch:
         part_ids.add("style_shield_reflect")
     part_ids |= set(shield_damage) | set(shield_absorbed) | set(shield_reflected)
     rows = [
         {
             "part": _tactical_part_label(part_id),
-            "attempts": _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
-            "successes": _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
+            "attempts": _tactical_display_attempts(
+                part_id,
+                attempts=attempts,
+                chain_attempts=chain_attempts,
+                chain_hits=chain_hits,
+                shield_branch=shield_branch,
+            ),
+            "successes": _tactical_display_successes(
+                part_id,
+                successes=successes,
+                chain_hits=chain_hits,
+                shield_branch=shield_branch,
+            ),
             "rate": _round(
                 _pct(
-                    _tactical_display_successes(part_id, successes=successes, shield_branch=shield_branch),
-                    _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                    _tactical_display_successes(
+                        part_id,
+                        successes=successes,
+                        chain_hits=chain_hits,
+                        shield_branch=shield_branch,
+                    ),
+                    _tactical_display_attempts(
+                        part_id,
+                        attempts=attempts,
+                        chain_attempts=chain_attempts,
+                        chain_hits=chain_hits,
+                        shield_branch=shield_branch,
+                    ),
                 )
             ),
             "chain_hits": chain_hits.get(part_id, 0),
@@ -2088,7 +2162,13 @@ def _tactical_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]
                 + chain_hits.get(part_id, 0)
                 + (shield_branch.get("defense", 0) if part_id == "style_shield_reflect" else 0)
                 + (shield_branch.get("counter", 0) if part_id == "style_shield_reflect" else 0),
-                _tactical_display_attempts(part_id, attempts=attempts, shield_branch=shield_branch),
+                _tactical_display_attempts(
+                    part_id,
+                    attempts=attempts,
+                    chain_attempts=chain_attempts,
+                    chain_hits=chain_hits,
+                    shield_branch=shield_branch,
+                ),
             ),
         }
         for part_id in part_ids
@@ -2160,10 +2240,15 @@ def _tactical_display_attempts(
     part_id: str,
     *,
     attempts: dict[str, int],
+    chain_attempts: dict[str, int],
+    chain_hits: dict[str, int],
     shield_branch: dict[str, int],
 ) -> int:
     if part_id == _SHIELD_TACTICAL_PART_ID and _shield_block_total(shield_branch) > 0:
         return _shield_block_total(shield_branch)
+    chain_count = max(_int(chain_attempts.get(part_id)), _int(chain_hits.get(part_id)))
+    if chain_count > 0 and _int(attempts.get(part_id)) == 0:
+        return chain_count
     return attempts.get(part_id, 0)
 
 
@@ -2171,10 +2256,13 @@ def _tactical_display_successes(
     part_id: str,
     *,
     successes: dict[str, int],
+    chain_hits: dict[str, int],
     shield_branch: dict[str, int],
 ) -> int:
     if part_id == _SHIELD_TACTICAL_PART_ID and _shield_block_total(shield_branch) > 0:
         return _int(shield_branch.get("counter"))
+    if _int(chain_hits.get(part_id)) > 0 and _int(successes.get(part_id)) == 0:
+        return _int(chain_hits.get(part_id))
     return successes.get(part_id, 0)
 
 
@@ -2184,6 +2272,7 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
     damage_by_actor = _dict(run.telemetry.get("tactical_damage_by_actor"))
     reflected_by_actor = _dict(run.telemetry.get("tactical_reflected_by_actor"))
     prevented_by_actor = _dict(run.telemetry.get("tactical_prevented_by_actor"))
+    chain_attempts_by_actor = _dict(run.telemetry.get("tactical_chain_attempts_by_actor"))
     chain_hits_by_actor = _dict(run.telemetry.get("tactical_chain_hits_by_actor"))
     shield_branch_by_actor = _dict(run.telemetry.get("tactical_shield_branch_by_actor"))
     shield_damage_by_actor = _dict(run.telemetry.get("tactical_shield_damage_by_actor"))
@@ -2195,6 +2284,7 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
         | set(damage_by_actor)
         | set(reflected_by_actor)
         | set(prevented_by_actor)
+        | set(chain_attempts_by_actor)
         | set(chain_hits_by_actor)
         | set(shield_branch_by_actor)
         | set(shield_damage_by_actor)
@@ -2206,6 +2296,10 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
             0
             if part_id == _SHIELD_TACTICAL_PART_ID
             else _tactical_actor_part_total(success_by_actor, actor_id, part_id)
+        )
+        chain_attempts = max(
+            _tactical_actor_part_total(chain_attempts_by_actor, actor_id, part_id),
+            _tactical_actor_part_total(chain_hits_by_actor, actor_id, part_id),
         )
         chain_hits = _tactical_actor_part_total(chain_hits_by_actor, actor_id, part_id)
         damage = _tactical_actor_part_total(damage_by_actor, actor_id, part_id)
@@ -2220,6 +2314,7 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
         if not any(
             (
                 success_count,
+                chain_attempts,
                 chain_hits,
                 damage,
                 reflected,
@@ -2236,6 +2331,8 @@ def _tactical_actor_label(run: CombatAiSimulationRun, part_id: str) -> str:
         details = []
         if success_count:
             details.append(f"{success_count} сраб.")
+        if chain_attempts and chain_attempts != chain_hits:
+            details.append(f"{chain_attempts} chain попыт.")
         if chain_hits:
             details.append(f"{chain_hits} chain")
         if shield_defense:

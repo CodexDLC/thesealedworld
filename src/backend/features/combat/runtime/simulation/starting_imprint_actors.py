@@ -47,7 +47,7 @@ STARTER_SIMULATION_NAMES: dict[str, str] = {
     "starter_hunter_01": "Fenn Hunter",
     "starter_archer_01": "Galen Archer",
     "starter_heavy_guard_01": "Ivar Bulwark",
-    "starter_tactician_01": "Juno Tactician",
+    "starter_tactician_01": "Juno Flamberge",
     "starter_rift_survivor_01": "Kael Survivor",
 }
 
@@ -60,7 +60,7 @@ STARTER_SIMULATION_ARCHETYPES: dict[str, str] = {
     "starter_hunter_01": "duelist",
     "starter_archer_01": "duelist",
     "starter_heavy_guard_01": "bulwark",
-    "starter_tactician_01": "tactician",
+    "starter_tactician_01": "berserker",
     "starter_rift_survivor_01": "balanced",
 }
 

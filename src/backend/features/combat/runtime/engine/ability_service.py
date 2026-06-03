@@ -846,6 +846,30 @@ class AbilityService:
                 )
                 continue
 
+            if effect_id == "force_ranged_close":
+                if RangedPositionService.is_ranged_actor(effect_target):
+                    RangedPositionService.set_next_position(effect_target, "close", ctx.result)
+                    ctx.result.effect_facts.append(
+                        CombatEffectFactDTO(
+                            actor_id=effect_target.char_id,
+                            owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                            effect_id="force_ranged_close",
+                            action="apply",
+                            source_trigger_id=effect_data.get("source_trigger_id"),
+                            tags=["ranged_combat", "position", "close", "control"],
+                        )
+                    )
+                    ctx.result.events.append(
+                        CombatEventDTO(
+                            type="APPLY_EFFECT",
+                            source_id=source.char_id,
+                            target_id=effect_target.char_id,
+                            action_id="force_ranged_close",
+                            tags=["RANGED_POSITION", "CLOSE"],
+                        )
+                    )
+                continue
+
             # 3. Create Active Effect (Factory)
             if not isinstance(effect_id, str):
                 continue

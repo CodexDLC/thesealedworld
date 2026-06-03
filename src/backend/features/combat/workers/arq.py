@@ -3,7 +3,6 @@ from src.backend.core.arq_logging import setup_arq_worker_logging
 
 setup_arq_worker_logging("combat-worker")
 
-from arq.worker import func
 from loguru import logger as log
 
 from src.backend.core.arq import COMBAT_ARQ_QUEUE, ArqService, BaseArqSettings, base_shutdown, base_startup
@@ -13,7 +12,6 @@ from src.backend.features.combat.runtime.processors.collector import CombatColle
 from src.backend.features.combat.runtime.processors.executor import CombatExecutor
 from src.backend.features.combat.services.turn_manager import CombatTurnManager
 
-from .tasks.ai_simulation_task import combat_family_pressure_task
 from .tasks.ai_turn_task import ai_turn_task
 from .tasks.chaos_task import chaos_check_task
 from .tasks.collector_task import combat_collector_task
@@ -23,7 +21,6 @@ from .tasks.result_support_task import combat_result_support_task
 from .tasks.victory_finalizer_task import victory_finalizer_task
 
 COMBAT_RUNTIME_MAX_JOBS = 30
-PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS = 2400
 
 COMBAT_TASKS = [
     combat_collector_task,
@@ -33,7 +30,6 @@ COMBAT_TASKS = [
     victory_finalizer_task,
     combat_result_support_task,
     combat_finalization_persist_task,
-    func(combat_family_pressure_task, timeout=PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS, max_tries=1),
 ]
 
 

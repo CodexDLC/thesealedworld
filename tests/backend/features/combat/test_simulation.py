@@ -512,6 +512,17 @@ def test_telemetry_records_tactical_trigger_and_chain_parts() -> None:
             "result": {
                 "source_id": "a",
                 "target_id": "b",
+                "hand": "off_hand",
+                "damage_final": 0,
+            },
+            "actors": {
+                "a": {"loadout": {"layout": {"tactical_style": "skill_dual_wield", "off_hand": "skill_swords"}}}
+            },
+        },
+        {
+            "result": {
+                "source_id": "a",
+                "target_id": "b",
                 "hand": "main",
                 "damage_final": 7,
                 "action_facts": {"id": "shield_line_bash", "role": "feint"},
@@ -565,6 +576,10 @@ def test_telemetry_records_tactical_trigger_and_chain_parts() -> None:
     assert telemetry.tactical_shield_damage_by_actor == {"a": {"weapon_shield_bash_on_block": 7}}
     assert telemetry.tactical_shield_absorbed_by_actor == {"b": {"style_shield_reflect": 3}}
     assert telemetry.tactical_shield_reflected_by_actor == {"b": {"style_shield_reflect": 4}}
+    assert telemetry.tactical_chain_attempts_by_actor == {
+        "a": {"offhand_attack": 2},
+        "b": {"counter_attack": 1},
+    }
     assert telemetry.tactical_chain_hits_by_actor == {
         "a": {"offhand_attack": 1},
         "b": {"counter_attack": 1},

@@ -133,7 +133,7 @@ async def combat_family_pressure_task(ctx: dict[str, Any], payload: dict[str, An
                 run_id=run_id,
                 family_id=family_id,
                 seed=int(payload.get("seed", 0)),
-                trials=int(payload.get("trials", 5)),
+                trials=int(payload.get("trials", 10)),
             ).info("CombatAiFamilyPressureJobStarted")
             async with get_session_context() as session:
                 clans = await MonsterGenerationRepository(session).list_generated_clans_page(
@@ -164,7 +164,7 @@ async def combat_family_pressure_task(ctx: dict[str, Any], payload: dict[str, An
                     members=members,
                     seed=int(payload.get("seed", 0)),
                     config=FamilyPressureConfig(
-                        trials_per_composition=int(payload.get("trials", 5)),
+                        trials_per_composition=int(payload.get("trials", 10)),
                         max_rounds=int(payload.get("max_rounds", 80)),
                         max_minions=int(payload.get("max_minions", 6)),
                         max_scenarios=int(payload.get("max_scenarios", 24)),
@@ -264,6 +264,9 @@ async def combat_ai_battle_training_task(ctx: dict[str, Any], payload: dict[str,
                 generations=int(payload.get("generations", 12)),
                 population=int(payload.get("population", 8)),
             ).info("CombatAiBattleTrainingJobStarted")
+            async with get_session_context() as session:
+                clans = await MonsterGenerationRepository(session).list_generated_clans_page(limit=200)
+                monster_families = _battle_training_monster_families(clans)
             result = await execute_battle_training(
                 source_policy=_policy_from_payload(source_policy_payload),
                 source_policy_run_id=source_run_id,
@@ -271,6 +274,7 @@ async def combat_ai_battle_training_task(ctx: dict[str, Any], payload: dict[str,
                 population=int(payload.get("population", 8)),
                 seed=int(payload.get("seed", 0)),
                 sigma=float(payload.get("sigma", 0.15)),
+                monster_families=monster_families,
                 progress=progress,
             )
         async with get_session_context() as session:
@@ -309,6 +313,18 @@ def _progress_store(ctx: dict[str, Any]) -> CombatAiSimulationProgressManager | 
     if redis_service is None:
         return None
     return CombatAiSimulationProgressManager(redis_service)
+
+
+def _battle_training_monster_families(clans: list[Any]) -> dict[str, list[Any]]:
+    families: dict[str, list[Any]] = {}
+    for clan in clans:
+        family_id = str(getattr(clan, "family_id", "") or "").strip()
+        if not family_id:
+            continue
+        members = list(getattr(clan, "members", []) or [])
+        if members:
+            families.setdefault(family_id, []).extend(members)
+    return families
 
 
 def _family_pressure_progress_document(
@@ -373,7 +389,7 @@ def _failed_family_pressure_document(payload: dict[str, Any], error: dict[str, A
             "run_kind": "family_pressure",
             "family_id": family_id,
             "imprint_key": imprint_key,
-            "trials_per_composition": int(payload.get("trials", 5)),
+            "trials_per_composition": int(payload.get("trials", 10)),
             "composition_count": 0,
             "trials_total": 0,
             "status_message": "family pressure failed",
@@ -388,7 +404,7 @@ def _failed_family_pressure_document(payload: dict[str, Any], error: dict[str, A
             "family_pressure": True,
             "family_id": family_id,
             "imprint_key": imprint_key,
-            "trials_per_composition": int(payload.get("trials", 5)),
+            "trials_per_composition": int(payload.get("trials", 10)),
             "max_minions": int(payload.get("max_minions", 6)),
             "max_scenarios": int(payload.get("max_scenarios", 24)),
             "composition_reports": [],

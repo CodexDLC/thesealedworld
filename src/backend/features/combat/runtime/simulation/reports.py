@@ -37,6 +37,7 @@ def render_simulation_report(result: SimulationRunResult) -> str:
         f"tactical_damage_by_actor: {telemetry.tactical_damage_by_actor}",
         f"tactical_reflected_by_actor: {telemetry.tactical_reflected_by_actor}",
         f"tactical_prevented_by_actor: {telemetry.tactical_prevented_by_actor}",
+        f"tactical_chain_attempts_by_actor: {telemetry.tactical_chain_attempts_by_actor}",
         f"tactical_chain_hits_by_actor: {telemetry.tactical_chain_hits_by_actor}",
         f"tactical_shield_branch_by_actor: {telemetry.tactical_shield_branch_by_actor}",
         f"tactical_shield_damage_by_actor: {telemetry.tactical_shield_damage_by_actor}",

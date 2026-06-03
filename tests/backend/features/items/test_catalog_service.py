@@ -7,10 +7,10 @@ from src.backend.features.items.resources.modifier_contracts import MODIFIER_CON
 from src.backend.features.items.services.catalog_service import ItemCatalogService
 
 WEAPON_DIRECTIONS_EXCEPT_ARCHERY = {
-    "skill_swords": {"sword", "longsword", "greatsword", "katana", "scimitar"},
+    "skill_swords": {"sword", "longsword", "greatsword", "katana", "scimitar", "flamberge"},
     "skill_macing": {"hatchet", "battle_axe", "mace", "warhammer", "flail"},
     "skill_polearms": {"spear", "pike", "halberd", "quarterstaff", "trident"},
-    "skill_fencing": {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar"},
+    "skill_fencing": {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar", "kris"},
 }
 ARCHERY_BOWS = {"shortbow", "longbow", "composite_bow"}
 ARCHERY_QUIVERS = {
@@ -22,7 +22,7 @@ ARCHERY_QUIVERS = {
     "quiver_bodkin",
 }
 
-FENCING_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar"}
+FENCING_DUAL_SLOT_WEAPONS = {"knife", "dagger", "stiletto", "rapier", "main_gauche", "katar", "kris"}
 CAPACITY_KEYS = {"inventory_cell_capacity", "inventory_slot_capacity", "inventory_slots", "quick_slot_capacity"}
 ATTRIBUTE_KEYS = {"strength", "agility", "intelligence", "constitution", "perception", "willpower", "charisma"}
 ARMOR_PENALTY_KEYS = {
@@ -174,6 +174,7 @@ def test_starting_weapons_match_combat_snapshot_contract():
     starting_weapon_ids = {
         "battle_axe",
         "dagger",
+        "flamberge",
         "katana",
         "quarterstaff",
         "shortbow",
@@ -296,11 +297,18 @@ def _armor_penalty_totals(catalog: ItemCatalogService, item_ids: tuple[str, ...]
 @pytest.mark.unit
 def test_offhand_defense_items_keep_guard_or_parry_but_no_offense_profile() -> None:
     catalog = ItemCatalogService.load_default()
+    expected_power = {
+        "buckler": 6,
+        "shield": 12,
+        "kite_shield": 16,
+        "tower_shield": 24,
+    }
 
     offenders = []
-    for item_id in {"buckler", "shield", "kite_shield", "tower_shield"}:
+    for item_id, power in expected_power.items():
         item = catalog.get_base_item(item_id)
         assert item is not None
+        assert item.base_power == power
         unexpected = sorted(set(item.implicit_bonuses) - OFFHAND_DEFENSE_PROFILE_KEYS)
         if unexpected:
             offenders.append(f"{item_id}:{','.join(unexpected)}")
@@ -365,6 +373,7 @@ def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> No
         "rapier": 6,
         "main_gauche": 4,
         "katar": 5,
+        "kris": 4,
         "hatchet": 6,
         "battle_axe": 8,
         "mace": 7,
@@ -380,6 +389,7 @@ def test_non_warhammer_player_weapons_get_power_offset_for_capped_spread() -> No
         "greatsword": 11,
         "katana": 11,
         "scimitar": 7,
+        "flamberge": 11,
     }
 
     actual_power = {
@@ -428,7 +438,7 @@ def test_archery_bows_trade_parry_for_crit_and_ranged_triggers():
         assert item.slot == "two_hand"
         assert "bow" in item.narrative_tags
         assert "parry_chance" not in item.implicit_bonuses
-        assert item.implicit_bonuses["physical_crit_chance"] > 0.05
+        assert item.implicit_bonuses["physical_crit_chance"] <= 0.05
         assert item.triggers == expected_triggers[item_id]
 
 
@@ -509,6 +519,21 @@ def test_piercing_fencing_weapons_work_flat_armor_instead_of_bleeding():
 
 
 @pytest.mark.unit
+def test_serrated_blades_are_the_only_player_base_bleed_weapons() -> None:
+    catalog = ItemCatalogService.load_default()
+
+    bleeding_weapons = {
+        item_id
+        for item_id, item in catalog.base_items.items()
+        if item.type == "weapon"
+        and catalog.entries[item_id].category != "monster_equipment"
+        and "crit.weapon_serrated_bleed_crit" in item.triggers
+    }
+
+    assert bleeding_weapons == {"flamberge", "kris"}
+
+
+@pytest.mark.unit
 def test_weapon_base_crit_chance_is_defined_by_grip_contract():
     catalog = ItemCatalogService.load_default()
 
@@ -516,12 +541,11 @@ def test_weapon_base_crit_chance_is_defined_by_grip_contract():
     for item_id, item in catalog.base_items.items():
         if item.type != "weapon" or catalog.entries[item_id].category == "monster_equipment":
             continue
-        if "bow" in item.narrative_tags:
-            continue
-
         checked.append(item_id)
-        expected = 0.05 if item.slot == "two_hand" else 0.025
-        assert item.implicit_bonuses["physical_crit_chance"] == pytest.approx(expected)
+        max_expected = 0.05 if item.slot == "two_hand" else 0.03
+        assert item.implicit_bonuses["physical_crit_chance"] <= max_expected + 1e-9
+        if item.slot == "main_hand":
+            assert item.implicit_bonuses["physical_crit_chance"] == pytest.approx(0.03)
 
     assert checked
 

@@ -184,6 +184,31 @@ _shield_opening_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_force_ranged_close_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.force_ranged_close",
+    technical=EffectTechnicalDTO(
+        effect_id="force_ranged_close",
+        type=EffectType.DEBUFF,
+        duration=0,
+        resistance_profile_id=None,
+        tags=["debuff", "ranged_combat", "position", "close", "control"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="force_ranged_close",
+        icon="combat/effects/force_ranged_close.svg",
+        display_name="Срыв дистанции",
+        short_description="Если цель ведет дальний бой, ее следующая позиция становится ближней.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{source} срывает дистанцию {target}."],
+            expire_effect=["{target} снова ищет дистанцию."],
+            resist=["{target} удерживает дистанцию."],
+            cleanse=["Срыв дистанции на {target} снят."],
+        ),
+        beast_event_texts=_DEBUFF_APPLY_BEAST,
+    ),
+)
+
 # ── REGISTRY ──────────────────────────────────────────────────────────────────
 
 DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
@@ -194,4 +219,5 @@ DEBUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "debuff_2h_damage_halved": _debuff_2h_damage_halved_catalog,
     "debuff_ranged_repositioning": _debuff_ranged_repositioning_catalog,
     "shield_opening": _shield_opening_catalog,
+    "force_ranged_close": _force_ranged_close_catalog,
 }

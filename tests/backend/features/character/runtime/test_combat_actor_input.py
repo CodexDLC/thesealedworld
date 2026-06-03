@@ -5,6 +5,8 @@ from src.backend.features.game_catalog.combat.resources.feints.availability impo
     ARCHERY_WEAPON_FEINTS,
     BASIC_ARCHERY_FEINTS,
     BASIC_FEINTS,
+    DUAL_WIELD_TACTICAL_FEINTS,
+    FENCING_WEAPON_FEINTS,
     MACING_WEAPON_FEINTS,
     RANGED_TACTICAL_FEINTS,
     SHIELD_TACTICAL_FEINTS,
@@ -47,7 +49,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
                         "material": {"id": "iron", "tier_mult": 1.2},
                         "metadata": {"tier": 1},
                         "implicit_bonuses": {"parry_chance": 0.1},
-                        "triggers": ["crit.weapon_serrated_bleed_crit"],
+                        "triggers": ["crit.weapon_precision_crit"],
                     },
                 },
                 "armor-1": {
@@ -80,7 +82,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["raw"]["modifiers"]["parry"]["base"] == 0.1
     assert actor_input["raw"]["modifiers"]["parry"]["source"] == {}
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
-    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
+    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_precision_crit"
     assert actor_input["loadout"]["layout"]["body"] == "skill_light_armor"
     assert actor_input["loadout"]["combat_surfaces"]["main_hand"] == {
         "slot": "main_hand",
@@ -109,7 +111,7 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
         "power": 7.0,
         "armor_class": None,
         "skill_key": "skill_swords",
-        "triggers": ["crit.weapon_serrated_bleed_crit"],
+        "triggers": ["crit.weapon_precision_crit"],
         "tags": [],
     }
     assert actor_input["loadout"]["equipment_refs"]["body"]["armor_class"] == "light"
@@ -206,7 +208,7 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
                             "power": 9,
                             "damage_spread": 0.1,
                             "related_skill": "skill_swords",
-                            "triggers": ["crit.weapon_serrated_bleed_crit"],
+                            "triggers": ["crit.weapon_precision_crit"],
                         },
                     }
                 },
@@ -215,7 +217,7 @@ def test_builder_maps_two_hand_rewards_to_main_hand_combat_layout() -> None:
     )
 
     assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
-    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_serrated_bleed_crit"
+    assert actor_input["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_precision_crit"
     assert actor_input["loadout"]["equipment_layout"] == {"two_hand": "katana-1"}
     assert actor_input["loadout"]["hand_usage"] == {"main_hand": "two_hand"}
     assert actor_input["loadout"]["two_handed"] is True
@@ -404,6 +406,48 @@ def test_builder_marks_only_real_offhand_weapons_for_dual_wield() -> None:
     assert actor_input["loadout"]["equipment_layout"]["off_hand"] == "shield-1"
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
     assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *MACING_WEAPON_FEINTS, *SHIELD_TACTICAL_FEINTS]
+
+
+@pytest.mark.unit
+def test_builder_maps_two_real_weapons_to_dual_wield_style() -> None:
+    actor_input = CharacterCombatActorInputBuilder().build_input(
+        {
+            "char_id": 7,
+            "bio": {"name": "Ada"},
+            "attributes": {},
+            "skills": {"skill_swords": 0.2, "skill_fencing": 0.2, "skill_dual_wield": 0.15},
+            "items": {
+                "layout": {"equipment": {"main_hand": "sword-1", "off_hand": "stiletto-1"}},
+                "by_id": {
+                    "sword-1": {
+                        "item_id": "sword-1",
+                        "item_type": "weapon",
+                        "related_skill": "skill_swords",
+                        "mechanics": {"power": 8},
+                    },
+                    "stiletto-1": {
+                        "item_id": "stiletto-1",
+                        "item_type": "weapon",
+                        "related_skill": "skill_fencing",
+                        "mechanics": {"power": 4, "tags": ["dagger", "fencing", "offhand"]},
+                    },
+                },
+            },
+        }
+    )
+
+    assert actor_input["loadout"]["layout"]["main_hand"] == "skill_swords"
+    assert actor_input["loadout"]["layout"]["off_hand"] == "skill_fencing"
+    assert actor_input["loadout"]["layout"]["tactical_style"] == "skill_dual_wield"
+    assert actor_input["loadout"]["layout"]["tactical_style_trigger"] == "crit.style_dual_cross_cut"
+    assert actor_input["loadout"]["two_handed"] is False
+    assert actor_input["loadout"]["weapon_slots"] == ["main_hand", "off_hand"]
+    assert actor_input["loadout"]["known_feints"] == [
+        *BASIC_FEINTS,
+        *SWORD_WEAPON_FEINTS,
+        *FENCING_WEAPON_FEINTS,
+        *DUAL_WIELD_TACTICAL_FEINTS,
+    ]
 
 
 @pytest.mark.unit

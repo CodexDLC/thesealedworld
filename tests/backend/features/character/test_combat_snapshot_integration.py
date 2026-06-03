@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Any, Literal
+
 import pytest
 
 from src.backend.features.character.integrations import CharacterCombatCommitmentIntegration
@@ -106,7 +107,7 @@ async def test_character_combat_commitment_uses_ac_items_without_player_db_looku
                         "power": 9,
                         "damage_spread": 0.1,
                         "related_skill": "skill_swords",
-                        "triggers": ["crit.weapon_serrated_bleed_crit"],
+                        "triggers": ["crit.weapon_precision_crit"],
                     },
                     "tags": ["katana"],
                     "metadata": {"related_skill": "skill_swords"},

@@ -27,10 +27,10 @@ def test_starter_monster_stats_use_role_ladder_contract() -> None:
 @pytest.mark.unit
 def test_starter_monster_role_stat_totals_include_organization_mass_offset() -> None:
     expected_neutral_totals = {
-        "minion": 90,
-        "veteran": 99,
-        "elite": 108,
-        "boss": 153,
+        "minion": 99,
+        "veteran": 108,
+        "elite": 117,
+        "boss": 162,
     }
 
     for family_id in get_starter_family_ids():
@@ -48,10 +48,10 @@ def test_starter_monster_role_stat_totals_include_organization_mass_offset() -> 
 @pytest.mark.unit
 def test_monster_role_bases_are_player_baseline_offsets() -> None:
     assert ROLE_ATTRIBUTE_BASE == {
-        "minion": 5,
-        "veteran": 6,
-        "elite": 7,
-        "boss": 12,
+        "minion": 6,
+        "veteran": 7,
+        "elite": 8,
+        "boss": 13,
     }
     assert ORGANIZATION_ATTRIBUTE_OFFSETS == {
         "swarm": -2,
@@ -60,7 +60,7 @@ def test_monster_role_bases_are_player_baseline_offsets() -> None:
         "gang": 1,
         "solitary": 2,
     }
-    assert role_attribute_base("minion", "swarm") == 3
-    assert role_attribute_base("minion", "gang") == 6
-    assert role_attribute_base("elite", "horde") == 6
-    assert role_attribute_base("boss", "swarm") == 12
+    assert role_attribute_base("minion", "swarm") == 4
+    assert role_attribute_base("minion", "gang") == 7
+    assert role_attribute_base("elite", "horde") == 7
+    assert role_attribute_base("boss", "swarm") == 13

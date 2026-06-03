@@ -19,7 +19,6 @@ RATS_FAMILY: MonsterFamily = {
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],
     "family_modifiers": [
-        {"target": "accuracy", "value": -0.10, "per_tier": 0.0},
         {"target": "poison_efficiency", "value": 0.05, "per_tier": 0.02},
         {"target": "poison_resistance", "value": 0.06, "per_tier": 0.01},
         {"target": "bleed_resistance", "value": 0.04, "per_tier": 0.01},

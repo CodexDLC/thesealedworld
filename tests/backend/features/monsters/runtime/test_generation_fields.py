@@ -271,25 +271,24 @@ def test_build_balance_uses_default_organization_gs_divisors(
 
 
 @pytest.mark.unit
-def test_all_monster_families_carry_flat_accuracy_penalty() -> None:
+def test_all_monster_families_do_not_carry_global_accuracy_penalty() -> None:
     offenders = []
     for family in get_all_family_configs().values():
-        matching = [entry for entry in family.family_modifiers if entry.target == "accuracy"]
-        if len(matching) != 1 or matching[0].value != pytest.approx(-0.10) or matching[0].per_tier != 0.0:
+        if any(entry.target == "accuracy" for entry in family.family_modifiers):
             offenders.append(family.id)
 
     assert offenders == []
 
 
 @pytest.mark.unit
-def test_build_family_modifiers_keeps_accuracy_penalty_flat_across_tiers() -> None:
+def test_build_family_modifiers_scales_active_family_modifiers_across_tiers() -> None:
     family = MonsterFamilyDTO.model_validate(
         {
             "id": "test_family",
             "archetype": "beast",
             "organization_type": "pack",
             "default_tags": [],
-            "family_modifiers": [{"target": "accuracy", "value": -0.10, "per_tier": 0.0}],
+            "family_modifiers": [{"target": "physical_resistance", "value": 0.03, "per_tier": 0.01}],
             "hierarchy": {"minions": ["test_var"], "veterans": [], "elites": [], "boss": []},
             "variants": {
                 "test_var": {
@@ -316,7 +315,7 @@ def test_build_family_modifiers_keeps_accuracy_penalty_flat_across_tiers() -> No
     )
 
     assert build_family_modifiers(family, member_tier=7) == [
-        {"target": "accuracy", "value": -0.10, "per_tier": 0.0, "effective_value": -0.10}
+        {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01, "effective_value": 0.10}
     ]
 
 

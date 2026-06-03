@@ -574,7 +574,7 @@ class CharacterCombatMathModelBuilder:
 
     @staticmethod
     def _is_guard_shield(item_type: str, tags: list[str]) -> bool:
-        return CharacterCombatMathModelBuilder._is_shield(item_type, tags) and "buckler" not in tags
+        return CharacterCombatMathModelBuilder._is_shield(item_type, tags)
 
     @staticmethod
     def _add_modifier(modifiers: RawStatBlock, key: str, source: str, value: Any) -> None:

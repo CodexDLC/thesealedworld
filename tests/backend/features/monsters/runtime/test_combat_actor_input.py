@@ -354,17 +354,17 @@ def test_monster_combat_actor_input_assigns_ai_archetype_from_variant() -> None:
 
 
 @pytest.mark.unit
-def test_monster_family_accuracy_penalty_is_applied_as_global_modifier() -> None:
+def test_monster_family_accuracy_modifier_is_applied_when_configured() -> None:
     clan = _make_clan()
     monster = _make_humanoid_monster(clan)
     monster.generation_meta["family_modifiers"] = [
-        {"target": "accuracy", "value": -0.10, "per_tier": 0.0, "effective_value": -0.10}
+        {"target": "accuracy", "value": 0.05, "per_tier": 0.0, "effective_value": 0.05}
     ]
 
     snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
 
     modifiers = snapshot["combat"]["math_model"]["modifiers"]
-    assert modifiers["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(-0.10)
+    assert modifiers["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(0.05)
     assert snapshot["combat"]["math_model"]["rules"] == {"attribute_profile": "monster:humanoid"}
 
 

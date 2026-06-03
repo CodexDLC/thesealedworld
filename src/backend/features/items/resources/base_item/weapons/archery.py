@@ -16,7 +16,7 @@ ARCHERY_DB = {
         narrative_tags=["bow", "archery", "ranger", "fast"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.08,
-            "physical_crit_chance": 0.065,
+            "physical_crit_chance": 0.03,
         },
         triggers=["control.weapon_evasive_shot"],
     ),
@@ -35,7 +35,7 @@ ARCHERY_DB = {
         narrative_tags=["bow", "archery", "ranger", "longbow", "precision"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.10,
-            "physical_crit_chance": 0.075,
+            "physical_crit_chance": 0.04,
         },
         triggers=["crit.weapon_precision_crit"],
     ),
@@ -54,7 +54,7 @@ ARCHERY_DB = {
         narrative_tags=["bow", "archery", "ranger", "composite", "armor_piercing"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.11,
-            "physical_crit_chance": 0.085,
+            "physical_crit_chance": 0.05,
         },
         triggers=["crit.weapon_piercing_crit"],
     ),

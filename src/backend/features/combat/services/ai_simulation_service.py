@@ -17,9 +17,9 @@ from src.backend.features.combat.runtime.ai.training.scenarios import default_sc
 from src.backend.features.combat.runtime.simulation import (
     DEFAULT_STARTER_SIMULATION_IMPRINTS,
     STARTER_SKILL_PROFILE_BASELINE,
-    STARTER_SKILL_PROFILE_MAXED_EXISTING,
     AiSimulationIntentProvider,
     FamilyPressureReport,
+    FamilyPressureSimulator,
     InMemoryBattleFactory,
     InMemoryBattleLimits,
     InMemoryCombatSimulator,
@@ -27,13 +27,16 @@ from src.backend.features.combat.runtime.simulation import (
     LiveSimulationStepResult,
     LiveSimulationTiming,
     StartingImprintSimulationActorBuilder,
+    build_family_pressure_compositions,
     random_starter_5v5_imprints,
     random_starter_roster_imprints,
     render_simulation_report,
+    select_members_for_composition,
 )
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 if TYPE_CHECKING:
+    from src.backend.features.monsters.dto.generation import GeneratedMonster
     from src.backend.infrastructure.combat.models import CombatAiSimulationRun
     from src.backend.infrastructure.combat.repositories import CombatAiSimulationRunRepository
 
@@ -43,6 +46,9 @@ LivePersistCallback = Callable[
 LiveProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
 LIVE_DEFAULT_MAX_EXCHANGES = 500
 LIVE_DEFAULT_TICK_INTERVAL_SECONDS = 0.05
+BATTLE_TRAINING_MAX_FAMILIES = 4
+BATTLE_TRAINING_FAMILY_PVE_SCENARIOS_PER_FAMILY = 1
+BATTLE_TRAINING_FAMILY_DUEL_SCENARIOS = 3
 
 
 class CombatAiSimulationRunService:
@@ -974,6 +980,7 @@ async def execute_battle_training(
     population: int,
     seed: int = 0,
     sigma: float = 0.15,
+    monster_families: dict[str, list[GeneratedMonster]] | None = None,
     progress: LiveProgressCallback | None = None,
 ) -> dict[str, Any]:
     rng = random.Random(seed)
@@ -998,7 +1005,8 @@ async def execute_battle_training(
     metrics: list[dict[str, Any]] = []
     leaderboard: list[dict[str, Any]] = []
     latest_scenarios: dict[str, float] = {}
-    scenarios_per_policy = len(_battle_training_scenarios(seed))
+    scenario_specs = _battle_training_scenarios(seed, monster_families=monster_families)
+    scenarios_per_policy = len(scenario_specs)
     battles_done = 0
     battles_total = generation_count * population_count * scenarios_per_policy
 
@@ -1088,6 +1096,7 @@ async def execute_battle_training(
                 member,
                 baseline=source_policy,
                 seed=seed + generation * 101 + index * 17,
+                monster_families=monster_families,
                 on_scenario_result=on_scenario_result,
             )
             scored.append((reward, member, per_scenario))
@@ -1214,11 +1223,17 @@ class _BattleTrainingScenarioSpec:
     seed: int
     skill_profile: str
     candidate_team: str
-    mirror_full_roster: bool = False
+    kind: str = "starter_5v5"
+    family_id: str | None = None
+    opponent_family_id: str | None = None
 
 
-def _battle_training_scenarios(seed: int) -> list[_BattleTrainingScenarioSpec]:
-    return [
+def _battle_training_scenarios(
+    seed: int,
+    *,
+    monster_families: dict[str, list[GeneratedMonster]] | None = None,
+) -> list[_BattleTrainingScenarioSpec]:
+    scenarios = [
         _BattleTrainingScenarioSpec(
             "random_5v5_baseline_blue",
             seed,
@@ -1229,18 +1244,6 @@ def _battle_training_scenarios(seed: int) -> list[_BattleTrainingScenarioSpec]:
             "random_5v5_baseline_red",
             seed,
             STARTER_SKILL_PROFILE_BASELINE,
-            "red",
-        ),
-        _BattleTrainingScenarioSpec(
-            "random_5v5_full_skills_blue",
-            seed + 7,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
-            "blue",
-        ),
-        _BattleTrainingScenarioSpec(
-            "random_5v5_full_skills_red",
-            seed + 7,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
             "red",
         ),
         _BattleTrainingScenarioSpec(
@@ -1255,47 +1258,32 @@ def _battle_training_scenarios(seed: int) -> list[_BattleTrainingScenarioSpec]:
             STARTER_SKILL_PROFILE_BASELINE,
             "red",
         ),
-        _BattleTrainingScenarioSpec(
-            "random_5v5_seed43_full_skills_blue",
-            seed + 43,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
-            "blue",
-        ),
-        _BattleTrainingScenarioSpec(
-            "random_5v5_seed43_full_skills_red",
-            seed + 43,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
-            "red",
-        ),
-        _BattleTrainingScenarioSpec(
-            "mirror_10v10_baseline_blue",
-            seed + 101,
-            STARTER_SKILL_PROFILE_BASELINE,
-            "blue",
-            mirror_full_roster=True,
-        ),
-        _BattleTrainingScenarioSpec(
-            "mirror_10v10_baseline_red",
-            seed + 101,
-            STARTER_SKILL_PROFILE_BASELINE,
-            "red",
-            mirror_full_roster=True,
-        ),
-        _BattleTrainingScenarioSpec(
-            "mirror_10v10_full_skills_blue",
-            seed + 109,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
-            "blue",
-            mirror_full_roster=True,
-        ),
-        _BattleTrainingScenarioSpec(
-            "mirror_10v10_full_skills_red",
-            seed + 109,
-            STARTER_SKILL_PROFILE_MAXED_EXISTING,
-            "red",
-            mirror_full_roster=True,
-        ),
     ]
+    families = _battle_training_family_ids(monster_families)
+    for index, family_id in enumerate(families):
+        scenarios.append(
+            _BattleTrainingScenarioSpec(
+                name=f"family_pve_{family_id}",
+                seed=seed + 101 + index * 13,
+                skill_profile=STARTER_SKILL_PROFILE_BASELINE,
+                candidate_team="red",
+                kind="family_pve",
+                family_id=family_id,
+            )
+        )
+    for index, (blue_family, red_family) in enumerate(_battle_training_family_duels(families)):
+        scenarios.append(
+            _BattleTrainingScenarioSpec(
+                name=f"family_duel_{blue_family}_vs_{red_family}",
+                seed=seed + 301 + index * 17,
+                skill_profile=STARTER_SKILL_PROFILE_BASELINE,
+                candidate_team="red",
+                kind="family_duel",
+                family_id=red_family,
+                opponent_family_id=blue_family,
+            )
+        )
+    return scenarios
 
 
 async def _evaluate_policy_in_battles(
@@ -1303,18 +1291,37 @@ async def _evaluate_policy_in_battles(
     *,
     baseline: Policy,
     seed: int,
+    monster_families: dict[str, list[GeneratedMonster]] | None = None,
     on_scenario_result: Callable[[str, float], Awaitable[None]] | None = None,
 ) -> tuple[float, dict[str, float]]:
     rewards: dict[str, float] = {}
-    for scenario in _battle_training_scenarios(seed):
-        rewards[scenario.name] = await _run_policy_battle_reward(
-            policy,
-            baseline=baseline,
-            seed=scenario.seed,
-            skill_profile=scenario.skill_profile,
-            candidate_team=scenario.candidate_team,
-            mirror_full_roster=scenario.mirror_full_roster,
-        )
+    for scenario in _battle_training_scenarios(seed, monster_families=monster_families):
+        if scenario.kind == "family_pve":
+            rewards[scenario.name] = await _run_policy_family_pve_reward(
+                policy,
+                baseline=baseline,
+                seed=scenario.seed,
+                skill_profile=scenario.skill_profile,
+                family_id=str(scenario.family_id or ""),
+                monster_families=monster_families or {},
+            )
+        elif scenario.kind == "family_duel":
+            rewards[scenario.name] = await _run_policy_family_duel_reward(
+                policy,
+                baseline=baseline,
+                seed=scenario.seed,
+                family_id=str(scenario.family_id or ""),
+                opponent_family_id=str(scenario.opponent_family_id or ""),
+                monster_families=monster_families or {},
+            )
+        else:
+            rewards[scenario.name] = await _run_policy_battle_reward(
+                policy,
+                baseline=baseline,
+                seed=scenario.seed,
+                skill_profile=scenario.skill_profile,
+                candidate_team=scenario.candidate_team,
+            )
         if on_scenario_result is not None:
             await on_scenario_result(scenario.name, rewards[scenario.name])
     return sum(rewards.values()), rewards
@@ -1327,13 +1334,12 @@ async def _run_policy_battle_reward(
     seed: int,
     skill_profile: str,
     candidate_team: str,
-    mirror_full_roster: bool = False,
 ) -> float:
     actors, participants, _metadata = _build_starter_roster(
         seed=seed,
         min_team_size=5,
         max_team_size=5,
-        mirror_full_roster=mirror_full_roster,
+        mirror_full_roster=False,
         skill_profile=skill_profile,
     )
     state = InMemoryBattleFactory.from_actors(
@@ -1366,6 +1372,208 @@ async def _run_policy_battle_reward(
         final_hp_by_actor=result.final_hp_by_actor,
         candidate_team=candidate_team,
     )
+
+
+async def _run_policy_family_pve_reward(
+    policy: Policy,
+    *,
+    baseline: Policy,
+    seed: int,
+    skill_profile: str,
+    family_id: str,
+    monster_families: dict[str, list[GeneratedMonster]],
+) -> float:
+    selected_members = _select_battle_training_family_members(family_id, monster_families)
+    if not selected_members:
+        return 0.0
+    imprint_key = DEFAULT_STARTER_SIMULATION_IMPRINTS[seed % len(DEFAULT_STARTER_SIMULATION_IMPRINTS)]
+    player = (
+        StartingImprintSimulationActorBuilder()
+        .build_actor(
+            imprint_key,
+            actor_id="player",
+            team="blue",
+            skill_profile=skill_profile,
+        )
+        .actor
+    )
+    enemies = _monster_actors_for_training(selected_members, team="red", prefix="monster")
+    actors = [player, *enemies]
+    participants = [
+        _training_actor_participant(player),
+        *[
+            _training_actor_participant(actor, family_id=family_id, role=member.role, variant_key=member.variant_key)
+            for actor, member in zip(enemies, selected_members, strict=False)
+        ],
+    ]
+    return await _run_policy_training_actors_reward(
+        policy,
+        baseline=baseline,
+        seed=seed,
+        session_id=f"ai-battle-training-family-pve-{family_id}-{seed}",
+        actors=actors,
+        participants=participants,
+        candidate_team="red",
+    )
+
+
+async def _run_policy_family_duel_reward(
+    policy: Policy,
+    *,
+    baseline: Policy,
+    seed: int,
+    family_id: str,
+    opponent_family_id: str,
+    monster_families: dict[str, list[GeneratedMonster]],
+) -> float:
+    candidate_members = _select_battle_training_family_members(family_id, monster_families)
+    opponent_members = _select_battle_training_family_members(opponent_family_id, monster_families)
+    if not candidate_members or not opponent_members:
+        return 0.0
+    candidate_actors = _monster_actors_for_training(candidate_members, team="red", prefix="candidate")
+    opponent_actors = _monster_actors_for_training(opponent_members, team="blue", prefix="opponent")
+    actors = [*opponent_actors, *candidate_actors]
+    participants = [
+        *[
+            _training_actor_participant(
+                actor,
+                family_id=opponent_family_id,
+                role=member.role,
+                variant_key=member.variant_key,
+            )
+            for actor, member in zip(opponent_actors, opponent_members, strict=False)
+        ],
+        *[
+            _training_actor_participant(
+                actor,
+                family_id=family_id,
+                role=member.role,
+                variant_key=member.variant_key,
+            )
+            for actor, member in zip(candidate_actors, candidate_members, strict=False)
+        ],
+    ]
+    return await _run_policy_training_actors_reward(
+        policy,
+        baseline=baseline,
+        seed=seed,
+        session_id=f"ai-battle-training-family-duel-{opponent_family_id}-vs-{family_id}-{seed}",
+        actors=actors,
+        participants=participants,
+        candidate_team="red",
+    )
+
+
+async def _run_policy_training_actors_reward(
+    policy: Policy,
+    *,
+    baseline: Policy,
+    seed: int,
+    session_id: str,
+    actors: list[ActorSnapshot],
+    participants: list[dict[str, Any]],
+    candidate_team: str,
+) -> float:
+    state = InMemoryBattleFactory.from_actors(
+        actors,
+        session_id=session_id,
+        limits=InMemoryBattleLimits(
+            max_rounds=160,
+            candidate_limit=5,
+            max_actions_per_round=1,
+            force_unanswered_exchange=False,
+        ),
+        seed=seed,
+        battle_type="simulation_live",
+        location_id="admin-ai-battle-training",
+    )
+    simulator = LiveInMemoryCombatSimulator(
+        timing=LiveSimulationTiming(
+            tick_interval_seconds=0.0,
+            max_ticks=4800,
+            timeout_ticks=8,
+            use_wall_clock_delay=False,
+        ),
+        brain=_TeamPolicyBrain(candidate_policy=policy, baseline_policy=baseline, candidate_team=candidate_team),
+    )
+    result = await simulator.run(state)
+    return _battle_policy_reward(
+        result.winner,
+        asdict(result.telemetry),
+        participants,
+        final_hp_by_actor=result.final_hp_by_actor,
+        candidate_team=candidate_team,
+    )
+
+
+def _battle_training_family_ids(monster_families: dict[str, list[GeneratedMonster]] | None) -> list[str]:
+    if not monster_families:
+        return []
+    return [family_id for family_id, members in sorted(monster_families.items()) if family_id and members][
+        :BATTLE_TRAINING_MAX_FAMILIES
+    ]
+
+
+def _battle_training_family_duels(families: list[str]) -> list[tuple[str, str]]:
+    if len(families) < 2:
+        return []
+    pairs = [(families[index], families[(index + 1) % len(families)]) for index in range(len(families))]
+    return pairs[:BATTLE_TRAINING_FAMILY_DUEL_SCENARIOS]
+
+
+def _select_battle_training_family_members(
+    family_id: str,
+    monster_families: dict[str, list[GeneratedMonster]],
+) -> list[GeneratedMonster]:
+    members = [member for member in monster_families.get(family_id, []) if member.family_id == family_id]
+    if not members:
+        return []
+    compositions = build_family_pressure_compositions(
+        family_id,
+        members=members,
+        max_minions=5,
+        max_scenarios=BATTLE_TRAINING_FAMILY_PVE_SCENARIOS_PER_FAMILY,
+    )
+    for composition in compositions:
+        selected = select_members_for_composition(members, composition)
+        if selected:
+            return selected
+    return sorted(members, key=lambda member: (member.role, member.variant_key, str(member.id)))[:5]
+
+
+def _monster_actors_for_training(
+    members: list[GeneratedMonster],
+    *,
+    team: str,
+    prefix: str,
+) -> list[ActorSnapshot]:
+    builder = FamilyPressureSimulator()
+    return [
+        builder._monster_actor(member, actor_id=f"{prefix}_{index}", team=team)  # noqa: SLF001
+        for index, member in enumerate(members, start=1)
+    ]
+
+
+def _training_actor_participant(
+    actor: ActorSnapshot,
+    *,
+    family_id: str | None = None,
+    role: str | None = None,
+    variant_key: str | None = None,
+) -> dict[str, Any]:
+    row: dict[str, Any] = {
+        "actor_id": actor.meta.id,
+        "team": actor.meta.team,
+        "start_hp": int(actor.meta.max_hp),
+        "actor_type": actor.meta.type,
+    }
+    if family_id:
+        row["family_id"] = family_id
+    if role:
+        row["role"] = role
+    if variant_key:
+        row["variant_key"] = variant_key
+    return row
 
 
 def _battle_policy_reward(
@@ -1925,8 +2133,8 @@ def _render_battle_training_report(
         "storage: database",
         "live_policy_activation: false",
         "battle_stage:",
-        "  mode: candidate policy vs selected source policy",
-        "  scenarios: random 5v5 baseline/full-skills, blue/red side swap",
+        "  mode: candidate monster policy vs selected source policy",
+        "  scenarios: baseline 5v5 sanity plus generated family PvE/family duels",
         "top_weight_deltas:",
     ]
     for item in deltas[:12]:

@@ -139,17 +139,19 @@ async def test_materialize_starting_imprint_persists_attributes_skills_and_equip
     assert attributes_repo.attributes[7]["strength"] == 16
     assert attributes_repo.attributes[7]["agility"] == 15
     assert attributes_repo.attributes[7]["endurance"] == 17
-    assert attributes_repo.attributes[7]["mental"] == 14
+    assert attributes_repo.attributes[7]["mental"] == 12
     assert progression_repo.free_xp[7] == 0.0
     assert {row["skill_key"]: row["total_xp"] for row in skill_repo.rows} == {
-        "skill_swords": 0.20,
-        "skill_shield_mastery": 0.15,
-        "skill_medium_armor": 0.10,
+        "skill_swords": 0.10,
+        "skill_shield_mastery": 0.075,
+        "skill_medium_armor": 0.05,
     }
     assert all(row["progress_state"] == SkillProgressState.PLUS for row in skill_repo.rows)
     assert ("sword", "equipped", "main_hand") in item_persistence.created
     assert ("shield", "equipped", "off_hand") in item_persistence.created
     assert ("jerkin", "equipped", "chest_armor") in item_persistence.created
+    assert ("amulet", "equipped", "amulet") in item_persistence.created
+    assert not any(base_id in {"belt", "winter_cloak", "travel_boots"} for base_id, _, _ in item_persistence.created)
     assert result["item_ids"] == [f"item-{index}" for index in range(1, len(item_persistence.created) + 1)]
     assert character_repo.committed is True
 
@@ -182,7 +184,7 @@ async def test_materialize_starting_imprint_places_second_fencing_weapon_offhand
     )
 
     assert ("stiletto", "equipped", "main_hand") in item_persistence.created
-    assert ("stiletto", "equipped", "off_hand") in item_persistence.created
+    assert ("main_gauche", "equipped", "off_hand") in item_persistence.created
 
 
 @pytest.mark.asyncio
@@ -318,7 +320,7 @@ async def test_reset_character_to_starting_imprint_clears_old_runtime_and_remate
     assert attributes_repo.attributes[7]["strength"] == 16
     assert attributes_repo.attributes[7]["agility"] == 15
     assert attributes_repo.attributes[7]["endurance"] == 17
-    assert attributes_repo.attributes[7]["mental"] == 14
+    assert attributes_repo.attributes[7]["mental"] == 12
     assert progression_repo.free_xp[7] == 0.0
     assert skill_repo.deleted == [7]
     assert item_persistence.transferred == [7]

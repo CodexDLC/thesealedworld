@@ -141,7 +141,7 @@ async def run_family_pressure_simulation(
     family_id: Annotated[str, Query(min_length=1, max_length=80)] = "rat_swarm",
     imprint_key: Annotated[str, Query(max_length=120)] = "",
     seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
-    trials: Annotated[int, Query(ge=1, le=100)] = 5,
+    trials: Annotated[int, Query(ge=1, le=100)] = 10,
     max_rounds: Annotated[int, Query(ge=1, le=200)] = 80,
     max_minions: Annotated[int, Query(ge=1, le=10)] = 6,
     max_scenarios: Annotated[int, Query(ge=1, le=50)] = 24,
@@ -162,7 +162,7 @@ async def run_family_pressure_simulation(
     await progress_store.set_progress(str(progress["id"]), progress)
     try:
         await _enqueue_family_pressure_job(
-            getattr(request.app.state, "combat_arq", None),
+            getattr(request.app.state, "combat_ai_simulation_arq", None),
             _family_pressure_payload(progress),
         )
     except Exception as exc:
@@ -179,7 +179,7 @@ async def run_family_pressure_batch_simulation(
     family_id: Annotated[str, Query(min_length=1, max_length=80)] = "rat_swarm",
     imprint_keys: Annotated[list[str] | None, Query()] = None,
     seed: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
-    trials: Annotated[int, Query(ge=1, le=100)] = 5,
+    trials: Annotated[int, Query(ge=1, le=100)] = 10,
     max_rounds: Annotated[int, Query(ge=1, le=200)] = 80,
     max_minions: Annotated[int, Query(ge=1, le=10)] = 6,
     max_scenarios: Annotated[int, Query(ge=1, le=50)] = 24,
@@ -209,7 +209,7 @@ async def run_family_pressure_batch_simulation(
         await asyncio.gather(
             *[
                 _enqueue_family_pressure_job(
-                    getattr(request.app.state, "combat_arq", None),
+                    getattr(request.app.state, "combat_ai_simulation_arq", None),
                     _family_pressure_payload(progress),
                 )
                 for progress in progresses
@@ -528,7 +528,7 @@ def _family_pressure_payload(progress: dict[str, Any]) -> dict[str, Any]:
         "family_id": str(metadata.get("family_id") or "").strip(),
         "imprint_key": str(metadata.get("imprint_key") or "").strip(),
         "seed": int(progress.get("seed") or 0),
-        "trials": int(metadata.get("trials_per_composition") or 5),
+        "trials": int(metadata.get("trials_per_composition") or 10),
         "max_rounds": int(progress.get("max_rounds") or 80),
         "max_minions": int(metadata.get("max_minions") or 6),
         "max_scenarios": int(metadata.get("max_scenarios") or 24),
@@ -544,7 +544,7 @@ async def _enqueue_live_demo_job(arq: Any | None, payload: dict[str, Any]) -> No
 
 async def _enqueue_family_pressure_job(arq: Any | None, payload: dict[str, Any]) -> None:
     if arq is None:
-        raise RuntimeError("Combat ARQ service is not available")
+        raise RuntimeError("Combat AI simulation ARQ service is not available")
     await arq.enqueue_job(COMBAT_FAMILY_PRESSURE_TASK, payload)
 
 

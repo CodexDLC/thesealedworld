@@ -49,6 +49,7 @@ from src.backend.features.combat.services.ai_simulation_service import (
 )
 from src.backend.features.combat.workers.ai_simulation_arq import (
     AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS,
+    AI_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS,
     AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS,
     AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS,
     COMBAT_AI_SIMULATION_TASKS,
@@ -58,7 +59,6 @@ from src.backend.features.combat.workers.ai_simulation_arq import (
 from src.backend.features.combat.workers.arq import (
     COMBAT_RUNTIME_MAX_JOBS,
     COMBAT_TASKS,
-    PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS,
     CombatArqSettings,
 )
 from src.backend.features.combat.workers.tasks import ai_simulation_task as ai_simulation_task_module
@@ -427,7 +427,7 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
     db_session = FakeDbSession()
     arq = FakeArqQueue()
     progress_store = FakeProgressStore()
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_ai_simulation_arq=arq)))
     monkeypatch.setattr(ai_simulation_router_module, "_service", fail_service)
     monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: progress_store)
     monkeypatch.setattr(
@@ -442,7 +442,7 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
         db_session,
         family_id="rat_swarm",
         seed=17,
-        trials=5,
+        trials=10,
         max_rounds=80,
         max_minions=6,
         max_scenarios=24,
@@ -462,7 +462,7 @@ async def test_family_pressure_route_only_schedules_worker_job(monkeypatch: pyte
                 "family_id": "rat_swarm",
                 "imprint_key": "starter_breaker_01",
                 "seed": 17,
-                "trials": 5,
+                "trials": 10,
                 "max_rounds": 80,
                 "max_minions": 6,
                 "max_scenarios": 24,
@@ -487,7 +487,7 @@ async def test_family_pressure_batch_route_schedules_one_job_per_imprint(monkeyp
 
     arq = FakeArqQueue()
     progress_store = FakeProgressStore()
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_arq=arq)))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(combat_ai_simulation_arq=arq)))
     monkeypatch.setattr(ai_simulation_router_module, "_progress_store_from_request", lambda _request: progress_store)
 
     result = await run_family_pressure_batch_simulation(
@@ -496,7 +496,7 @@ async def test_family_pressure_batch_route_schedules_one_job_per_imprint(monkeyp
         family_id="rat_swarm",
         imprint_keys=["starter_guard_01", "starter_breaker_01"],
         seed=31,
-        trials=5,
+        trials=10,
         max_rounds=80,
         max_minions=6,
         max_scenarios=24,
@@ -511,7 +511,7 @@ async def test_family_pressure_batch_route_schedules_one_job_per_imprint(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_family_pressure_enqueue_uses_combat_runtime_queue() -> None:
+async def test_family_pressure_enqueue_uses_combat_ai_simulation_queue() -> None:
     arq = FakeArqQueue()
     payload = {"run_id": "family-run-1", "family_id": "rat_swarm"}
 
@@ -816,7 +816,8 @@ def test_combat_ai_simulation_worker_registers_ai_admin_tasks() -> None:
     task_by_name = {getattr(task, "name", getattr(task, "__name__", "")): task for task in COMBAT_AI_SIMULATION_TASKS}
     assert task_by_name["combat_ai_live_simulation_task"].coroutine is combat_ai_live_simulation_task
     assert task_by_name["combat_ai_live_simulation_task"].timeout_s == AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS
-    assert "combat_family_pressure_task" not in task_by_name
+    assert task_by_name["combat_family_pressure_task"].coroutine is combat_family_pressure_task
+    assert task_by_name["combat_family_pressure_task"].timeout_s == AI_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS
     assert task_by_name["combat_ai_synthetic_training_task"].coroutine is combat_ai_synthetic_training_task
     assert task_by_name["combat_ai_synthetic_training_task"].timeout_s == AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS
     assert task_by_name["combat_ai_battle_training_task"].coroutine is combat_ai_battle_training_task
@@ -837,8 +838,7 @@ def test_combat_runtime_worker_keeps_runtime_tasks_and_has_more_slots() -> None:
     assert "combat_ai_live_simulation_task" not in task_names
     assert "combat_ai_synthetic_training_task" not in task_names
     assert "combat_ai_battle_training_task" not in task_names
-    assert task_by_name["combat_family_pressure_task"].coroutine is combat_family_pressure_task
-    assert task_by_name["combat_family_pressure_task"].timeout_s == PVE_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS
+    assert "combat_family_pressure_task" not in task_names
     assert "execute_batch_task" in task_names
     assert "combat_collector_task" in task_names
     assert CombatArqSettings.max_jobs == COMBAT_RUNTIME_MAX_JOBS == 30
@@ -850,11 +850,27 @@ async def test_battle_training_task_marks_run_failed_when_cancelled(monkeypatch:
     marked_failed: dict[str, object] = {}
     policy_payload = Policy.with_defaults(policy_id="source-policy").model_dump(mode="json")
 
+    class FakeSessionContext:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeMonsterRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def list_generated_clans_page(self, *, limit: int):
+            assert limit == 200
+            return []
+
     async def fake_policy_payload_from_training_run(raw_run_id: str):
         assert raw_run_id == "source-run"
         return policy_payload, {}
 
-    async def fake_execute_battle_training(**_kwargs):
+    async def fake_execute_battle_training(**kwargs):
+        assert kwargs["monster_families"] == {}
         raise asyncio.CancelledError()
 
     async def fake_mark_failed(run_id: str, *, error: dict[str, object]) -> None:
@@ -866,6 +882,8 @@ async def test_battle_training_task_marks_run_failed_when_cancelled(monkeypatch:
         "_policy_payload_from_training_run",
         fake_policy_payload_from_training_run,
     )
+    monkeypatch.setattr(ai_simulation_task_module, "get_session_context", lambda: FakeSessionContext())
+    monkeypatch.setattr(ai_simulation_task_module, "MonsterGenerationRepository", FakeMonsterRepository)
     monkeypatch.setattr(ai_simulation_task_module, "execute_battle_training", fake_execute_battle_training)
     monkeypatch.setattr(ai_simulation_task_module, "_mark_failed", fake_mark_failed)
 
@@ -885,6 +903,77 @@ async def test_battle_training_task_marks_run_failed_when_cancelled(monkeypatch:
             "message": "Battle training worker task was cancelled or timed out.",
         },
     }
+
+
+@pytest.mark.asyncio
+async def test_battle_training_task_loads_generated_families_for_stage_two(monkeypatch: pytest.MonkeyPatch) -> None:
+    completed: dict[str, object] = {}
+    captured_families: dict[str, list[object]] = {}
+    policy_payload = Policy.with_defaults(policy_id="source-policy").model_dump(mode="json")
+    rat = SimpleNamespace(family_id="rat_swarm", variant_key="rat_minion")
+    wolf = SimpleNamespace(family_id="wolf_pack", variant_key="wolf_minion")
+
+    class FakeSessionContext:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeMonsterRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def list_generated_clans_page(self, *, limit: int):
+            assert limit == 200
+            return [
+                SimpleNamespace(family_id="rat_swarm", members=[rat]),
+                SimpleNamespace(family_id="wolf_pack", members=[wolf]),
+            ]
+
+    class FakeRunRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def mark_completed(self, run_id: str, **kwargs) -> None:
+            completed["run_id"] = run_id
+            completed.update(kwargs)
+
+    async def fake_policy_payload_from_training_run(raw_run_id: str):
+        assert raw_run_id == "source-run"
+        return policy_payload, {}
+
+    async def fake_execute_battle_training(**kwargs):
+        captured_families.update(kwargs["monster_families"])
+        return {
+            "rounds_completed": 1,
+            "reward": 12.5,
+            "telemetry": {"run_kind": "battle_training"},
+            "report_text": "ok",
+            "metadata": {"training_stage": "battle_finetune"},
+        }
+
+    monkeypatch.setattr(
+        ai_simulation_task_module,
+        "_policy_payload_from_training_run",
+        fake_policy_payload_from_training_run,
+    )
+    monkeypatch.setattr(ai_simulation_task_module, "get_session_context", lambda: FakeSessionContext())
+    monkeypatch.setattr(ai_simulation_task_module, "MonsterGenerationRepository", FakeMonsterRepository)
+    monkeypatch.setattr(ai_simulation_task_module, "CombatAiSimulationRunRepository", FakeRunRepository)
+    monkeypatch.setattr(ai_simulation_task_module, "execute_battle_training", fake_execute_battle_training)
+
+    await combat_ai_battle_training_task(
+        {},
+        {
+            "run_id": "battle-run",
+            "source_policy_run_id": "source-run",
+        },
+    )
+
+    assert captured_families == {"rat_swarm": [rat], "wolf_pack": [wolf]}
+    assert completed["run_id"] == "battle-run"
+    assert completed["reward"] == 12.5
 
 
 @pytest.mark.asyncio
@@ -1140,29 +1229,46 @@ async def test_execute_battle_training_smoke_persists_candidate_policy_in_result
     assert progress_updates
     assert progress_updates[-1]["status"] == "running"
     assert progress_updates[-1]["telemetry"]["run_kind"] == "battle_training"
-    assert progress_updates[-1]["telemetry"]["battles_done"] == 24
-    assert progress_updates[-1]["telemetry"]["battles_total"] == 24
+    assert progress_updates[-1]["telemetry"]["battles_done"] == 8
+    assert progress_updates[-1]["telemetry"]["battles_total"] == 8
     assert "battle policy fine-tune" in progress_updates[-1]["report_text"]
 
 
-def test_battle_training_scenario_set_covers_seed_variance_and_mirror_modes() -> None:
+def test_battle_training_scenario_set_keeps_baseline_5v5_and_removes_full_skill_mirror() -> None:
     scenarios = _battle_training_scenarios(0)
     names = {scenario.name for scenario in scenarios}
 
-    assert len(scenarios) == 12
+    assert len(scenarios) == 4
     assert {
         "random_5v5_baseline_blue",
         "random_5v5_seed31_baseline_blue",
-        "random_5v5_seed43_full_skills_red",
-        "mirror_10v10_baseline_blue",
-        "mirror_10v10_full_skills_red",
+        "random_5v5_baseline_red",
+        "random_5v5_seed31_baseline_red",
     } <= names
     assert {scenario.candidate_team for scenario in scenarios} == {"blue", "red"}
-    assert {scenario.skill_profile for scenario in scenarios} == {
-        STARTER_SKILL_PROFILE_BASELINE,
-        STARTER_SKILL_PROFILE_MAXED_EXISTING,
+    assert {scenario.skill_profile for scenario in scenarios} == {STARTER_SKILL_PROFILE_BASELINE}
+    assert not any("full_skill" in scenario.name or "full_skills" in scenario.name for scenario in scenarios)
+    assert not any("10v10" in scenario.name or "mirror" in scenario.name for scenario in scenarios)
+
+
+def test_battle_training_scenario_set_adds_database_family_scenarios() -> None:
+    monster_families = {
+        "rat_swarm": [SimpleNamespace()],
+        "wolf_pack": [SimpleNamespace()],
+        "goblin_tribe": [SimpleNamespace()],
     }
-    assert sum(1 for scenario in scenarios if scenario.mirror_full_roster) == 4
+
+    scenarios = _battle_training_scenarios(0, monster_families=monster_families)
+    names = {scenario.name for scenario in scenarios}
+
+    assert len(scenarios) == 10
+    assert "family_pve_rat_swarm" in names
+    assert "family_pve_wolf_pack" in names
+    assert "family_pve_goblin_tribe" in names
+    assert "family_duel_goblin_tribe_vs_rat_swarm" in names
+    assert "family_duel_rat_swarm_vs_wolf_pack" in names
+    assert "family_duel_wolf_pack_vs_goblin_tribe" in names
+    assert {scenario.skill_profile for scenario in scenarios} == {STARTER_SKILL_PROFILE_BASELINE}
 
 
 @pytest.mark.asyncio

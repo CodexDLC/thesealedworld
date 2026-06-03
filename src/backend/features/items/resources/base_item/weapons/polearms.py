@@ -16,7 +16,7 @@ POLEARMS_DB = {
         narrative_tags=["spear", "polearm", "reach", "piercing"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.07,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.025,
         },
         triggers=["crit.weapon_piercing_crit"],
@@ -99,7 +99,7 @@ POLEARMS_DB = {
         narrative_tags=["trident", "polearm", "control", "hook"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.08,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.03,
         },
         triggers=["control.weapon_knockdown_hit"],

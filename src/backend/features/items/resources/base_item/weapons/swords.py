@@ -16,10 +16,10 @@ SWORDS_DB = {
         narrative_tags=["sword", "balanced", "blade"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.04,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.04,
         },
-        triggers=["crit.weapon_serrated_bleed_crit"],
+        triggers=["crit.weapon_precision_crit"],
     ),
     "longsword": BaseItemDTO(
         id="longsword",
@@ -36,10 +36,10 @@ SWORDS_DB = {
         narrative_tags=["longsword", "sword", "balanced", "blade"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.05,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.045,
         },
-        triggers=["crit.weapon_serrated_bleed_crit"],
+        triggers=["crit.weapon_heavy_crit"],
     ),
     "greatsword": BaseItemDTO(
         id="greatsword",
@@ -80,7 +80,7 @@ SWORDS_DB = {
             "physical_crit_chance": 0.05,
             "parry_chance": 0.035,
         },
-        triggers=["crit.weapon_serrated_bleed_crit"],
+        triggers=["crit.weapon_precision_crit"],
     ),
     "scimitar": BaseItemDTO(
         id="scimitar",
@@ -97,10 +97,31 @@ SWORDS_DB = {
         narrative_tags=["scimitar", "sword", "flow", "fast_blade"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.035,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.03,
         },
         triggers=["crit.weapon_precision_crit"],
+    ),
+    "flamberge": BaseItemDTO(
+        id="flamberge",
+        name_ru="Фламберг",
+        narrative_description="Двуручный меч с волнистым клинком, который рвет рану на критическом разрезе.",
+        slot="two_hand",
+        type="weapon",
+        damage_type="physical",
+        related_skill="skill_swords",
+        allowed_materials=["ingots"],
+        base_power=11,
+        damage_spread=0.18,
+        base_durability=80,
+        narrative_tags=["flamberge", "sword", "two_handed", "serrated", "blade"],
+        implicit_bonuses={
+            "main_hand_accuracy_penalty": 0.11,
+            "physical_crit_chance": 0.05,
+            "parry_chance": 0.025,
+            "evasion_penalty": -0.06,
+        },
+        triggers=["crit.weapon_serrated_bleed_crit"],
     ),
 }
 

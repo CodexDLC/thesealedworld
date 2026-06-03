@@ -17,7 +17,7 @@ FENCING_DB = {
         narrative_tags=["knife", "dagger", "fencing", "offhand", "swift"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.015,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.02,
         },
         triggers=["crit.weapon_flat_armor_gap_crit"],
@@ -38,7 +38,7 @@ FENCING_DB = {
         narrative_tags=["dagger", "fencing", "swift", "piercing"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.02,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.025,
         },
         triggers=["crit.weapon_flat_armor_gap_crit"],
@@ -59,7 +59,7 @@ FENCING_DB = {
         narrative_tags=["stiletto", "dagger", "fencing", "piercing", "offhand"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.025,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.02,
         },
         triggers=["crit.weapon_flat_armor_bypass_crit"],
@@ -80,7 +80,7 @@ FENCING_DB = {
         narrative_tags=["rapier", "fencing", "duelist", "precision"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.03,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.035,
         },
         triggers=["crit.weapon_precision_crit"],
@@ -101,7 +101,7 @@ FENCING_DB = {
         narrative_tags=["main_gauche", "dagger", "fencing", "parry", "offhand"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.025,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.10,
         },
         triggers=["crit.weapon_flat_armor_bypass_crit"],
@@ -122,10 +122,31 @@ FENCING_DB = {
         narrative_tags=["katar", "dagger", "fencing", "piercing", "unique"],
         implicit_bonuses={
             "main_hand_accuracy_penalty": 0.035,
-            "physical_crit_chance": 0.025,
+            "physical_crit_chance": 0.03,
             "parry_chance": 0.02,
         },
         triggers=["crit.weapon_flat_armor_bypass_crit"],
+    ),
+    "kris": BaseItemDTO(
+        id="kris",
+        name_ru="Крис",
+        narrative_description="Волнистый кинжал для рваного укола; критический удар открывает кровотечение.",
+        slot="main_hand",
+        extra_slots=["off_hand"],
+        type="weapon",
+        damage_type="physical",
+        related_skill="skill_fencing",
+        allowed_materials=["ingots"],
+        base_power=4,
+        damage_spread=0.09,
+        base_durability=36,
+        narrative_tags=["kris", "dagger", "fencing", "serrated", "offhand"],
+        implicit_bonuses={
+            "main_hand_accuracy_penalty": 0.025,
+            "physical_crit_chance": 0.03,
+            "parry_chance": 0.02,
+        },
+        triggers=["crit.weapon_serrated_bleed_crit"],
     ),
 }
 

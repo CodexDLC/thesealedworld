@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--family", default="rat_swarm", help="Monster family id, e.g. rat_swarm")
     parser.add_argument("--imprint", default="", help="Starting imprint key. Empty means seeded random.")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--trials", type=int, default=5)
+    parser.add_argument("--trials", type=int, default=10)
     parser.add_argument("--max-rounds", type=int, default=80)
     parser.add_argument("--max-minions", type=int, default=6)
     parser.add_argument("--max-scenarios", type=int, default=24)

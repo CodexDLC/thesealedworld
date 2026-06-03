@@ -14,9 +14,10 @@ RANGED_POSITIONS: tuple[RangedPosition, ...] = ("far", "mid", "close")
 POSITION_RANK: dict[RangedPosition, int] = {"close": 0, "mid": 1, "far": 2}
 POSITION_BY_RANK: dict[int, RangedPosition] = {rank: position for position, rank in POSITION_RANK.items()}
 
-OUTGOING_DAMAGE_MULT: dict[RangedPosition, float] = {"far": 1.15, "mid": 1.0, "close": 0.75}
-OUTGOING_ACCURACY_MULT: dict[RangedPosition, float] = {"far": 1.10, "mid": 1.0, "close": 0.85}
-INCOMING_MELEE_DAMAGE_MULT: dict[RangedPosition, float] = {"far": 0.50, "mid": 1.0, "close": 1.25}
+OUTGOING_DAMAGE_MULT: dict[RangedPosition, float] = {"far": 1.08, "mid": 1.0, "close": 0.70}
+OUTGOING_ACCURACY_MULT: dict[RangedPosition, float] = {"far": 1.05, "mid": 1.0, "close": 0.85}
+INCOMING_MELEE_DAMAGE_MULT: dict[RangedPosition, float] = {"far": 0.70, "mid": 1.05, "close": 1.30}
+DAMAGE_PRESSURE_THREAT_MULT: dict[RangedPosition, float] = {"far": 3.0, "mid": 1.25, "close": 1.0}
 
 AVOID_CAP_BASE: dict[RangedPosition, float] = {"far": 0.65, "mid": 0.50, "close": 0.35}
 AVOID_CAP_SKILL: dict[RangedPosition, float] = {"far": 0.30, "mid": 0.20, "close": 0.15}
@@ -264,6 +265,7 @@ class RangedPositionService:
             0.0,
             1.0,
         )
+        damage_pressure *= DAMAGE_PRESSURE_THREAT_MULT[current]
         damage_pressure *= max(0.0, float(action_facts.get("ranged_damage_pressure_mult", 1.0) or 1.0))
         melee_contact_pressure = RangedPositionService._clamp(
             max(0, int(melee_pressure)) / MELEE_CONTACT_PRESSURE_DIVISOR,
@@ -275,25 +277,25 @@ class RangedPositionService:
         enemy_pressure = max(0.0, float(enemy_stats.mods.anti_dodge_chance or 0.0))
         enemy_pressure *= max(0.0, float(action_facts.get("ranged_enemy_pressure_mult", 1.0) or 1.0))
 
-        far = 0.20 + (0.35 * ranged_skill) + (0.30 * evasion) + (0.20 * max(tempo, 0.0))
-        far -= (0.35 * damage_pressure) + (0.20 * max(-tempo, 0.0)) + (0.20 * enemy_pressure)
-        far -= 0.45 * melee_contact_pressure * melee_contact_resistance
-        mid = 0.45 + (0.20 * ranged_skill) + (0.30 * line_control) + (0.15 * damage_pressure)
-        mid += 0.20 * melee_contact_pressure
-        close = 0.25 + (0.25 * max(-tempo, 0.0)) + (0.40 * damage_pressure) + (0.20 * enemy_pressure)
-        close += 0.35 * melee_contact_pressure * melee_contact_resistance
-        close -= (0.20 * ranged_skill) + (0.20 * evasion)
+        far = 0.05 + (0.40 * ranged_skill) + (0.15 * evasion) + (0.18 * max(tempo, 0.0))
+        far -= (0.45 * damage_pressure) + (0.18 * max(-tempo, 0.0)) + (0.20 * enemy_pressure)
+        far -= 0.55 * melee_contact_pressure * melee_contact_resistance
+        mid = 0.62 + (0.06 * ranged_skill) + (0.30 * line_control) + (0.12 * damage_pressure)
+        mid += 0.22 * melee_contact_pressure
+        close = 0.45 + (0.25 * max(-tempo, 0.0)) + (0.42 * damage_pressure) + (0.20 * enemy_pressure)
+        close += 0.45 * melee_contact_pressure * melee_contact_resistance
+        close -= (0.22 * ranged_skill) + (0.10 * evasion)
 
         if current == "far":
-            far += 0.25
+            far += 0.04 + (0.10 * ranged_skill)
             mid += 0.10
-            close -= 0.15
+            close -= 0.05 * ranged_skill
         elif current == "mid":
-            mid += 0.20
-        else:
-            close += 0.25
             mid += 0.15
-            far -= 0.20
+        else:
+            close += 0.18
+            mid += 0.15
+            far -= 0.16 * (1.0 - (0.50 * ranged_skill))
 
         far += float(action_facts.get("ranged_far_weight_bonus", 0.0) or 0.0)
         mid += float(action_facts.get("ranged_mid_weight_bonus", 0.0) or 0.0)

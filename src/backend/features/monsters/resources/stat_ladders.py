@@ -19,7 +19,7 @@ ATTRIBUTE_KEYS: Final[tuple[str, ...]] = (
 
 ATTRIBUTE_LADDER: Final[tuple[int, ...]] = (9, 8, 7, 6, 5, 4, 3, 2, 1)
 
-PLAYER_ATTRIBUTE_BASE: Final[int] = 8
+PLAYER_ATTRIBUTE_BASE: Final[int] = 9
 
 ROLE_ATTRIBUTE_OFFSETS: Final[dict[MonsterRole, int]] = {
     "minion": -3,

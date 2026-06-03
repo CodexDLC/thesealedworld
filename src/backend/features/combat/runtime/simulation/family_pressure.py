@@ -106,7 +106,7 @@ class FamilyPressureReport:
 
 @dataclass(frozen=True, slots=True)
 class FamilyPressureConfig:
-    trials_per_composition: int = 5
+    trials_per_composition: int = 10
     max_rounds: int = 80
     max_minions: int = 6
     max_scenarios: int = 24

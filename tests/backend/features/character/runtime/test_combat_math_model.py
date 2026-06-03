@@ -166,6 +166,7 @@ def test_builder_ignores_shield_flat_armor_bonuses() -> None:
     assert raw["modifiers"]["armor"]["base"] == 0.0
     assert raw["modifiers"]["armor"]["source"] == {}
     assert raw["modifiers"]["block"]["base"] == 0.0
+    assert raw["modifiers"]["shield_guard_power"]["base"] == 3.0
 
 
 @pytest.mark.unit

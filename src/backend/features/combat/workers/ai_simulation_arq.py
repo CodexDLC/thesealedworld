@@ -15,15 +15,18 @@ from src.backend.features.combat.workers.tasks.ai_simulation_task import (
     combat_ai_battle_training_task,
     combat_ai_live_simulation_task,
     combat_ai_synthetic_training_task,
+    combat_family_pressure_task,
 )
 
 AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS = 180
 AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS = 900
 AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS = 2400
+AI_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS = 2400
 COMBAT_AI_SIMULATION_WORKER_MAX_JOBS = 1
 
 COMBAT_AI_SIMULATION_TASKS = [
     func(combat_ai_live_simulation_task, timeout=AI_LIVE_SIMULATION_JOB_TIMEOUT_SECONDS, max_tries=1),
+    func(combat_family_pressure_task, timeout=AI_FAMILY_PRESSURE_JOB_TIMEOUT_SECONDS, max_tries=1),
     func(combat_ai_synthetic_training_task, timeout=AI_SYNTHETIC_TRAINING_JOB_TIMEOUT_SECONDS, max_tries=1),
     func(combat_ai_battle_training_task, timeout=AI_BATTLE_TRAINING_JOB_TIMEOUT_SECONDS, max_tries=1),
 ]

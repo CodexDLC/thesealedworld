@@ -495,9 +495,9 @@ def test_tactical_rows_show_trigger_rates_damage_and_actors() -> None:
     }
     assert rows[1] == {
         "part": "Off-hand удар",
-        "attempts": 0,
-        "successes": 0,
-        "rate": "0.0",
+        "attempts": 2,
+        "successes": 2,
+        "rate": "100.0",
         "chain_hits": 2,
         "shield_defense": 0,
         "shield_counter": 0,
@@ -560,6 +560,7 @@ async def test_analytics_tactical_skill_tables_split_style_groups(monkeypatch: p
                 "breaker": {"style_2h_ignore": 30},
                 "duelist": {"offhand_attack": 12, "style_dual_cross_cut": 24},
             },
+            "tactical_chain_attempts_by_actor": {"duelist": {"offhand_attack": 3}},
             "tactical_chain_hits_by_actor": {"duelist": {"offhand_attack": 2}},
             "tactical_prevented_by_actor": {
                 "guard": {"style_shield_reflect": 18},
@@ -593,6 +594,9 @@ async def test_analytics_tactical_skill_tables_split_style_groups(monkeypatch: p
     assert two_handed.rows[0]["attempts"] == 3
     assert two_handed.rows[0]["damage_per_event"] == 30
     assert [row["part"] for row in dual.rows] == ["Off-hand удар", "Две руки: перекрестный крит"]
+    assert dual.rows[0]["attempts"] == 3
+    assert dual.rows[0]["successes"] == 2
+    assert dual.rows[0]["rate"] == 66.7
     assert dual.rows[0]["chain_hits"] == 2
     assert dual.rows[0]["damage_per_event"] == 6.0
     assert dual.rows[1]["damage_per_event"] == 24.0
@@ -1127,7 +1131,7 @@ async def test_family_pressure_launcher_starts_async_report(monkeypatch: pytest.
             "family_id": "rat_swarm",
             "imprint_key": "starter_guard_01",
             "seed": 31,
-            "trials": 5,
+            "trials": 10,
             "max_rounds": 80,
             "max_minions": 6,
             "max_scenarios": 24,
@@ -1182,7 +1186,7 @@ async def test_family_pressure_launcher_starts_all_imprints_for_one_family(monke
         {
             "family_id": "goblin_tribe",
             "seed": 71,
-            "trials": 5,
+            "trials": 10,
             "max_rounds": 80,
             "max_minions": 6,
             "max_scenarios": 24,
@@ -1203,7 +1207,7 @@ async def test_family_pressure_launcher_exposes_imprint_select() -> None:
     assert table.actions[1].label == "Все слепки"
     assert table.actions[1].input_name == "seed"
     assert "случайный слепок" not in table.rows[0]["note"]
-    assert table.rows[0]["runs"] == "5 на состав"
+    assert table.rows[0]["runs"] == "10 на состав"
     assert [row["family"] for row in table.rows] == ["rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"]
 
 
@@ -1592,6 +1596,7 @@ async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: py
             )
 
     monkeypatch.setattr(combat_ai_testing, "_api", lambda request: FakeApi())
+    monkeypatch.setattr(combat_ai_testing, "_auto_seed", lambda: 999_991)
 
     response = await CombatAiTestingAdmin().handle_run(FakeRequest())
 
@@ -1599,7 +1604,7 @@ async def test_policy_live_launcher_passes_selected_training_run(monkeypatch: py
     assert response.headers["location"] == "/admin/combat-ai-testing/run-detail?id=run-policy"
     assert calls == [
         {
-            "seed": 0,
+            "seed": 999991,
             "max_rounds": 500,
             "tick": 0.05,
             "timeout": 8,

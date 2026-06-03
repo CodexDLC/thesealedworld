@@ -5095,6 +5095,49 @@ def test_ranged_position_service_commits_next_position_effect_from_trigger_overr
 
 
 @pytest.mark.unit
+def test_force_ranged_close_effect_commits_close_position_for_archer_target() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    target.meta.exchange_counter = 4
+    result = InteractionResultDTO(source_id=source.char_id, target_id=target.char_id)
+    result.applied_effects.append(
+        {
+            "id": "force_ranged_close",
+            "target_id": target.char_id,
+            "source_trigger_id": "weapon_knockdown_hit",
+        }
+    )
+
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=target.char_id))
+
+    AbilityService().post_process(PipelineContextDTO(result=result), source, target, move)
+
+    positions = [effect for effect in target.statuses.effects if effect.effect_id == "ranged_position"]
+    assert len(positions) == 1
+    assert positions[0].params["position"] == "close"
+    assert positions[0].active_from_exchange == 5
+    assert positions[0].expire_at_exchange == 6
+    assert [fact.effect_id for fact in result.effect_facts[-2:]] == ["ranged_position", "force_ranged_close"]
+    assert result.effect_facts[-1].source_trigger_id == "weapon_knockdown_hit"
+
+
+@pytest.mark.unit
+def test_force_ranged_close_effect_ignores_non_ranged_target() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    result = InteractionResultDTO(source_id=source.char_id, target_id=target.char_id)
+    result.applied_effects.append({"id": "force_ranged_close", "target_id": target.char_id})
+
+    move = CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=target.char_id))
+
+    AbilityService().post_process(PipelineContextDTO(result=result), source, target, move)
+
+    assert target.statuses.effects == []
+    assert result.effect_facts == []
+
+
+@pytest.mark.unit
 def test_ranged_position_service_counts_incoming_melee_contact_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, int] = {}
 
@@ -5760,10 +5803,10 @@ def test_far_position_boosts_archer_outgoing_bow_damage_after_mitigation(monkeyp
         result,
     )
 
-    assert damage == pytest.approx(72.100313)
-    assert result.damage_final == 72
+    assert damage == pytest.approx(67.711598)
+    assert result.damage_final == 67
     assert result.damage_trace is not None
-    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.15)
+    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.08)
 
 
 @pytest.mark.unit
@@ -5803,9 +5846,9 @@ def test_ranged_covering_fire_expands_position_outgoing_damage_bonus(monkeypatch
         result,
     )
 
-    assert damage == pytest.approx(90.0)
+    assert damage == pytest.approx(84.0)
     assert result.damage_trace is not None
-    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(0.75)
+    assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(0.70)
     assert result.damage_trace.details["ranged_position_outgoing_bonus_mult"] == pytest.approx(1.20)
 
 
@@ -5882,6 +5925,55 @@ def test_ranged_position_weights_treat_melee_contact_as_position_pressure() -> N
 
 
 @pytest.mark.unit
+def test_ranged_position_weights_amplify_far_damage_as_position_threat() -> None:
+    archer = actor(1, "a", hp=100)
+    enemy = actor(2, "b")
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="current-position",
+            effect_id="ranged_position",
+            source_id=archer.char_id,
+            active_from_exchange=0,
+            expire_at_exchange=1,
+            params={"position": "far"},
+        )
+    )
+    archer.stats = stats({"evasion": 0.50, "parry": 0.0, "initiative": 10.0}, {"skill_ranged_combat": 0.15})
+    enemy.stats = stats({"initiative": 10.0, "anti_dodge_chance": 0.0})
+
+    no_damage = RangedPositionService.position_weights(archer=archer, enemy=enemy, damage_taken=0)
+    far_hit = RangedPositionService.position_weights(archer=archer, enemy=enemy, damage_taken=10)
+
+    assert far_hit.far < no_damage.far
+    assert far_hit.mid > no_damage.mid
+    assert far_hit.close > no_damage.close
+
+
+@pytest.mark.unit
+def test_ranged_position_low_skill_prefers_mid_then_close_before_far() -> None:
+    archer = actor(1, "a", hp=100)
+    enemy = actor(2, "b")
+    archer.loadout.layout.update({"main_hand": "skill_archery", "tactical_style": "skill_ranged_combat"})
+    archer.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="current-position",
+            effect_id="ranged_position",
+            source_id=archer.char_id,
+            active_from_exchange=0,
+            expire_at_exchange=1,
+            params={"position": "far"},
+        )
+    )
+    archer.stats = stats({"evasion": 0.50, "parry": 0.0, "initiative": 10.0}, {"skill_ranged_combat": 0.15})
+    enemy.stats = stats({"initiative": 10.0, "anti_dodge_chance": 0.0})
+
+    weights = RangedPositionService.position_weights(archer=archer, enemy=enemy, damage_taken=0)
+
+    assert weights.mid > weights.close > weights.far
+
+
+@pytest.mark.unit
 def test_ranged_position_weights_scale_melee_contact_recovery_with_ranged_skill() -> None:
     low = actor(1, "a", hp=100)
     full = actor(2, "a", hp=100)
@@ -5904,8 +5996,9 @@ def test_ranged_position_weights_scale_melee_contact_recovery_with_ranged_skill(
     low_weights = RangedPositionService.position_weights(archer=low, enemy=enemy, damage_taken=0, melee_pressure=1)
     full_weights = RangedPositionService.position_weights(archer=full, enemy=enemy, damage_taken=0, melee_pressure=1)
 
-    assert full_weights.close == pytest.approx(0.10)
     assert full_weights.far > low_weights.far
+    assert full_weights.mid == pytest.approx(low_weights.mid, abs=0.10)
+    assert full_weights.close > 0.10
     assert full_weights.close < low_weights.close
 
 
@@ -5927,10 +6020,10 @@ def test_target_far_position_reduces_only_incoming_physical_melee_damage(monkeyp
         melee_result,
     )
 
-    assert melee_damage == pytest.approx(50.0)
-    assert melee_result.damage_final == 50
+    assert melee_damage == pytest.approx(70.0)
+    assert melee_result.damage_final == 70
     assert melee_result.damage_trace is not None
-    assert melee_result.damage_trace.details["ranged_position_incoming_mult"] == pytest.approx(0.5)
+    assert melee_result.damage_trace.details["ranged_position_incoming_mult"] == pytest.approx(0.7)
 
     arrow_ctx = PipelineContextDTO()
     arrow_ctx.flags.meta.source_type = "main_hand"
@@ -5948,11 +6041,11 @@ def test_target_far_position_reduces_only_incoming_physical_melee_damage(monkeyp
         arrow_result,
     )
 
-    assert arrow_damage == pytest.approx(115.0)
-    assert arrow_result.damage_final == 115
+    assert arrow_damage == pytest.approx(108.0)
+    assert arrow_result.damage_final == 108
     assert arrow_result.damage_trace is not None
     assert "ranged_position_incoming_mult" not in arrow_result.damage_trace.details
-    assert arrow_result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.15)
+    assert arrow_result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.08)
 
 
 @pytest.mark.unit

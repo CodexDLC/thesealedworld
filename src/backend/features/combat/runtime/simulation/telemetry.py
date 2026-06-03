@@ -44,6 +44,7 @@ class CombatTelemetry:
     tactical_damage_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_reflected_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_prevented_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
+    tactical_chain_attempts_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_chain_hits_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_shield_branch_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
     tactical_shield_damage_by_actor: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -334,16 +335,20 @@ class CombatTelemetry:
                 shield_absorb,
             )
 
-        if result.get("is_counter") and source_id and damage > 0:
-            self._increment_nested(self.tactical_damage_by_actor, source_id, "counter_attack", damage)
-            self._increment_nested(self.tactical_chain_hits_by_actor, source_id, "counter_attack")
+        if result.get("is_counter") and source_id:
+            self._increment_nested(self.tactical_chain_attempts_by_actor, source_id, "counter_attack")
+            if damage > 0:
+                self._increment_nested(self.tactical_damage_by_actor, source_id, "counter_attack", damage)
+                self._increment_nested(self.tactical_chain_hits_by_actor, source_id, "counter_attack")
 
-        if str(result.get("hand") or "") in {"off", "off_hand"} and source_id and damage > 0:
+        if str(result.get("hand") or "") in {"off", "off_hand"} and source_id:
             tactical_id = self._offhand_tactical_id(actors.get(source_id))
-            self._increment_nested(self.tactical_damage_by_actor, source_id, tactical_id, damage)
-            self._increment_nested(self.tactical_chain_hits_by_actor, source_id, tactical_id)
-            if tactical_id == "weapon_shield_bash_on_block":
-                self._increment_nested(self.tactical_shield_damage_by_actor, source_id, tactical_id, damage)
+            self._increment_nested(self.tactical_chain_attempts_by_actor, source_id, tactical_id)
+            if damage > 0:
+                self._increment_nested(self.tactical_damage_by_actor, source_id, tactical_id, damage)
+                self._increment_nested(self.tactical_chain_hits_by_actor, source_id, tactical_id)
+                if tactical_id == "weapon_shield_bash_on_block":
+                    self._increment_nested(self.tactical_shield_damage_by_actor, source_id, tactical_id, damage)
 
         if self._is_shield_damage_feint(result) and source_id and damage > 0:
             self._increment_nested(

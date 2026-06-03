@@ -3,8 +3,6 @@ from src.backend.features.game_catalog.combat.resources.common.descriptions impo
     CombatEventTextSetDTO,
     build_combat_description,
 )
-from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
-from src.backend.features.game_catalog.combat.resources.common.pipeline_mutations import pipeline_mutation
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintCatalogEntryDTO,
@@ -12,7 +10,7 @@ from src.backend.features.game_catalog.combat.resources.feints.schemas import (
     FeintTechnicalDTO,
 )
 
-_DUAL_TAGS = ["tactical", "dual_wield", "skill_dual_wield", "weapon", "melee"]
+_DUAL_TAGS = ["tactical", "dual_wield", "skill_dual_wield", "melee"]
 
 
 TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
@@ -52,7 +50,7 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
         feint_id="bind_blade",
         cost=FeintCostDTO(tactics={"hit": 2, "parry": 2}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "debuff"],
+        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "debuff", "blade_lock"],
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_dual_bind_blade", "target_actor": "source"}],
     ),
@@ -60,34 +58,9 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
         feint_id="offhand_over",
         cost=FeintCostDTO(tactics={"hit": 3, "parry": 2}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "counter"],
+        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "counter", "blade_lock"],
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_dual_offhand_over", "target_actor": "source"}],
-    ),
-    "open_vein": FeintTechnicalDTO(
-        feint_id="open_vein",
-        cost=FeintCostDTO(tactics={"hit": 3, "parry": 3}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "crit_chance"],
-        purchase_group="tactical",
-        modifier_applications=[
-            ModifierApplicationDTO(
-                modifier_id="crit_chance_add",
-                value_override=0.30,
-                tags=["dual_wield", "dagger_window"],
-            )
-        ],
-    ),
-    "silent_puncture": FeintTechnicalDTO(
-        feint_id="silent_puncture",
-        cost=FeintCostDTO(tactics={"hit": 5, "parry": 3}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "forced_crit", "weapon_trigger", "damage"],
-        purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("force.crit"),
-            pipeline_mutation("crit_damage_boost"),
-        ],
     ),
     "answering_series": FeintTechnicalDTO(
         feint_id="answering_series",
@@ -96,14 +69,6 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
         applicability_tags=[*_DUAL_TAGS, "hit", "pressure", "counter", "damage"],
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_dual_answering_series_counter", "target_actor": "source"}],
-    ),
-    "blade_mill": FeintTechnicalDTO(
-        feint_id="blade_mill",
-        cost=FeintCostDTO(tactics={"hit": 5, "pressure": 4}),
-        target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_DUAL_TAGS, "hit", "pressure", "counter", "damage", "offhand", "high_cost"],
-        purchase_group="tactical",
-        preparation_effects=[{"id": "prep_dual_blade_mill_counter", "target_actor": "source"}],
     ),
     "blade_loop": FeintTechnicalDTO(
         feint_id="blade_loop",
@@ -117,22 +82,72 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
             "counter",
             "debuff",
             "high_cost",
+            "blade_lock",
             "requires_dual_075",
         ],
         purchase_group="tactical",
         preparation_effects=[{"id": "prep_dual_blade_loop_parry", "target_actor": "source"}],
     ),
-    "dual_blade_whirl": FeintTechnicalDTO(
-        feint_id="dual_blade_whirl",
-        cost=FeintCostDTO(tactics={"hit": 5, "dodge": 3}),
-        target=TargetType.ALL_ENEMIES,
-        target_count=5,
-        secondary_damage_mult=0.50,
-        applicability_tags=[*_DUAL_TAGS, "hit", "dodge", "damage", "multi_target", "offhand", "high_cost"],
+    "dual_blade_mill_v2": FeintTechnicalDTO(
+        feint_id="dual_blade_mill_v2",
+        cost=FeintCostDTO(tactics={"hit": 5, "pressure": 4}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "pressure", "counter", "damage", "high_cost"],
         purchase_group="tactical",
-        pipeline_mutations=[
-            pipeline_mutation("accuracy_mult", 0.90),
-            pipeline_mutation("suppress_crit_triggers"),
+        preparation_effects=[{"id": "prep_dual_blade_mill_v2_counter", "target_actor": "source"}],
+    ),
+    "dual_split_targets": FeintTechnicalDTO(
+        feint_id="dual_split_targets",
+        cost=FeintCostDTO(tactics={"hit": 2, "dodge": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "dodge", "coordination", "multi_focus"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_dual_split_targets", "target_actor": "source"}],
+    ),
+    "dual_chain_follow": FeintTechnicalDTO(
+        feint_id="dual_chain_follow",
+        cost=FeintCostDTO(tactics={"hit": 2, "parry": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "coordination", "offhand_boost"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_dual_chain_follow", "target_actor": "source"}],
+    ),
+    "dual_paired_open": FeintTechnicalDTO(
+        feint_id="dual_paired_open",
+        cost=FeintCostDTO(tactics={"hit": 2, "pressure": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "pressure", "coordination", "crit_window"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_dual_paired_open", "target_actor": "source"}],
+    ),
+    "dual_cross_lock": FeintTechnicalDTO(
+        feint_id="dual_cross_lock",
+        cost=FeintCostDTO(tactics={"hit": 2, "parry": 3}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "blade_lock", "forced_parry", "debuff"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_dual_cross_lock", "target_actor": "source"}],
+    ),
+    "dual_blade_vise": FeintTechnicalDTO(
+        feint_id="dual_blade_vise",
+        cost=FeintCostDTO(tactics={"hit": 2, "parry": 4}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "hit", "parry", "blade_lock", "counter", "control", "anti_archer"],
+        purchase_group="tactical",
+        preparation_effects=[{"id": "prep_dual_blade_vise", "target_actor": "source"}],
+    ),
+    "dual_crimson_lock": FeintTechnicalDTO(
+        feint_id="dual_crimson_lock",
+        cost=FeintCostDTO(tactics={"blood": 2, "parry": 2}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_DUAL_TAGS, "blood", "parry", "blade_lock", "reflect", "counter"],
+        purchase_group="tactical",
+        preparation_effects=[
+            {
+                "id": "prep_dual_crimson_lock",
+                "target_actor": "source",
+                "params": {"reflect_ratio": 0.50},
+            }
         ],
     ),
 }
@@ -140,7 +155,7 @@ TACTICAL_DUAL_WIELD_FEINTS_TECHNICAL = {
 _DUAL_TEXTS = {
     "broken_step": (
         "Ломаный шаг",
-        "Усилить контру с уворота",
+        "ломая линию шага усилить ответ с уворота",
         "Дуальный финт: следующий успешный уворот повышает шанс контратаки.",
         "ломая линию шага",
         "и оставляет окно для ответа",
@@ -148,7 +163,7 @@ _DUAL_TEXTS = {
     ),
     "shifting_line": (
         "Смена линии",
-        "Поднять парирование",
+        "перенося вторую руку на встречную линию поднять парирование",
         "Дуальный финт: следующая входящая атака проходит против усиленного парирования.",
         "перенося вторую руку на встречную линию",
         "и усиливает парирование",
@@ -156,7 +171,7 @@ _DUAL_TEXTS = {
     ),
     "empty_line": (
         "Пустая линия",
-        "Срезать входящий урон",
+        "оставив перед собой пустую линию срезать входящий урон",
         "Дуальный финт: следующий входящий удар наносит половину урона.",
         "оставляя перед собой пустую линию",
         "и принимает удар вскользь",
@@ -164,7 +179,7 @@ _DUAL_TEXTS = {
     ),
     "torn_rhythm": (
         "Рваный ритм",
-        "Контра от капа",
+        "сбивая ритм найти контратаку от капа",
         "Дуальный финт: следующий успешный уворот проверяет контратаку от капа.",
         "сбивая ритм двумя клинками",
         "и ищет предельное окно контратаки",
@@ -172,67 +187,91 @@ _DUAL_TEXTS = {
     ),
     "bind_blade": (
         "Связать клинок",
-        "Сбить урон с парирования",
-        "Дуальный финт: следующее успешное парирование снижает следующий исходящий урон атакующего.",
-        "готовя связку клинка",
+        "связав клинок противника сбить его следующий урон",
+        "Дуальный финт-замок: следующее успешное парирование связывает оружие цели и режет её следующий урон.",
+        "сводя клинки в замок вокруг оружия противника",
         "и связывает оружие противника",
         "и сбивает силу следующего удара",
     ),
     "offhand_over": (
         "Вторая рука сверху",
-        "Открыть контру с парирования",
-        "Дуальный финт: следующее успешное парирование открывает контратаку и повышает ее шанс.",
+        "подняв вторую руку перевести парирование в ответ",
+        "Дуальный финт-замок: следующее успешное парирование открывает контратаку и повышает её шанс.",
         "поднимая вторую руку над линией",
         "и переводит парирование в ответ",
         "и открывает встречную серию",
     ),
-    "open_vein": (
-        "Открытая жила",
-        "Поднять шанс крита",
-        "Дуальный финт: следующий удар получает повышенный шанс крита.",
-        "выискивая тонкую линию",
-        "и открывает шанс критического прокола",
-        "и находит живую точку",
-    ),
-    "silent_puncture": (
-        "Тихий прокол",
-        "Гарантировать крит",
-        "Дуальный финт: следующий удар критический и наносит усиленный критический урон.",
-        "пряча второй клинок",
-        "и проводит тихий критический прокол",
-        "и раскрывает броню точным проколом",
-    ),
     "answering_series": (
         "Ответная серия",
-        "Усилить контратаку",
+        "собирая ответную серию усилить контратаку",
         "Дуальный финт: следующая успешная контратака наносит больше урона.",
         "собирая ответную серию",
         "и усиливает встречную атаку",
         "и вкладывает темп в ответ",
     ),
-    "blade_mill": (
-        "Мельница двух рук",
-        "Усилить контру и offhand",
-        "Дуальный финт: следующая успешная контратака наносит больше урона и запускает удар второй рукой.",
-        "заводя клинки в мельницу",
-        "и переводит контратаку во вторую руку",
-        "и раскручивает два клинка в ответ",
-    ),
     "blade_loop": (
         "Петля клинков",
-        "Парировать в сильную контру",
-        "Дуальный финт: следующее парирование вызывает усиленную контратаку и снижает следующий урон цели.",
+        "замыкая клинки в петлю поймать парирование и сбить урон цели",
+        "Дуальный финт-замок: следующее парирование вызывает усиленную контратаку и снижает следующий урон цели.",
         "замыкая клинки в петлю",
         "и ловит атаку в петлю",
         "и затягивает противника в ответную связку",
     ),
-    "dual_blade_whirl": (
-        "Вихрь двух клинков",
-        "Задеть пять целей",
-        "Дуальный финт: основной размен задевает до четырех дополнительных целей.",
-        "разводя клинки в быстрый круг",
-        "и режет соседние линии",
-        "и превращает темп в широкий вихрь",
+    "dual_blade_mill_v2": (
+        "Мельница двух рук",
+        "заводя клинки в мельницу обрушить обе руки на контратаке",
+        "Дуальный финт: следующая успешная контратака наносит больше урона и обеими руками.",
+        "заводя клинки в мельницу",
+        "и переводит контратаку во вторую руку",
+        "и раскручивает два клинка в ответ",
+    ),
+    "dual_split_targets": (
+        "Раздвоенная линия",
+        "разводя клинки атаковать две линии",
+        "Дуальный финт-координация: в следующем размене основная рука бьет основную цель, вторая — соседнюю.",
+        "разводя клинки по двум линиям",
+        "и собирает удар сразу по двум линиям",
+        "и пересекает строй сразу двумя клинками",
+    ),
+    "dual_chain_follow": (
+        "Связка по ритму",
+        "поймав ритм продолжить второй рукой",
+        "Дуальный финт-координация: если основная рука попала в следующем размене, вторая рука получает прибавку к урону.",
+        "ловя ритм основной руки",
+        "и продолжает связку второй рукой",
+        "и точно ловит вторую руку в окно",
+    ),
+    "dual_paired_open": (
+        "Парное окно",
+        "подняв шанс крита раскрыть окно для обеих рук",
+        "Дуальный финт-координация: если основная рука крит в следующем размене, вторая рука получает прибавку к шансу крита.",
+        "поднимая шанс крита для обеих рук",
+        "и раскрывает критовое окно для второй руки",
+        "и собирает обеими руками критовое окно",
+    ),
+    "dual_cross_lock": (
+        "Крестовой замок",
+        "сводя клинки в замок поймать оружие противника",
+        "Дуальный финт-замок: следующая входящая атака гарантированно парируется и оставляет цель раскрытой.",
+        "сводя клинки в крестовой замок",
+        "и ловит оружие противника между лезвиями",
+        "и затягивает оружие цели в замок",
+    ),
+    "dual_blade_vise": (
+        "Тиски клинков",
+        "стиснув клинки сорвать темп противника",
+        "Дуальный финт-замок: следующее парирование вызывает контратаку и срывает концентрацию цели, лучника принуждает к ближнему бою.",
+        "стискивая клинки вокруг оружия противника",
+        "и срывает темп цели парированием в замке",
+        "и стискивает противника в опасные тиски",
+    ),
+    "dual_crimson_lock": (
+        "Алый замок",
+        "впитав удар свести клинки в замок ответа",
+        "Дуальный финт-замок: следующее парирование возвращает 50% урона цели.",
+        "оставляя кровь на линии замка",
+        "и возвращает удар через замок клинков",
+        "и превращает замок в болезненный ответ",
     ),
 }
 

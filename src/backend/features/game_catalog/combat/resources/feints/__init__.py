@@ -19,6 +19,9 @@ from src.backend.features.game_catalog.combat.resources.feints.definitions.tacti
 from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_archery import (
     WEAPON_ARCHERY_FEINTS_CATALOG,
 )
+from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_dual_wield import (
+    WEAPON_DUAL_WIELD_FEINTS_CATALOG,
+)
 from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_fencing import (
     WEAPON_FENCING_FEINTS_CATALOG,
 )
@@ -28,8 +31,14 @@ from src.backend.features.game_catalog.combat.resources.feints.definitions.weapo
 from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_polearms import (
     WEAPON_POLEARM_FEINTS_CATALOG,
 )
+from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_shield import (
+    WEAPON_SHIELD_FEINTS_CATALOG,
+)
 from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_swords import (
     WEAPON_SWORD_FEINTS_CATALOG,
+)
+from src.backend.features.game_catalog.combat.resources.feints.definitions.weapon_two_handed import (
+    WEAPON_TWO_HANDED_FEINTS_CATALOG,
 )
 from src.backend.features.game_catalog.combat.resources.feints.rendering import resolve_feint_render_context
 from src.backend.features.game_catalog.combat.resources.feints.schemas import FeintCatalogEntryDTO
@@ -40,10 +49,13 @@ FEINT_CATALOG_REGISTRY: dict[str, FeintCatalogEntryDTO] = {
     **BASIC_PARRY_FEINTS_CATALOG,
     **BASIC_PRESSURE_FEINTS_CATALOG,
     **WEAPON_ARCHERY_FEINTS_CATALOG,
+    **WEAPON_DUAL_WIELD_FEINTS_CATALOG,
     **WEAPON_FENCING_FEINTS_CATALOG,
     **WEAPON_MACING_FEINTS_CATALOG,
     **WEAPON_POLEARM_FEINTS_CATALOG,
+    **WEAPON_SHIELD_FEINTS_CATALOG,
     **WEAPON_SWORD_FEINTS_CATALOG,
+    **WEAPON_TWO_HANDED_FEINTS_CATALOG,
     **TACTICAL_RANGED_FEINTS_CATALOG,
     **TACTICAL_SHIELD_FEINTS_CATALOG,
     **TACTICAL_DUAL_WIELD_FEINTS_CATALOG,

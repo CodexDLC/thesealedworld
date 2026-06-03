@@ -21,7 +21,7 @@ BASIC_HIT_FEINTS_TECHNICAL = {
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=[pipeline_mutation("ignore_miss")],
         applicability_tags=[*_BASIC_HIT_TAGS, "tier_1"],
-        hit_damage_bonus_per_tier=3,
+        hit_damage_bonus_per_tier=2,
     ),
     "steady_strike": FeintTechnicalDTO(
         feint_id="steady_strike",
@@ -29,7 +29,7 @@ BASIC_HIT_FEINTS_TECHNICAL = {
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=[pipeline_mutation("ignore_miss")],
         applicability_tags=[*_BASIC_HIT_TAGS, "tier_2"],
-        hit_damage_bonus_per_tier=5,
+        hit_damage_bonus_per_tier=4,
     ),
     "flawless_strike": FeintTechnicalDTO(
         feint_id="flawless_strike",
@@ -37,25 +37,39 @@ BASIC_HIT_FEINTS_TECHNICAL = {
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=[pipeline_mutation("ignore_miss")],
         applicability_tags=[*_BASIC_HIT_TAGS, "tier_3"],
-        hit_damage_bonus_per_tier=7,
+        hit_damage_bonus_per_tier=5,
+    ),
+    "measured_strike_advanced": FeintTechnicalDTO(
+        feint_id="measured_strike_advanced",
+        cost=FeintCostDTO(tactics={"hit": 3, "tempo": 1}),
+        target=TargetType.SINGLE_ENEMY,
+        pipeline_mutations=[pipeline_mutation("ignore_miss")],
+        applicability_tags=[*_BASIC_HIT_TAGS, "tempo", "tier_1", "punish"],
+        hit_damage_bonus_per_tier=2,
+        effects=[{"id": "debuff_accuracy", "target_actor": "target"}],
     ),
 }
 
 _BASIC_HIT_TEXTS = {
     "measured_strike": (
         "Выверенный удар",
-        "Спокойно провести оружейную атаку",
+        "спокойно провести оружейную атаку",
         "Базовый hit-финт: надежный удар с бонусным уроном.",
     ),
     "steady_strike": (
         "Уверенный удар",
-        "Закрепить линию и провести атаку",
+        "закрепляя линию провести атаку",
         "Базовый hit-финт: усиленный надежный удар.",
     ),
     "flawless_strike": (
         "Безошибочный удар",
-        "Не отпустить линию атаки",
+        "не отпуская линию довести атаку до конца",
         "Базовый hit-финт: дорогой надежный удар с высоким бонусным уроном.",
+    ),
+    "measured_strike_advanced": (
+        "Карательный выверенный удар",
+        "наказывая промах противника провести надежный удар и сбить ему точность",
+        "Карательный базовый hit-финт: тратит темп, надежный удар с бонусом и сбивает точность цели.",
     ),
 }
 

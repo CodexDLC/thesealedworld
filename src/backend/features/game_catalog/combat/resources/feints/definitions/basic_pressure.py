@@ -23,16 +23,36 @@ BASIC_PRESSURE_FEINTS_TECHNICAL = {
             {"id": "prep_brace_guard", "target_actor": "source"},
         ],
     ),
+    "press_defense_advanced": FeintTechnicalDTO(
+        feint_id="press_defense_advanced",
+        cost=FeintCostDTO(tactics={"pressure": 3, "tempo": 1}),
+        target=TargetType.SINGLE_ENEMY,
+        applicability_tags=[*_BASIC_PRESSURE_TAGS, "tempo", "punish"],
+        preparation_effects=[
+            {"id": "prep_brace_guard", "target_actor": "source"},
+        ],
+        effects=[
+            {"id": "debuff_2h_damage_halved", "target_actor": "target"},
+        ],
+    ),
 }
 
 _BASIC_PRESSURE_TEXTS = {
     "press_defense": (
         "Защитный нажим",
-        "Закрепиться после удара",
+        "закрепляя линию после нанесенного урона уплотнить защиту",
         "Базовый pressure-финт: следующий входящий удар наносит меньше урона.",
         "закрепляя линию после нанесенного урона",
         "и переводит нажим в защитную стойку",
         "и жестко закрывает корпус после давления",
+    ),
+    "press_defense_advanced": (
+        "Карательный защитный нажим",
+        "наказывая промах противника уплотнить защиту и сбить ему урон",
+        "Карательный базовый pressure-финт: тратит темп, готовит уплотненную защиту и режет следующий урон цели.",
+        "наказывая промах противника защитным нажимом",
+        "и закрепляет защиту и режет урон цели",
+        "и режет урон цели после защитного нажима",
     ),
 }
 

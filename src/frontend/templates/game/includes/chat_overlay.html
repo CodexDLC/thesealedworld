@@ -6,8 +6,10 @@
          x-cloak
          @keydown.escape.window="closeChatOverlay()"
          :class="{ ['chat-step-' + chatStep]: true }"
-         style="width: min(100vw - 32px, 920px); height: min(70vh, 720px);">
+         :style="hudWindowStyle('chat')">
     <div class="game-chat-panel-host" style="height: 100%; min-height: 0;">
         {% include "shared/chat/main.html" %}
     </div>
+    {% set window_name = 'chat' %}
+    {% include "game/includes/hud_window_resize_handles.html" %}
 </section>

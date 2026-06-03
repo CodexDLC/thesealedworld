@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Ranged position">
+  <g fill="none" stroke="#78cdff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 19c5.2-2.4 9-6.2 11.4-11.4"/>
+    <path d="M8.4 19.2c4.1-2 7.2-5.1 9.2-9.2"/>
+    <path d="M4.8 15.6c2-4.1 5.1-7.2 9.2-9.2"/>
+    <path d="M15.2 6.8l4-2"/>
+    <path d="M17.2 8.8l2-4"/>
+    <path d="M14.8 6.4l4.8 4.8"/>
+    <path d="M3.8 20.2h5.4"/>
+    <path d="M3.8 17.6v2.6"/>
+  </g>
+</svg>

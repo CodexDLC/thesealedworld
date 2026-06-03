@@ -619,45 +619,72 @@
     }
 
     .combat-result-screen {
+        height: 100%;
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px));
         min-height: auto;
-        overflow: visible;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-width: thin;
     }
 
     .combat-result-hero {
-        grid-template-rows: auto minmax(220px, auto) minmax(0, auto) auto;
-        gap: 10px;
-        padding: 8px;
+        grid-template-rows: auto minmax(148px, clamp(148px, 20dvh, 180px)) minmax(0, auto) auto;
+        gap: 8px;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
     }
 
     .combat-result-summary {
-        gap: 10px;
+        gap: 8px;
+    }
+
+    .combat-result-status,
+    .combat-result-team,
+    .combat-result-rewards {
+        padding: 8px;
+    }
+
+    .combat-result-status p {
+        font-size: 12px;
+        line-height: 1.35;
     }
 
     .combat-result-head {
         gap: 6px;
-        padding: 18px 12px 12px;
+        padding: 16px 10px 10px;
     }
 
     .combat-result-head h2 {
-        font-size: clamp(30px, 10vw, 42px);
-        letter-spacing: .14em;
+        font-size: clamp(28px, 8vw, 34px);
+        letter-spacing: .12em;
+    }
+
+    .combat-result-head p {
+        font-size: 12px;
+        line-height: 1.35;
     }
 
     .combat-result-field {
-        min-height: 220px;
+        min-height: 148px;
     }
 
     .combat-result-actions {
         position: sticky;
         bottom: 0;
+        z-index: 5;
         padding-top: 8px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
         background:
-            linear-gradient(180deg, transparent, rgba(0, 0, 0, .82) 36%),
-            rgba(0, 0, 0, .28);
+            linear-gradient(180deg, transparent, rgba(0, 0, 0, .84) 38%),
+            rgba(0, 0, 0, .32);
     }
 
     .combat-result-actions .combat-primary-action {
         width: 100%;
+    }
+
+    .combat-result-reward-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
     }
 
     .combat-battle-header,

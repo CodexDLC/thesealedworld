@@ -13,6 +13,7 @@
              dynamic: {}
          },
          unreadTabs: {},
+         mobileSelectOpen: false,
          _dynamicTabKey(msg) {
              if ((msg.tab && msg.tab.kind === 'combat') || msg.channel === 'combat') return 'combat_' + (msg.scope_id || 'unknown');
              if (msg.tab && msg.tab.key) return msg.tab.key;
@@ -790,7 +791,9 @@
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->
-    <div class="chat-tabs" :class="{'chat-tabs-mini': chatStep === 0}">
+    <div class="chat-tabs hud-window-drag-handle"
+         :class="{'chat-tabs-mini': chatStep === 0}"
+         @pointerdown="if (!$event.target.closest('button, select, input, .chat-tab, .chat-tab-select-wrap, .chat-tab-select-trigger, .chat-tab-select-dropdown')) startHudWindowDrag('chat', $event, $el.closest('.hud-window'))">
         <div class="chat-tab-group">
             <div class="chat-tab" data-channel="global" :class="{ 'active': chatTab === 'global', 'unread': _isUnread('global') }" @click="_activateTab('global')"><span>[МИР]</span></div>
             <div class="chat-tab" data-channel="zone"   :class="{ 'active': chatTab === 'zone', 'unread': _isUnread('zone') }"   @click="_activateTab('zone')"><span>[ЗОНА]</span></div>
@@ -811,18 +814,37 @@
             </template>
         </div>
 
-        <label class="chat-tab-select-wrap" aria-label="Выбор канала чата">
-            <select class="chat-tab-select"
-                    :value="chatTab"
-                    @change="_activateTab($event.target.value)">
-                <option value="global" x-text="_tabSelectLabel('global')"></option>
-                <option value="zone" x-text="_tabSelectLabel('zone')"></option>
-                <option value="system" x-text="_tabSelectLabel('system')"></option>
+        <div class="chat-drag-spacer" aria-hidden="true" title="Перетащить окно">
+            <span class="chat-drag-grip"></span>
+            <span class="chat-drag-grip"></span>
+            <span class="chat-drag-grip"></span>
+        </div>
+
+        <div class="chat-tab-select-wrap" aria-label="Выбор канала чата" @click.outside="mobileSelectOpen = false">
+            <button type="button" class="chat-tab-select-trigger" @click="mobileSelectOpen = !mobileSelectOpen">
+                <span x-text="_channelLabel(chatTab).toUpperCase()"></span>
+                <span class="chevron" :style="mobileSelectOpen ? 'transform: rotate(180deg)' : ''">▼</span>
+            </button>
+            <div x-show="mobileSelectOpen" class="chat-tab-select-dropdown" x-cloak>
+                <div class="chat-tab-select-option" :class="{ 'active': chatTab === 'global' }" @click="_activateTab('global'); mobileSelectOpen = false">
+                    <span class="dot-world"></span> МИР
+                </div>
+                <div class="chat-tab-select-option" :class="{ 'active': chatTab === 'zone' }" @click="_activateTab('zone'); mobileSelectOpen = false">
+                    <span class="dot-local"></span> ЗОНА
+                </div>
+                <div class="chat-tab-select-option" :class="{ 'active': chatTab === 'system' }" @click="_activateTab('system'); mobileSelectOpen = false">
+                    <span class="dot-system"></span> СИСТЕМА
+                </div>
                 <template x-for="(entry, key) in channels.dynamic" :key="key">
-                    <option :value="key" x-text="_tabSelectLabel(key)"></option>
+                    <div class="chat-tab-select-option"
+                         :class="{ 'active': chatTab === key, 'is-private': entry.tab.kind === 'dm', 'is-combat': entry.tab.kind === 'combat' }"
+                         @click="_activateTab(key); mobileSelectOpen = false">
+                        <span :class="'dot-' + (entry.tab.accent || entry.tab.kind)"></span>
+                        <span x-text="entry.tab.title.toUpperCase()"></span>
+                    </div>
                 </template>
-            </select>
-        </label>
+            </div>
+        </div>
 
         <div class="chat-win-controls" @click.stop>
             <div class="chat-tab chat-tab-system-toggle"
@@ -832,9 +854,8 @@
                  title="Система">
                 <span>[СИСТЕМА]</span>
             </div>
-            <button class="btn-node sm ghost" @click="stepChatSize(-1)" :disabled="chatStep === 0" title="Свернуть на шаг">▼</button>
+            <button class="btn-node sm ghost" @click="stepChatSize(-1)" :disabled="chatStep <= 1" title="Свернуть на шаг">▼</button>
             <div class="chat-step-track">
-                <div class="chat-step-dot" :class="{'active': chatStep === 0}" @click="setChatStep(0)" title="Свернуть"></div>
                 <div class="chat-step-dot" :class="{'active': chatStep === 1}" @click="setChatStep(1)" title="Четверть"></div>
                 <div class="chat-step-dot" :class="{'active': chatStep === 2}" @click="setChatStep(2)" title="Половина"></div>
                 <div class="chat-step-dot" :class="{'active': chatStep === 3}" @click="setChatStep(3)" title="Полностью"></div>
@@ -849,9 +870,9 @@
                     data-chat-minmax-label
                     title="Свернуть/развернуть">MAX</button>
             <button class="btn-node sm ghost"
-                    @click="setChatStep(0)"
-                    title="Свернуть до панели"
-                    aria-label="Collapse chat to footer">×</button>
+                    @click="closeChatOverlay()"
+                    title="Закрыть чат"
+                    aria-label="Close chat">×</button>
         </div>
     </div>
 

@@ -137,6 +137,47 @@ def test_content_ops_rebuild_plan_renders_result_items(monkeypatch: pytest.Monke
     assert "changed=2" in response.text
 
 
+def test_content_ops_detail_pages_render_domain_summary_instead_of_raw_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    clan = _clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)
+
+    class FakeAdminMonstersApi:
+        async def get_generated_clan(self, clan_id: str):
+            assert clan_id == "rat-clan"
+            return clan
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+    app = FastAPI()
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+    client = TestClient(app)
+
+    clan_response = client.get("/admin/content-ops/monster-detail?id=rat-clan")
+    assert clan_response.status_code == 200
+    assert "Профиль сгенерированной семьи" in clan_response.text
+    assert "Состав шаблона" in clan_response.text
+    assert "Persisted JSON" not in clan_response.text
+    assert "raw_tags" not in clan_response.text
+
+    member_response = client.get("/admin/content-ops/monster-member-detail?clan_id=rat-clan&member_id=rat-clan-scout")
+    assert member_response.status_code == 200
+    assert "Боевой профиль" in member_response.text
+    assert "Атрибуты" in member_response.text
+    assert "Мечи" in member_response.text
+    assert "Физическая защита" in member_response.text
+    assert "+4.0%" in member_response.text
+    assert "Предметы и аффиксы" in member_response.text
+    assert "Правая рука" in member_response.text
+    assert "Ржавый топор" in member_response.text
+    assert "Power 2.4" in member_response.text
+    assert "Кровоточащий край" in member_response.text
+    assert "Урон кровотечения +6.0%" in member_response.text
+    assert "skill_swords" not in member_response.text
+    assert "physical_resistance" not in member_response.text
+    assert "base " not in member_response.text
+    assert "per tier" not in member_response.text
+    assert "Persisted JSON" not in member_response.text
+    assert "generation_meta" not in member_response.text
+
+
 def test_monster_browser_redirect_preserves_bulk_filters() -> None:
     form = {
         "family_id": "rat_swarm",
@@ -159,7 +200,7 @@ def test_content_ops_finds_member_for_detail_page() -> None:
     assert member is not None
     assert member.description == "scout description"
     assert member.text_content == {"appearance_ru": "scout appearance"}
-    assert member.items == {"layout": {"equipment": {"main_hand": "hatchet"}}}
+    assert member.items["layout"] == {"equipment": {"main_hand": "hatchet"}}
     assert member.scaled_attributes == {"strength": 10}
 
 
@@ -221,10 +262,43 @@ def _clan(
                 text_content={"appearance_ru": f"{role} appearance"},
                 scaled_attributes={"strength": 10},
                 scaled_skills={"skill_swords": 0.2},
-                items={"layout": {"equipment": {"main_hand": "hatchet"}}},
+                items={
+                    "layout": {"equipment": {"main_hand": "hatchet"}},
+                    "by_id": {
+                        "hatchet": {
+                            "name_ru": "Ржавый топор",
+                            "base_id": "hatchet",
+                            "item_type": "weapon",
+                            "combat": {
+                                "power": 2.4,
+                                "related_skill": "skill_swords",
+                                "tags": ["axe", "rusty"],
+                                "bonuses": {"physical_damage_bonus": "+0.0300"},
+                            },
+                            "generation": {
+                                "affixes": [
+                                    {
+                                        "name_ru": "Кровоточащий край",
+                                        "bonuses": {"bleed_damage_bonus": 0.06},
+                                    }
+                                ]
+                            },
+                        }
+                    },
+                },
                 vitals={"hp": {"max": 50}},
                 ai_profile={"profile": "aggressive"},
-                generation_meta={"balance": {"gear_score": 1}},
+                generation_meta={
+                    "balance": {"gear_score": 1},
+                    "family_modifiers": [
+                        {
+                            "target": "physical_resistance",
+                            "value": 0.03,
+                            "per_tier": 0.01,
+                            "effective_value": 0.04,
+                        }
+                    ],
+                },
                 combat_actor_snapshot={"meta": {}},
                 metadata_={},
                 context={},

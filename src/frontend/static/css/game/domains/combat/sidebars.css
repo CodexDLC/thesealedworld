@@ -159,15 +159,34 @@
     height: 13px;
 }
 
+.combat-effect img {
+    width: 16px;
+    height: 16px;
+    display: block;
+    object-fit: contain;
+    opacity: .9;
+    filter: drop-shadow(0 0 5px var(--effect-glow, rgba(255, 170, 0, .22)));
+}
+
+.combat-effect-stack--field .combat-effect img {
+    width: 14px;
+    height: 14px;
+}
+
 .combat-effect b {
     position: absolute;
-    right: 1px;
+    right: 0;
     bottom: 0;
+    max-width: 100%;
+    padding: 0 1px;
     color: #fff;
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: clamp(6px, 28%, 9px);
     line-height: 1;
     text-shadow: 0 0 5px #000;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: clip;
 }
 
 .combat-effect--bleeding { --effect-color: rgba(220, 48, 48, .82); --effect-glow: rgba(220, 48, 48, .24); border-color: rgba(220, 48, 48, .72); box-shadow: 0 0 10px rgba(220, 48, 48, .18); }
@@ -180,6 +199,7 @@
 .combat-effect--debuff { --effect-color: rgba(190, 94, 255, .76); --effect-glow: rgba(190, 94, 255, .20); border-color: rgba(190, 94, 255, .64); box-shadow: 0 0 10px rgba(190, 94, 255, .14); }
 .combat-effect--heal { --effect-color: rgba(82, 224, 170, .76); --effect-glow: rgba(82, 224, 170, .20); border-color: rgba(82, 224, 170, .64); box-shadow: 0 0 10px rgba(82, 224, 170, .14); }
 .combat-effect--effect { --effect-color: rgba(210, 180, 140, .72); --effect-glow: rgba(210, 180, 140, .18); border-color: rgba(210, 180, 140, .56); box-shadow: 0 0 10px rgba(210, 180, 140, .12); }
+.combat-effect[data-catalog-key="ranged_position"] { --effect-color: rgba(120, 205, 255, .82); --effect-glow: rgba(120, 205, 255, .25); border-color: rgba(120, 205, 255, .70); box-shadow: 0 0 10px rgba(120, 205, 255, .18); }
 
 .combat-actor-name {
     margin-top: 0;

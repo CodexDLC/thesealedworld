@@ -10,7 +10,7 @@
 
 html,
 body {
-  background: #000; /* Force black background */
+  background: #000;
   font-family: var(--font-ui);
   color: var(--col-text-primary);
   line-height: 1.5;

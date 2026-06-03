@@ -5,7 +5,7 @@
 // Shared core — sets height directly so CSS transition fires cleanly
 function _applyChatStep(newStep) {
     const container = document.querySelector('.game-container');
-    const chatRow   = document.querySelector('.game-chat-row');
+    const chatRow   = document.querySelector('.game-chat-row') || document.querySelector('.game-chat-overlay');
     if (!container || !chatRow) return;
 
     const styles = window.getComputedStyle(container);
@@ -17,9 +17,11 @@ function _applyChatStep(newStep) {
         Math.round(available * 0.50),
         Math.round(available * 0.75),
     ];
-    const clamped = Math.max(0, Math.min(steps.length - 1, newStep));
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+    const clamped = Math.max(minStep, Math.min(steps.length - 1, newStep));
     const height  = steps[clamped];
-    const minMaxLabel = clamped === 0 ? 'MAX' : 'MIN';
+    const minMaxLabel = clamped === minStep ? 'MAX' : 'MIN';
 
     chatRow.classList.remove('chat-step-0', 'chat-step-1', 'chat-step-2', 'chat-step-3', 'chat-minimized');
     chatRow.classList.add(`chat-step-${clamped}`);
@@ -32,7 +34,11 @@ function _applyChatStep(newStep) {
     if (clamped === 0) {
         chatRow.style.removeProperty('height');
     } else {
-        chatRow.style.height = height + 'px';
+        if (chatRow.classList.contains('game-chat-row')) {
+            chatRow.style.height = height + 'px';
+        } else {
+            chatRow.style.removeProperty('height');
+        }
     }
 
     if (window.Alpine) {
@@ -41,6 +47,11 @@ function _applyChatStep(newStep) {
             data.chatStep      = clamped;
             data.chatHeight    = height;
             data.chatMinimized = (clamped === 0);
+            if (data.windows && data.windows.chat) {
+                if (clamped > 0) {
+                    data.windows.chat.height = height;
+                }
+            }
             if (window.matchMedia("(max-width: 767px)").matches) {
                 data.chatClosed = clamped === 0;
                 if (clamped > 0) data.chatUnread = false;
@@ -58,8 +69,11 @@ window.stepChatSize = function(dirOrTarget) {
         if (data && data.chatStep !== undefined) currentStep = data.chatStep;
     }
 
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+
     let newStep;
-    if (dirOrTarget === 'min')      newStep = 0;
+    if (dirOrTarget === 'min')      newStep = minStep;
     else if (dirOrTarget === 'max') newStep = 3;
     else                            newStep = currentStep + dirOrTarget;
 
@@ -78,7 +92,9 @@ window.toggleChatMinMax = function() {
         const data = Alpine.$data(container);
         if (data && data.chatStep !== undefined) currentStep = data.chatStep;
     }
-    _applyChatStep(currentStep === 0 ? 3 : 0);
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+    _applyChatStep(currentStep === minStep ? 3 : minStep);
 };
 
 function initGameTooltips(root = document) {

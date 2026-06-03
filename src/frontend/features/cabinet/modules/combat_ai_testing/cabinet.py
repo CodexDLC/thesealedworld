@@ -798,6 +798,7 @@ async def _pve_pressure_table_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="source", label="Источник"),
             TableColumnMap(key="family", label="Семья"),
             TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="player_gs", label="GS"),
             TableColumnMap(key="composition_count", label="Составов"),
             TableColumnMap(key="trials_total", label="Бои"),
             TableColumnMap(key="minions_held", label="Миньонов держит"),
@@ -822,6 +823,7 @@ async def _pve_composition_table_provider(request: Request) -> TableWidgetMap:
             TableColumnMap(key="source", label="Источник"),
             TableColumnMap(key="family", label="Семья"),
             TableColumnMap(key="imprint", label="Слепок"),
+            TableColumnMap(key="player_gs", label="GS слепка"),
             TableColumnMap(key="grade", label="Класс"),
             TableColumnMap(key="composition_type", label="Тип"),
             TableColumnMap(key="composition", label="Состав"),
@@ -3210,6 +3212,20 @@ def _family_pressure_rows(run: CombatAiSimulationRun | None) -> list[dict[str, o
     return rows
 
 
+def _family_pressure_player_gs(run: CombatAiSimulationRun) -> int | str:
+    explicit = _optional_int_display(run.metadata.get("player_gear_score") or run.telemetry.get("player_gear_score"))
+    if explicit != "—":
+        return explicit
+    raw_rows = run.metadata.get("composition_reports") or run.telemetry.get("pressure_rows") or []
+    for raw_row in raw_rows:
+        row = _dict(raw_row)
+        effective_gs = _float(row.get("effective_gear_score"))
+        ratio = _float(row.get("effective_ratio"))
+        if effective_gs > 0 and ratio > 0:
+            return int(round(effective_gs / ratio))
+    return "—"
+
+
 def _family_pressure_display_rows(run: CombatAiSimulationRun | None) -> list[dict[str, object]]:
     rows = _family_pressure_rows(run)
     if rows:
@@ -3265,6 +3281,7 @@ async def _pve_pressure_rows(request: Request) -> list[dict[str, object]]:
     for run in runs:
         family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
         imprint = str(run.metadata.get("imprint_title") or run.metadata.get("imprint_key") or "—")
+        player_gs = _family_pressure_player_gs(run)
         for row in _family_pressure_rows(run):
             enriched = {
                 **row,
@@ -3272,6 +3289,7 @@ async def _pve_pressure_rows(request: Request) -> list[dict[str, object]]:
                 "source": "generated/catalog",
                 "family": family,
                 "imprint": imprint,
+                "player_gs": player_gs,
                 "status": run.status,
                 "label": f"{family} / {imprint}",
                 "href": _detail_href(run),
@@ -3285,6 +3303,7 @@ async def _pve_summary_rows(request: Request) -> list[dict[str, object]]:
     for run in await _latest_family_pressure_runs(request):
         family = str(run.metadata.get("family_id") or run.telemetry.get("family_id") or run.scenario_key)
         imprint = str(run.metadata.get("imprint_title") or run.metadata.get("imprint_key") or "—")
+        player_gs = _family_pressure_player_gs(run)
         pressure_rows = _family_pressure_rows(run)
         minion_rows = [row for row in pressure_rows if _is_pure_minion_row(row)]
         held_minion_rows = [row for row in minion_rows if _float(row.get("winrate")) >= 0.5]
@@ -3299,6 +3318,7 @@ async def _pve_summary_rows(request: Request) -> list[dict[str, object]]:
                 "source": "generated/catalog",
                 "family": family,
                 "imprint": imprint,
+                "player_gs": player_gs,
                 "label": f"{family} / {imprint}",
                 "status": run.status,
                 "composition_count": len(pressure_rows),
@@ -3518,6 +3538,15 @@ def _int(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _optional_int_display(value: Any) -> int | str:
+    if value in (None, ""):
+        return "—"
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return "—"
 
 
 def _seed_from_form(form: Any) -> int:

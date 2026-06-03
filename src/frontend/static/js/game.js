@@ -903,6 +903,27 @@ window.gameShell = function(initial = {}) {
             height: Math.round(hudWindow.height),
         }));
     };
+    const loadHudWindow = (name, defaults = {}) => {
+        let geometry = { dragging: false, resizing: false, resizeEdge: "", open: false };
+        try {
+            const rawGeo = window.localStorage.getItem(hudStorageKey(name));
+            if (rawGeo) {
+                const parsed = JSON.parse(rawGeo);
+                if (parsed.x !== undefined) geometry.x = parsed.x;
+                if (parsed.y !== undefined) geometry.y = parsed.y;
+                if (parsed.width !== undefined) geometry.width = parsed.width;
+                if (parsed.height !== undefined) geometry.height = parsed.height;
+            }
+            const rawOpen = window.localStorage.getItem(hudOpenStorageKey(name));
+            if (rawOpen) {
+                geometry.open = JSON.parse(rawOpen).open;
+            } else if (defaults.open !== undefined) {
+                geometry.open = defaults.open;
+            }
+        } catch (_e) {}
+        return Object.assign({}, defaults, geometry);
+    };
+
     const savedPanelState = loadPanelState();
     const defaultPanelsOpen = worldDesktopPanelsDefaultOpen();
     const initialPanelState = savedPanelState || {
@@ -922,12 +943,20 @@ window.gameShell = function(initial = {}) {
         startY: 0,
     };
 
+    const chatWindowObj = loadHudWindow("chat", {
+        open: false,
+        width: 920,
+        height: 540,
+        x: Math.round((window.innerWidth - 920) / 2),
+        y: Math.round((window.innerHeight - 540) / 2)
+    });
+
     return {
         chatTab: "global",
-        chatHeight: 30,
-        chatMinimized: true,
-        chatStep: 0,
-        chatClosed: true,
+        chatHeight: chatWindowObj.open ? chatWindowObj.height : 30,
+        chatMinimized: !chatWindowObj.open,
+        chatStep: chatWindowObj.open ? 2 : 0,
+        chatClosed: !chatWindowObj.open,
         chatUnread: false,
         selectedAgentId: activeCharId,
         domain,
@@ -937,7 +966,9 @@ window.gameShell = function(initial = {}) {
         leftPanelView: initialPanelState.leftPanelView,
         rightPanelView: initialPanelState.rightPanelView,
         panelStateUserEdited: savedPanelState !== null,
-        windows: {},
+        windows: {
+            chat: chatWindowObj
+        },
         chatLauncher,
         leftOpen: initialPanelState.leftOpen,
         rightOpen: initialPanelState.rightOpen,
@@ -974,6 +1005,10 @@ window.gameShell = function(initial = {}) {
         openChatOverlay() {
             this.chatClosed = false;
             this.chatUnread = false;
+            if (this.windows.chat) {
+                this.windows.chat.open = true;
+                saveHudOpenState('chat', true);
+            }
             if (typeof window.setChatStep === "function") {
                 window.setChatStep(2);
                 return;
@@ -983,8 +1018,11 @@ window.gameShell = function(initial = {}) {
         },
 
         closeChatOverlay() {
-            if (!shellMetrics().isMobile) return;
             this.chatClosed = true;
+            if (this.windows.chat) {
+                this.windows.chat.open = false;
+                saveHudOpenState('chat', false);
+            }
             if (typeof window.setChatStep === "function") {
                 window.setChatStep(0);
                 return;
@@ -1002,6 +1040,10 @@ window.gameShell = function(initial = {}) {
         },
 
         toggleHudWindow(name) {
+            if (name === 'chat') {
+                this.toggleChatOverlay();
+                return;
+            }
             const hudWindow = this.windows[name];
             if (!hudWindow) return;
             hudWindow.open = !hudWindow.open;
@@ -1206,7 +1248,13 @@ window.gameShell = function(initial = {}) {
                 parts.push(`left: ${hudWindow.x}px`, `top: ${hudWindow.y}px`, "right: auto", "bottom: auto");
             }
             if (hudWindow.width !== null) parts.push(`width: ${hudWindow.width}px`);
-            if (hudWindow.height !== null) parts.push(`height: ${hudWindow.height}px`);
+            if (hudWindow.height !== null) {
+                if (name === 'chat' && this.chatStep === 0) {
+                    
+                } else {
+                    parts.push(`height: ${hudWindow.height}px`);
+                }
+            }
             return parts.length ? `${parts.join("; ")};` : "";
         },
 
@@ -1226,7 +1274,7 @@ window.gameShell = function(initial = {}) {
 
 function _applyChatStep(newStep) {
     const container = document.querySelector('.game-container');
-    const chatRow   = document.querySelector('.game-chat-row');
+    const chatRow   = document.querySelector('.game-chat-row') || document.querySelector('.game-chat-overlay');
     if (!container || !chatRow) return;
 
     const styles = window.getComputedStyle(container);
@@ -1238,9 +1286,11 @@ function _applyChatStep(newStep) {
         Math.round(available * 0.50),
         Math.round(available * 0.75),
     ];
-    const clamped = Math.max(0, Math.min(steps.length - 1, newStep));
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+    const clamped = Math.max(minStep, Math.min(steps.length - 1, newStep));
     const height  = steps[clamped];
-    const minMaxLabel = clamped === 0 ? 'MAX' : 'MIN';
+    const minMaxLabel = clamped === minStep ? 'MAX' : 'MIN';
 
     chatRow.classList.remove('chat-step-0', 'chat-step-1', 'chat-step-2', 'chat-step-3', 'chat-minimized');
     chatRow.classList.add(`chat-step-${clamped}`);
@@ -1253,7 +1303,11 @@ function _applyChatStep(newStep) {
     if (clamped === 0) {
         chatRow.style.removeProperty('height');
     } else {
-        chatRow.style.height = height + 'px';
+        if (chatRow.classList.contains('game-chat-row')) {
+            chatRow.style.height = height + 'px';
+        } else {
+            chatRow.style.removeProperty('height');
+        }
     }
 
     if (window.Alpine) {
@@ -1262,6 +1316,11 @@ function _applyChatStep(newStep) {
             data.chatStep      = clamped;
             data.chatHeight    = height;
             data.chatMinimized = (clamped === 0);
+            if (data.windows && data.windows.chat) {
+                if (clamped > 0) {
+                    data.windows.chat.height = height;
+                }
+            }
             if (window.matchMedia("(max-width: 767px)").matches) {
                 data.chatClosed = clamped === 0;
                 if (clamped > 0) data.chatUnread = false;
@@ -1279,8 +1338,11 @@ window.stepChatSize = function(dirOrTarget) {
         if (data && data.chatStep !== undefined) currentStep = data.chatStep;
     }
 
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+
     let newStep;
-    if (dirOrTarget === 'min')      newStep = 0;
+    if (dirOrTarget === 'min')      newStep = minStep;
     else if (dirOrTarget === 'max') newStep = 3;
     else                            newStep = currentStep + dirOrTarget;
 
@@ -1299,7 +1361,9 @@ window.toggleChatMinMax = function() {
         const data = Alpine.$data(container);
         if (data && data.chatStep !== undefined) currentStep = data.chatStep;
     }
-    _applyChatStep(currentStep === 0 ? 3 : 0);
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const minStep = isMobile ? 0 : 1;
+    _applyChatStep(currentStep === minStep ? 3 : minStep);
 };
 
 function initGameTooltips(root = document) {

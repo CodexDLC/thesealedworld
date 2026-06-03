@@ -1474,10 +1474,14 @@ async def test_pve_survival_chart_compares_family_imprint_breakpoints(monkeypatc
     assert pressure_chart.datasets[1]["data"] == [1.338]
     assert table.rows[0]["family"] == "rat_swarm"
     assert table.rows[0]["imprint"] == "Слепок проломщика"
+    assert table.rows[0]["player_gs"] == 281
     assert table.rows[0]["minions_held"] == "1"
     assert table.rows[0]["minion_breakpoint"] == "2x minion"
     assert table.rows[0]["first_danger"] == "2x minion"
     assert table.rows[0]["held_pressure"] == "1x minion"
+    assert any(column.key == "player_gs" and column.label == "GS" for column in table.columns)
+    assert detail_table.rows[0]["player_gs"] == 281
+    assert any(column.key == "player_gs" and column.label == "GS слепка" for column in detail_table.columns)
     assert detail_table.rows[0]["composition_type"] == "миньоны"
     assert detail_table.rows[0]["grade"] == "light"
     assert detail_table.rows[2]["composition_type"] == "охрана"

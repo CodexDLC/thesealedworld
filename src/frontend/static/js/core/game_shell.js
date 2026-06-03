@@ -174,6 +174,27 @@ window.gameShell = function(initial = {}) {
             height: Math.round(hudWindow.height),
         }));
     };
+    const loadHudWindow = (name, defaults = {}) => {
+        let geometry = { dragging: false, resizing: false, resizeEdge: "", open: false };
+        try {
+            const rawGeo = window.localStorage.getItem(hudStorageKey(name));
+            if (rawGeo) {
+                const parsed = JSON.parse(rawGeo);
+                if (parsed.x !== undefined) geometry.x = parsed.x;
+                if (parsed.y !== undefined) geometry.y = parsed.y;
+                if (parsed.width !== undefined) geometry.width = parsed.width;
+                if (parsed.height !== undefined) geometry.height = parsed.height;
+            }
+            const rawOpen = window.localStorage.getItem(hudOpenStorageKey(name));
+            if (rawOpen) {
+                geometry.open = JSON.parse(rawOpen).open;
+            } else if (defaults.open !== undefined) {
+                geometry.open = defaults.open;
+            }
+        } catch (_e) {}
+        return Object.assign({}, defaults, geometry);
+    };
+
     const savedPanelState = loadPanelState();
     const defaultPanelsOpen = worldDesktopPanelsDefaultOpen();
     const initialPanelState = savedPanelState || {
@@ -193,12 +214,20 @@ window.gameShell = function(initial = {}) {
         startY: 0,
     };
 
+    const chatWindowObj = loadHudWindow("chat", {
+        open: false,
+        width: 920,
+        height: 540,
+        x: Math.round((window.innerWidth - 920) / 2),
+        y: Math.round((window.innerHeight - 540) / 2)
+    });
+
     return {
         chatTab: "global",
-        chatHeight: 30,
-        chatMinimized: true,
-        chatStep: 0,
-        chatClosed: true,
+        chatHeight: chatWindowObj.open ? chatWindowObj.height : 30,
+        chatMinimized: !chatWindowObj.open,
+        chatStep: chatWindowObj.open ? 2 : 0,
+        chatClosed: !chatWindowObj.open,
         chatUnread: false,
         selectedAgentId: activeCharId,
         domain,
@@ -208,7 +237,9 @@ window.gameShell = function(initial = {}) {
         leftPanelView: initialPanelState.leftPanelView,
         rightPanelView: initialPanelState.rightPanelView,
         panelStateUserEdited: savedPanelState !== null,
-        windows: {},
+        windows: {
+            chat: chatWindowObj
+        },
         chatLauncher,
         leftOpen: initialPanelState.leftOpen,
         rightOpen: initialPanelState.rightOpen,
@@ -245,6 +276,10 @@ window.gameShell = function(initial = {}) {
         openChatOverlay() {
             this.chatClosed = false;
             this.chatUnread = false;
+            if (this.windows.chat) {
+                this.windows.chat.open = true;
+                saveHudOpenState('chat', true);
+            }
             if (typeof window.setChatStep === "function") {
                 window.setChatStep(2);
                 return;
@@ -254,8 +289,11 @@ window.gameShell = function(initial = {}) {
         },
 
         closeChatOverlay() {
-            if (!shellMetrics().isMobile) return;
             this.chatClosed = true;
+            if (this.windows.chat) {
+                this.windows.chat.open = false;
+                saveHudOpenState('chat', false);
+            }
             if (typeof window.setChatStep === "function") {
                 window.setChatStep(0);
                 return;
@@ -273,6 +311,10 @@ window.gameShell = function(initial = {}) {
         },
 
         toggleHudWindow(name) {
+            if (name === 'chat') {
+                this.toggleChatOverlay();
+                return;
+            }
             const hudWindow = this.windows[name];
             if (!hudWindow) return;
             hudWindow.open = !hudWindow.open;
@@ -477,7 +519,13 @@ window.gameShell = function(initial = {}) {
                 parts.push(`left: ${hudWindow.x}px`, `top: ${hudWindow.y}px`, "right: auto", "bottom: auto");
             }
             if (hudWindow.width !== null) parts.push(`width: ${hudWindow.width}px`);
-            if (hudWindow.height !== null) parts.push(`height: ${hudWindow.height}px`);
+            if (hudWindow.height !== null) {
+                if (name === 'chat' && this.chatStep === 0) {
+                    // Minimized: let it collapse naturally
+                } else {
+                    parts.push(`height: ${hudWindow.height}px`);
+                }
+            }
             return parts.length ? `${parts.join("; ")};` : "";
         },
 

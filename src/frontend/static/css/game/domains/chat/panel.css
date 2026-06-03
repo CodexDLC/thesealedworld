@@ -42,3 +42,43 @@
     border-bottom: 1px solid var(--chat-accent-border);
     flex-shrink: 0;
 }
+
+.chat-drag-spacer {
+    flex: 1 1 auto;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 24px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+}
+
+.chat-drag-spacer:hover {
+    opacity: 0.85;
+}
+
+.chat-tabs.is-dragging .chat-drag-spacer,
+.hud-window.is-dragging .chat-drag-spacer {
+    cursor: grabbing;
+    opacity: 1;
+}
+
+.chat-drag-grip {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    color: var(--chat-accent, var(--col-accent));
+    box-shadow: 0 0 4px color-mix(in srgb, currentColor 60%, transparent);
+}
+
+@media (max-width: 768px) {
+    .chat-drag-spacer {
+        display: none !important;
+    }
+}

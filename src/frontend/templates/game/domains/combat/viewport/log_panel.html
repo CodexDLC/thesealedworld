@@ -61,13 +61,14 @@
                 {% set effect_icon = '/static/images/ui/combat-icons/bleeding.svg' if effect_id in ['dot_bleed', 'bleed', 'bleeding'] or 'bleed' in effect_icon_raw else '/static/images/ui/combat-icons/burn.svg' if effect_id == 'burn' or 'burn' in effect_icon_raw else '/static/images/ui/combat-icons/poison.svg' if effect_id == 'poison' or 'poison' in effect_icon_raw else '/static/images/ui/combat-icons/stun.svg' if effect_id == 'stun' or 'stun' in effect_icon_raw else '/static/images/ui/combat-icons/target.svg' if effect_id == 'death' or 'death' in effect_icon_raw else effect_icon_raw if effect_icon_raw and effect_icon_raw[:1] == '/' else '/static/images/ui/combat-icons/token.svg' %}
                 {% set effect_tooltip = effect.tooltip if effect.tooltip is defined and effect.tooltip else effect.title if effect.title is defined and effect.title else effect_id %}
                 {% set effect_duration = effect.duration if effect.duration is defined else none %}
+                {% set effect_label = effect.label if effect.label is defined and effect.label else effect_id %}
                 <span class="combat-log-badge combat-log-badge--effect combat-log-effect-chip"
                       title="{{ effect_tooltip }}"
                       data-tippy-content="{{ effect_tooltip }}"
                       data-effect="{{ effect_id }}"
                       {% if effect_duration is not none %}data-duration="{{ effect_duration }}"{% endif %}>
                     <img class="combat-log-effect-icon" src="{{ effect_icon }}" alt="">
-                    <span>[{{ effect_id }}{% if effect_duration is not none %} {{ effect_duration }}{% endif %}]</span>
+                    <span>[{{ effect_label }}{% if effect_duration is not none and effect_duration < 900 %} {{ effect_duration }}{% endif %}]</span>
                 </span>
             {% endfor %}
             {% if flags.crit is defined and flags.crit and not seen.crit %}<span class="combat-log-badge combat-log-badge--crit combat-log-badge--flag" title="crit" data-token="crit"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-crit.svg" alt=""></span>{% endif %}

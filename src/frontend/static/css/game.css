@@ -9,6 +9,7 @@
 
   --col-bg: #08080a;
   --col-surface: #121218;
+
   --col-parchment: #d2b48c;
   --col-parchment-dim: rgba(210, 180, 140, 0.6);
   --col-bg-base: #050505;
@@ -83,13 +84,11 @@
   --shadow-psi:    0 0 12px 2px rgba(119, 68, 255, 0.18);
 
 
-
   --col-chat-world:   var(--col-accent);
   --col-chat-local:   var(--col-stamina);
   --col-chat-system:  var(--col-neutral);
   --col-chat-private: var(--col-psi);
   --col-chat-combat:  #ff4d2e;
-
 
 
   --shadow-notify-world:   0 0 10px 2px rgba(255, 170, 0,  0.55);
@@ -6296,63 +6295,82 @@ html, body {
     flex: 1;
 }
 
-@media (max-width: 767px) {
-    #game-footer-shell {
-        flex: 0 0 var(--game-footer-height, 30px);
-        min-height: var(--game-footer-height, 30px);
+.game-chat-overlay {
+    width: 920px;
+    min-width: 480px;
+    max-width: calc(100vw - 16px);
+    height: 540px;
+    min-height: 360px;
+    max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 24px) !important;
+}
+
+.game-chat-overlay::before {
+    background: rgba(10, 10, 12, 0.85) !important;
+    opacity: 1 !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+    .game-chat-overlay {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100vw !important;
+        min-width: 0 !important;
+        max-width: 100vw !important;
+        height: 50dvh !important;
+        max-height: 80dvh !important;
+        margin: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        border-top: 1px solid var(--chat-accent-border, rgba(255, 170, 0, 0.2)) !important;
+        border-radius: 16px 16px 0 0 !important;
+        clip-path: none !important;
+        box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.65) !important;
+        z-index: var(--game-overlay-z, 240) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     }
 
-    .game-chat-footer {
-        height: var(--game-footer-height, 30px);
-        min-height: var(--game-footer-height, 30px);
-        border-top: 0;
-        background: transparent;
-        pointer-events: none;
-        z-index: var(--game-overlay-z);
-    }
-
-    .game-chat-footer-shell {
-        height: var(--game-footer-height, 30px);
-        min-height: var(--game-footer-height, 30px);
-    }
-
-    .game-chat-footer .game-chat-row {
-        display: none;
-    }
-
-    .game-chat-footer.is-chat-open .game-chat-row {
-        position: fixed;
-        right: 8px;
-        bottom: calc(var(--game-system-bottom-reserve, 0px) + 6px);
-        left: 8px;
-        display: block;
-        width: auto;
-        max-height: min(56dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 14px));
-        height: min(52dvh, calc(100dvh - var(--game-header-height, 40px) - var(--game-system-bottom-reserve, 0px) - 18px));
-        pointer-events: auto;
-        border: 1px solid rgba(255, 170, 0, 0.24);
-        box-shadow: 0 -18px 34px rgba(0, 0, 0, 0.54);
-        z-index: var(--game-overlay-z);
+    .game-chat-overlay::before {
+        border-radius: 16px 16px 0 0 !important;
     }
 
     .chat-tab-group {
+        display: flex !important;
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .chat-tab-group::-webkit-scrollbar {
         display: none;
     }
 
+    .chat-tab-group .chat-tab {
+        flex: 0 0 auto;
+    }
+
     .chat-tab-select-wrap {
-        display: block;
-        flex: 1 1 auto;
-        max-width: none;
+        display: none !important;
     }
 
     .chat-win-controls {
         flex: 0 0 auto;
-        gap: 4px;
-        padding-right: 6px;
+        gap: 6px;
+        padding-right: 8px;
     }
 
     .chat-tab-system-toggle {
-        display: none;
+        display: inline-flex !important;
+        flex: 0 0 auto;
     }
 
     .chat-step-track,
@@ -6360,16 +6378,12 @@ html, body {
     .chat-win-controls .btn-node.ghost[title="Развернуть на шаг"],
     .chat-win-controls .btn-node.ghost[aria-label="Очистить видимые сообщения вкладки"],
     .chat-win-controls .btn-node[data-chat-minmax-label] {
-        display: none;
+        display: none !important;
     }
-}
 
-.game-chat-row {
-    max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 24px) - 32px);
-    background:
-        linear-gradient(rgba(4, 4, 4, .80), rgba(2, 2, 2, .91)),
-        var(--chat-surface-texture, url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp")) center / cover no-repeat;
-    border-color: color-mix(in srgb, var(--chat-accent, var(--col-accent)) 24%, transparent);
+    .hud-window-resize-handles {
+        display: none !important;
+    }
 }
 
 .chat-inner-wrap {
@@ -6379,7 +6393,7 @@ html, body {
     --chat-panel-fill: rgba(10, 7, 4, .64);
     --chat-side-fill: rgba(8, 6, 4, .70);
     --chat-input-fill: rgba(18, 11, 5, .58);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    --chat-surface-texture: none;
 }
 
 
@@ -6390,7 +6404,7 @@ html, body {
     --chat-panel-fill: rgba(13, 8, 4, .62);
     --chat-side-fill: rgba(10, 7, 4, .70);
     --chat-input-fill: rgba(22, 13, 5, .60);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-01-dark-wood.webp");
+    --chat-surface-texture: none;
 }
 
 .chat-theme-zone {
@@ -6400,7 +6414,7 @@ html, body {
     --chat-panel-fill: rgba(4, 12, 8, .64);
     --chat-side-fill: rgba(3, 10, 7, .72);
     --chat-input-fill: rgba(5, 17, 10, .58);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-04-charcoal-stone.webp");
+    --chat-surface-texture: none;
 }
 
 .chat-theme-system {
@@ -6410,7 +6424,7 @@ html, body {
     --chat-panel-fill: rgba(5, 6, 8, .68);
     --chat-side-fill: rgba(4, 5, 7, .76);
     --chat-input-fill: rgba(9, 10, 13, .62);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    --chat-surface-texture: none;
 }
 
 .chat-theme-private {
@@ -6420,7 +6434,7 @@ html, body {
     --chat-panel-fill: rgba(11, 7, 16, .64);
     --chat-side-fill: rgba(9, 6, 14, .72);
     --chat-input-fill: rgba(16, 9, 24, .58);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-03-aged-bronze.webp");
+    --chat-surface-texture: none;
 }
 
 .chat-theme-combat {
@@ -6430,7 +6444,7 @@ html, body {
     --chat-panel-fill: rgba(15, 5, 3, .66);
     --chat-side-fill: rgba(12, 4, 3, .74);
     --chat-input-fill: rgba(21, 7, 4, .60);
-    --chat-surface-texture: url("/static/images/ui/textures/button-candidates/button-surface-02-blackened-metal.webp");
+    --chat-surface-texture: none;
 }
 
 
@@ -6479,6 +6493,46 @@ html, body {
     flex-shrink: 0;
 }
 
+.chat-drag-spacer {
+    flex: 1 1 auto;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 24px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+}
+
+.chat-drag-spacer:hover {
+    opacity: 0.85;
+}
+
+.chat-tabs.is-dragging .chat-drag-spacer,
+.hud-window.is-dragging .chat-drag-spacer {
+    cursor: grabbing;
+    opacity: 1;
+}
+
+.chat-drag-grip {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    color: var(--chat-accent, var(--col-accent));
+    box-shadow: 0 0 4px color-mix(in srgb, currentColor 60%, transparent);
+}
+
+@media (max-width: 768px) {
+    .chat-drag-spacer {
+        display: none !important;
+    }
+}
+
 
 .chat-tab-group {
     display: flex;
@@ -6488,29 +6542,87 @@ html, body {
 .chat-tab-select-wrap {
     display: none;
     min-width: 0;
+    position: relative;
 }
 
-.chat-tab-select {
+.chat-tab-select-trigger {
     width: 100%;
-    height: 22px;
-    min-width: 0;
-    padding: 0 24px 0 8px;
-    border: 1px solid rgba(255, 170, 0, 0.24);
-    background:
-        linear-gradient(180deg, rgba(255, 170, 0, .08), rgba(0, 0, 0, .12)),
-        rgba(8, 8, 10, .94);
+    height: 24px;
+    padding: 0 12px;
+    border: 1px solid var(--chat-accent-border, rgba(255, 170, 0, 0.24));
+    background: linear-gradient(180deg, rgba(255, 170, 0, 0.08), rgba(0, 0, 0, 0.12)), rgba(8, 8, 10, 0.94);
     color: var(--col-parchment);
     font-family: var(--font-ui);
-    font-size: var(--text-2xs);
+    font-size: 9px;
     font-weight: 800;
     text-transform: uppercase;
-    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    clip-path: var(--clip-node-sm);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.chat-tab-select:focus-visible {
-    border-color: rgba(255, 170, 0, 0.62);
-    box-shadow: 0 0 0 1px rgba(255, 170, 0, 0.24);
+.chat-tab-select-trigger .chevron {
+    font-size: 8px;
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+    margin-left: 6px;
 }
+
+.chat-tab-select-dropdown {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 250;
+    background: rgba(8, 8, 10, 0.98);
+    border: 1px solid var(--chat-accent-border, rgba(255, 170, 0, 0.24));
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    clip-path: var(--clip-node-sm);
+}
+
+.chat-tab-select-option {
+    padding: 6px 12px;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--col-parchment-dim);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.chat-tab-select-option:hover {
+    background: rgba(255, 170, 0, 0.08);
+    color: var(--col-parchment);
+}
+
+.chat-tab-select-option.active {
+    background: rgba(255, 170, 0, 0.12);
+    color: var(--col-accent);
+}
+
+
+.chat-tab-select-option span[class^="dot-"] {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.chat-tab-select-option .dot-world { background: var(--col-chat-world); }
+.chat-tab-select-option .dot-local { background: var(--col-chat-local); }
+.chat-tab-select-option .dot-system { background: var(--col-chat-system); }
+.chat-tab-select-option .dot-private { background: var(--col-chat-private); }
+.chat-tab-select-option .dot-combat { background: var(--col-chat-combat, #ff4d2e); }
 
 
 .chat-tabs-mini { padding: 4px var(--sp-3); }
@@ -13823,6 +13935,10 @@ html, body {
     border-top: 1px solid rgba(255, 170, 0, .14);
 }
 
+.combat-battle-log--drawer {
+    display: grid;
+}
+
 .combat-battle-log .combat-log-panel {
     min-width: 0;
     min-height: 0;
@@ -14850,15 +14966,34 @@ html, body {
     height: 13px;
 }
 
+.combat-effect img {
+    width: 16px;
+    height: 16px;
+    display: block;
+    object-fit: contain;
+    opacity: .9;
+    filter: drop-shadow(0 0 5px var(--effect-glow, rgba(255, 170, 0, .22)));
+}
+
+.combat-effect-stack--field .combat-effect img {
+    width: 14px;
+    height: 14px;
+}
+
 .combat-effect b {
     position: absolute;
-    right: 1px;
+    right: 0;
     bottom: 0;
+    max-width: 100%;
+    padding: 0 1px;
     color: #fff;
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: clamp(6px, 28%, 9px);
     line-height: 1;
     text-shadow: 0 0 5px #000;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: clip;
 }
 
 .combat-effect--bleeding { --effect-color: rgba(220, 48, 48, .82); --effect-glow: rgba(220, 48, 48, .24); border-color: rgba(220, 48, 48, .72); box-shadow: 0 0 10px rgba(220, 48, 48, .18); }
@@ -14871,6 +15006,7 @@ html, body {
 .combat-effect--debuff { --effect-color: rgba(190, 94, 255, .76); --effect-glow: rgba(190, 94, 255, .20); border-color: rgba(190, 94, 255, .64); box-shadow: 0 0 10px rgba(190, 94, 255, .14); }
 .combat-effect--heal { --effect-color: rgba(82, 224, 170, .76); --effect-glow: rgba(82, 224, 170, .20); border-color: rgba(82, 224, 170, .64); box-shadow: 0 0 10px rgba(82, 224, 170, .14); }
 .combat-effect--effect { --effect-color: rgba(210, 180, 140, .72); --effect-glow: rgba(210, 180, 140, .18); border-color: rgba(210, 180, 140, .56); box-shadow: 0 0 10px rgba(210, 180, 140, .12); }
+.combat-effect[data-catalog-key="ranged_position"] { --effect-color: rgba(120, 205, 255, .82); --effect-glow: rgba(120, 205, 255, .25); border-color: rgba(120, 205, 255, .70); box-shadow: 0 0 10px rgba(120, 205, 255, .18); }
 
 .combat-actor-name {
     margin-top: 0;
@@ -15914,45 +16050,72 @@ html, body {
     }
 
     .combat-result-screen {
+        height: 100%;
+        max-height: calc(100dvh - var(--game-header-height, 40px) - var(--game-footer-height, 28px));
         min-height: auto;
-        overflow: visible;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-width: thin;
     }
 
     .combat-result-hero {
-        grid-template-rows: auto minmax(220px, auto) minmax(0, auto) auto;
-        gap: 10px;
-        padding: 8px;
+        grid-template-rows: auto minmax(148px, clamp(148px, 20dvh, 180px)) minmax(0, auto) auto;
+        gap: 8px;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
     }
 
     .combat-result-summary {
-        gap: 10px;
+        gap: 8px;
+    }
+
+    .combat-result-status,
+    .combat-result-team,
+    .combat-result-rewards {
+        padding: 8px;
+    }
+
+    .combat-result-status p {
+        font-size: 12px;
+        line-height: 1.35;
     }
 
     .combat-result-head {
         gap: 6px;
-        padding: 18px 12px 12px;
+        padding: 16px 10px 10px;
     }
 
     .combat-result-head h2 {
-        font-size: clamp(30px, 10vw, 42px);
-        letter-spacing: .14em;
+        font-size: clamp(28px, 8vw, 34px);
+        letter-spacing: .12em;
+    }
+
+    .combat-result-head p {
+        font-size: 12px;
+        line-height: 1.35;
     }
 
     .combat-result-field {
-        min-height: 220px;
+        min-height: 148px;
     }
 
     .combat-result-actions {
         position: sticky;
         bottom: 0;
+        z-index: 5;
         padding-top: 8px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
         background:
-            linear-gradient(180deg, transparent, rgba(0, 0, 0, .82) 36%),
-            rgba(0, 0, 0, .28);
+            linear-gradient(180deg, transparent, rgba(0, 0, 0, .84) 38%),
+            rgba(0, 0, 0, .32);
     }
 
     .combat-result-actions .combat-primary-action {
         width: 100%;
+    }
+
+    .combat-result-reward-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
     }
 
     .combat-battle-header,
@@ -19684,3 +19847,5 @@ html, body {
         display: none;
     }
 }
+
+

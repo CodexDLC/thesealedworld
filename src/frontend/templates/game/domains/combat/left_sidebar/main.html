@@ -63,9 +63,9 @@
                                   data-catalog-key="{{ effect.catalog_key }}"
                                   data-tippy-content="{{ effect.tooltip }}"
                                   data-tippy-theme="game-hint">
-                                <span class="combat-effect-mark" aria-hidden="true"></span>
-                                {% if effect.duration_text %}
-                                    <b>{{ effect.duration_text }}</b>
+                                <img src="{{ effect.icon_url }}" alt="" aria-hidden="true">
+                                {% if effect.label_text %}
+                                    <b>{{ effect.label_text }}</b>
                                 {% endif %}
                             </span>
                         {% else %}

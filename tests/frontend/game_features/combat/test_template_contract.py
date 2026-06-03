@@ -151,9 +151,9 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert "target_exchange.lines[:4]" not in exchange_card
     assert 'hx-trigger="every 2s"' not in template
     assert 'hx-trigger="load delay:1500ms"' in template
-    assert "combat_screen.action_state == 'ACTION_LOCKED'" in template
+    assert "combat_screen.action_state == 'WAITING_FOR_RESPONSES'" in template
     assert 'hx-disabled-elt="this"' in template
-    assert "ACTION_LOCKED" in template
+    assert "WAITING_FOR_RESPONSES" in template
     assert "REFRESH_TARGET" in template
     assert "combat-primary-row" in template
     assert "combat-command-layout" in template
@@ -166,10 +166,10 @@ def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     assert 'hx-post="/game/combat/feint-pin"' in template
     assert "action.pinned" in template
     assert 'data-catalog="{{ action.catalog }}"' in template
-    assert 'data-catalog-field="label"' in template
-    assert 'data-catalog-field="title"' not in template
+    assert 'data-catalog-field="title"' in template
+    assert 'data-catalog-field="label"' not in template
     assert "action.cost_tooltip" in template
-    assert 'data-catalog-tooltip-extra="{{ action.cost_tooltip }}"' in template
+    assert 'data-catalog-tooltip-extra="{{ action.cost_tooltip }}"' not in template
     assert "combat-feint-cost" not in template
     assert "combat_screen.ability_options" in template
     assert "ability_source is mapping" in template
@@ -561,6 +561,8 @@ def test_combat_css_contains_texture_surfaces_without_shell_overrides():
     assert '@import url("screen.css");' in index
     assert '@import url("prototype.css");' in index
     assert ".combat-team-bars" in combat_dir.joinpath("teams.css").read_text()
+    assert ".combat-battle-log--drawer" in actions
+    assert ".combat-battle-log--drawer {\n    display: grid;\n}" in actions
     assert ".combat-command-deck" in actions
     assert ".combat-feint-row" in actions
     assert ".combat-feint-pin" in actions
@@ -1202,17 +1204,55 @@ def test_combat_vm_reactive_effect_badge_uses_event_duration_label():
     )
 
 
-def test_combat_effect_badges_render_colored_marks_instead_of_shared_shield_icons():
+def test_combat_vm_ranged_position_badge_exposes_current_position():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=7,
+        status="active",
+        hero=CombatActorCardDTO(
+            actor_id="1",
+            name="Hero",
+            team="team_1",
+            exchange_counter=6,
+            vitals=CombatActorVitalsDTO(hp_current=30, hp_max=40),
+            active_effects=[
+                CombatEffectBadgeDTO(
+                    effect_id="ranged_position",
+                    expires_at_exchange=7,
+                    params={"position": "close"},
+                ),
+            ],
+        ),
+    )
+
+    screen = build_combat_screen_vm(dashboard)
+
+    effect = screen.hero.effects[0]
+    assert effect.icon_url.endswith("/ranged_position.svg")
+    assert effect.duration_text is None
+    assert effect.label_text == "CLOSE"
+    assert effect.title == "Дистанция лучника: ближняя"
+    assert "урон -30%" in effect.tooltip
+    assert "Входящий ближний урон +30%" in effect.tooltip
+
+
+def test_combat_effect_badges_render_icons_and_position_labels():
     template = Path("src/frontend/templates/game/domains/combat/left_sidebar/main.html").read_text(encoding="utf-8")
+    right_sidebar = Path("src/frontend/templates/game/domains/combat/right_sidebar/main.html").read_text(encoding="utf-8")
     viewport = Path("src/frontend/templates/game/domains/combat/viewport/main.html").read_text(encoding="utf-8")
     css = Path("src/frontend/static/css/game/domains/combat/sidebars.css").read_text(encoding="utf-8")
 
-    assert "combat-effect-mark" in template
-    assert "combat-effect-mark" in viewport
-    assert '<img src="{{ effect.icon_url }}"' not in template
-    assert '<img src="{{ effect.icon_url }}"' not in viewport
+    assert "combat-effect-mark" not in template
+    assert "combat-effect-mark" not in right_sidebar
+    assert "combat-effect-mark" not in viewport
+    assert '<img src="{{ effect.icon_url }}"' in template
+    assert '<img src="{{ effect.icon_url }}"' in right_sidebar
+    assert '<img src="{{ effect.icon_url }}"' in viewport
+    assert "{% if effect.label_text %}" in template
+    assert "{% if effect.label_text %}" in right_sidebar
+    assert "{% if effect.label_text %}" in viewport
     assert ".combat-effect--effect" in css
-    assert ".combat-effect-mark" in css
+    assert '.combat-effect[data-catalog-key="ranged_position"]' in css
     assert ".combat-effect-stack--field" in css
 
 

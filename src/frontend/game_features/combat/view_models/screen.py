@@ -49,6 +49,7 @@ class CombatEffectBadgeVM(BaseModel):
     icon_url: str
     frame_kind: str = "default"
     duration_text: str | None = None
+    label_text: str | None = None
     title: str
     description: str = "NO_DATA"
     tooltip: str
@@ -1185,28 +1186,58 @@ def _effect_badge(effect: CombatEffectBadgeDTO, exchange_counter: int) -> Combat
     remaining = _effect_remaining(effect.expires_at_exchange, exchange_counter)
     title = effect.title or _effect_title(effect.effect_id, frame_kind)
     description = effect.description or "NO_DATA"
+    ranged_position = _ranged_position_state(effect)
+    if ranged_position:
+        title = f"Дистанция лучника: {ranged_position['title']}"
+        description = str(ranged_position["description"])
     impact_text = _effect_impact_text(effect.impact)
     duration_label = effect.duration_label
-    duration = None if duration_label else str(remaining) if remaining is not None else None
+    duration = None if duration_label or ranged_position else str(remaining) if remaining is not None else None
+    label_text = str(ranged_position["label"]) if ranged_position else duration
     tooltip_parts = [title]
     if duration_label:
         tooltip_parts.append(duration_label)
     elif remaining is not None:
         tooltip_parts.append(_turns_left_text(remaining))
-    if effect.description:
-        tooltip_parts.append(effect.description)
+    if description and description != "NO_DATA":
+        tooltip_parts.append(description)
     if impact_text:
         tooltip_parts.append(impact_text)
     return CombatEffectBadgeVM(
         effect_id=effect.effect_id,
-        icon_url=f"{COMBAT_ICON_ROOT}/{_effect_icon(frame_kind)}.svg",
+        icon_url=f"{COMBAT_ICON_ROOT}/{_effect_icon(frame_kind, effect.effect_id)}.svg",
         frame_kind=frame_kind,
         duration_text=duration,
+        label_text=label_text,
         title=title,
         description=description,
         tooltip=" // ".join(tooltip_parts),
         catalog_key=effect.effect_id,
     )
+
+
+def _ranged_position_state(effect: CombatEffectBadgeDTO) -> dict[str, str] | None:
+    if effect.effect_id != "ranged_position":
+        return None
+    position = str(effect.params.get("position") or "far")
+    states = {
+        "far": {
+            "label": "FAR",
+            "title": "дальняя",
+            "description": "Выстрел: урон +8%, точность +5%. Входящий ближний урон -30%.",
+        },
+        "mid": {
+            "label": "MID",
+            "title": "средняя",
+            "description": "Выстрел без штрафа. Входящий ближний урон +5%.",
+        },
+        "close": {
+            "label": "CLOSE",
+            "title": "ближняя",
+            "description": "Выстрел: урон -30%, точность -15%. Входящий ближний урон +30%.",
+        },
+    }
+    return states.get(position, states["far"])
 
 
 def _effect_remaining(expires_at_exchange: int | None, exchange_counter: int) -> int | None:
@@ -1515,7 +1546,9 @@ def _effect_title(effect_id: str, frame_kind: str) -> str:
     return titles.get(frame_kind, effect_id)
 
 
-def _effect_icon(frame_kind: str) -> str:
+def _effect_icon(frame_kind: str, effect_id: str | None = None) -> str:
+    if effect_id == "ranged_position":
+        return "ranged_position"
     return {
         "bleeding": "bleeding",
         "poison": "poison",

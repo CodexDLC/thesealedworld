@@ -101,21 +101,52 @@
         </section>
 
         <section class="fc-widget fc-widget--wide">
-            <h2>Persisted JSON семьи</h2>
-            <div class="fc-json-grid">
-                <section>
-                    <h3>raw_tags</h3>
-                    <pre class="fc-json-block">{{ clan.raw_tags|tojson(indent=2) }}</pre>
-                </section>
-                <section>
-                    <h3>flavor_content</h3>
-                    <pre class="fc-json-block">{{ clan.flavor_content|tojson(indent=2) }}</pre>
-                </section>
-                <section>
-                    <h3>metadata/context/source_context</h3>
-                    <pre class="fc-json-block">{{ {"metadata": clan.metadata_, "context": clan.context, "source_context": clan.source_context}|tojson(indent=2) }}</pre>
-                </section>
-            </div>
+            <h2>Профиль сгенерированной семьи</h2>
+            {% set tags = clan.raw_tags.get("tags", []) %}
+            {% set context_meta = clan.raw_tags.get("context_meta", {}) %}
+            {% set loot_culture = clan.flavor_content.get("loot_culture", {}) %}
+            {% set gear_summary = clan.raw_tags.get("gear_score_summary", {}) %}
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Биом</th><td>{{ clan.raw_tags.get("biome_id") or clan.raw_tags.get("biome") or "—" }}</td></tr>
+                    <tr><th>Сложность генерации</th><td>{{ clan.raw_tags.get("difficulty") or "—" }}</td></tr>
+                    <tr><th>Версия ресурса семьи</th><td>{{ clan.raw_tags.get("family_resource_version") or "—" }}</td></tr>
+                    <tr><th>Версия боевой математики</th><td>{{ clan.raw_tags.get("combat_math_version") or "—" }}</td></tr>
+                    <tr><th>Теги контекста</th><td>{{ tags|join(", ") if tags else "—" }}</td></tr>
+                    <tr><th>Контекст события</th><td>{{ context_meta if context_meta else "—" }}</td></tr>
+                    <tr><th>Культура лута</th><td>{{ loot_culture.get("craft_style") or loot_culture.get("material_logic") or "—" }}</td></tr>
+                    <tr><th>Тон лута</th><td>{{ loot_culture.get("tone_hints")|join(", ") if loot_culture.get("tone_hints") else "—" }}</td></tr>
+                    <tr>
+                        <th>Сила шаблона</th>
+                        <td>
+                            {{ gear_summary.get("count", clan.members|length) }} участников /
+                            avg {{ gear_summary.get("avg", "—") }} /
+                            min {{ gear_summary.get("min", "—") }} /
+                            max {{ gear_summary.get("max", "—") }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Raw сила</th>
+                        <td>
+                            avg {{ gear_summary.get("raw_avg", "—") }} /
+                            min {{ gear_summary.get("raw_min", "—") }} /
+                            max {{ gear_summary.get("raw_max", "—") }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Состав шаблона</h2>
+            {% set composition = clan.raw_tags.get("composition", []) %}
+            {% set variant_window = clan.raw_tags.get("variant_window", {}) %}
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Окно вариантов</th><td>{{ variant_window.get("min_tier", "—") }}..{{ variant_window.get("max_tier", "—") }}</td></tr>
+                    <tr><th>Варианты</th><td>{{ composition|join(", ") if composition else "—" }}</td></tr>
+                </tbody>
+            </table>
         </section>
     {% endif %}
 {% endblock %}

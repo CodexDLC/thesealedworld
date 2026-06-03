@@ -57,6 +57,10 @@ class AdminGeneratedMonsterMember:
     equipment: list[str] = field(default_factory=list)
     affixes: list[str] = field(default_factory=list)
 
+    @property
+    def equipment_items(self) -> list[dict[str, Any]]:
+        return _equipment_items(self.items)
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AdminGeneratedMonsterMember:
         summary = dict(data.get("equipment_summary") or {})
@@ -272,3 +276,143 @@ def _rebuild_payload(
     if clan_id:
         payload["clan_id"] = clan_id
     return payload
+
+
+_SLOT_LABELS = {
+    "amulet": "Амулет",
+    "chest_armor": "Броня",
+    "main_hand": "Правая рука",
+    "off_hand": "Левая рука",
+    "quiver": "Боезапас",
+    "two_hand": "Две руки",
+}
+
+_SKILL_LABELS = {
+    "skill_anatomy": "Анатомия",
+    "skill_archery": "Стрельба",
+    "skill_dual_wield": "Две руки",
+    "skill_fencing": "Клинки/уколы",
+    "skill_heavy_armor": "Тяжелая броня",
+    "skill_light_armor": "Легкая броня",
+    "skill_macing": "Ударное оружие",
+    "skill_medium_armor": "Средняя броня",
+    "skill_parrying": "Парирование",
+    "skill_polearms": "Древковое оружие",
+    "skill_ranged_combat": "Дальний бой",
+    "skill_shield_mastery": "Щиты",
+    "skill_swords": "Мечи",
+    "skill_tactics": "Тактика",
+    "skill_two_handed": "Двуручное оружие",
+}
+
+_BONUS_LABELS = {
+    "anti_dodge_chance": "Пробитие уклонения",
+    "bleed_damage_bonus": "Урон кровотечения",
+    "bleed_resistance": "Сопротивление кровотечению",
+    "control_resistance": "Сопротивление контролю",
+    "damage_spread": "Разброс урона",
+    "debuff_avoidance": "Защита от дебаффов",
+    "environment_bio_resistance": "Био-защита",
+    "environment_cold_resistance": "Защита от холода",
+    "environment_gravity_resistance": "Гравитационная защита",
+    "environment_heat_resistance": "Защита от жара",
+    "evasion": "Уклонение",
+    "evasion_penalty": "Штраф уклонения",
+    "hp_regen": "Реген HP",
+    "initiative": "Инициатива",
+    "magical_resistance": "Магическая защита",
+    "mental_resistance": "Ментальная защита",
+    "physical_damage_bonus": "Физический урон",
+    "physical_resistance": "Физическая защита",
+    "poison_efficiency": "Эффективность яда",
+    "poison_resistance": "Сопротивление яду",
+    "quick_slot_capacity": "Быстрые слоты",
+    "stamina_regen": "Реген выносливости",
+}
+
+
+def _equipment_items(items: dict[str, Any]) -> list[dict[str, Any]]:
+    if not isinstance(items, dict):
+        return []
+    layout = dict(items.get("layout") or {})
+    equipment = dict(layout.get("equipment") or {})
+    by_id = dict(items.get("by_id") or {})
+    rows: list[dict[str, Any]] = []
+    for slot, item_id in sorted(equipment.items()):
+        item = dict(by_id.get(str(item_id)) or {})
+        combat = dict(item.get("combat") or {})
+        generation = dict(item.get("generation") or {})
+        rows.append(
+            {
+                "slot": str(slot),
+                "slot_label": _SLOT_LABELS.get(str(slot), _humanize_key(slot)),
+                "item_id": str(item_id),
+                "name": str(item.get("name_ru") or item.get("name") or item.get("base_id") or item_id),
+                "base_id": str(item.get("base_id") or item_id),
+                "item_type": str(item.get("item_type") or item.get("kind") or item.get("item_kind") or ""),
+                "power": _display_number(combat.get("power") or item.get("power")),
+                "related_skill": _SKILL_LABELS.get(
+                    str(combat.get("related_skill") or item.get("related_skill") or ""),
+                    _humanize_key(combat.get("related_skill") or item.get("related_skill") or ""),
+                ),
+                "tags": [str(tag) for tag in combat.get("tags") or item.get("tags") or [] if tag],
+                "bonuses": _bonus_rows(combat.get("bonuses") or item.get("bonuses") or {}),
+                "implicit_bonuses": _bonus_rows(combat.get("implicit_bonuses") or item.get("implicit_bonuses") or {}),
+                "affixes": _affix_rows(generation.get("affixes") or item.get("affixes") or []),
+            }
+        )
+    return rows
+
+
+def _affix_rows(raw_affixes: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_affixes, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for index, raw in enumerate(raw_affixes, start=1):
+        affix = dict(raw) if isinstance(raw, dict) else {"id": str(raw)}
+        name = affix.get("name_ru") or affix.get("name") or affix.get("id") or affix.get("affix_id") or f"affix {index}"
+        rows.append(
+            {
+                "name": str(name),
+                "bonuses": _bonus_rows(affix.get("bonuses") or affix.get("combat") or {}),
+            }
+        )
+    return rows
+
+
+def _bonus_rows(raw_bonuses: Any) -> list[dict[str, str]]:
+    if not isinstance(raw_bonuses, dict):
+        return []
+    rows = []
+    for key, value in sorted(raw_bonuses.items()):
+        rows.append({"label": _BONUS_LABELS.get(str(key), _humanize_key(key)), "value": _display_bonus(value)})
+    return rows
+
+
+def _display_bonus(value: Any) -> str:
+    try:
+        number = float(str(value).replace("%", ""))
+    except (TypeError, ValueError):
+        return str(value)
+    if abs(number) <= 1:
+        return f"{number * 100:+.1f}%"
+    return f"{number:+.1f}"
+
+
+def _display_number(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.1f}"
+
+
+def _humanize_key(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return text.replace("skill_", "").replace("_", " ").strip().capitalize()

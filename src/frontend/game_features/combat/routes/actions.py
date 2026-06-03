@@ -78,17 +78,29 @@ async def game_combat_move(
 ):
     await auth_service.require_current_user(request)
     token = require_game_access_token(request)
+    normalized_target = _blank_to_none(target_id)
+    normalized_feint = _blank_to_none(feint_id)
+    normalized_ability = _blank_to_none(ability_id)
+    logger.bind(
+        char_id=char_id,
+        action=action,
+        target_id=normalized_target,
+        feint_id=normalized_feint,
+        ability_id=normalized_ability,
+        hx=True,
+    ).info("FrontendCombatMoveStarted")
     try:
         combat_payload = await combat_api.register_move(
             token,
             char_id=char_id,
             body=CombatRegisterMoveRequestDTO(
                 action=action,
-                target_id=_blank_to_none(target_id),
-                feint_id=_blank_to_none(feint_id),
-                ability_id=_blank_to_none(ability_id),
+                target_id=normalized_target,
+                feint_id=normalized_feint,
+                ability_id=normalized_ability,
             ),
         )
+        logger.bind(char_id=char_id, action=action, response_type=type(combat_payload).__name__).info("FrontendCombatMoveSucceeded")
     except httpx.HTTPStatusError as exc:
         error = _backend_combat_error(exc)
         logger.bind(char_id=char_id, action=action, code=error.code, detail=error.message).warning("CombatMoveRejected")

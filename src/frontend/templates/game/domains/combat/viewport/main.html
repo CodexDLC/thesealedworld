@@ -292,9 +292,9 @@
                                               data-catalog-key="{{ effect.catalog_key }}"
                                               data-tippy-content="{{ effect.tooltip }}"
                                               data-tippy-theme="game-hint">
-                                            <span class="combat-effect-mark" aria-hidden="true"></span>
-                                            {% if effect.duration_text %}
-                                                <b>{{ effect.duration_text }}</b>
+                                            <img src="{{ effect.icon_url }}" alt="" aria-hidden="true">
+                                            {% if effect.label_text %}
+                                                <b>{{ effect.label_text }}</b>
                                             {% endif %}
                                         </span>
                                     {% else %}
@@ -341,9 +341,9 @@
                                           data-catalog-key="{{ effect.catalog_key }}"
                                           data-tippy-content="{{ effect.tooltip }}"
                                           data-tippy-theme="game-hint">
-                                        <span class="combat-effect-mark" aria-hidden="true"></span>
-                                        {% if effect.duration_text %}
-                                            <b>{{ effect.duration_text }}</b>
+                                        <img src="{{ effect.icon_url }}" alt="" aria-hidden="true">
+                                        {% if effect.label_text %}
+                                            <b>{{ effect.label_text }}</b>
                                         {% endif %}
                                     </span>
                                 {% else %}
@@ -551,13 +551,13 @@
                                         <span x-text='selectedFeintId ? ("АТАКА С ПРИЁМОМ: " + (selectedFeintLabel || selectedFeintId)) : {{ primary_label | tojson }}'>{{ primary_label }}</span>
                                     </button>
                                 {% else %}
-                                    {% if combat_screen.action_state == 'ACTION_LOCKED' %}
+                                    {% if combat_screen.action_state == 'WAITING_FOR_RESPONSES' %}
                                         <button type="button"
                                                 class="game-action-button game-action-button--primary combat-primary-action combat-primary-action--waiting"
                                                 data-tippy-content="Ход выбран. Ожидаем разрешения размена."
                                                 data-tippy-theme="game-hint"
                                                 disabled>
-                                            <span>ACTION_LOCKED</span>
+                                            <span>WAITING_FOR_RESPONSES</span>
                                         </button>
                                     {% elif combat_screen.action_state == 'TARGET_QUEUE_EMPTY' %}
                                         <button type="button"
@@ -582,7 +582,7 @@
                     </div>
                 </section>
 
-                {% if combat_screen.action_state in ['ACTION_LOCKED', 'TARGET_QUEUE_EMPTY'] %}
+                {% if combat_screen.action_state in ['WAITING_FOR_RESPONSES', 'TARGET_QUEUE_EMPTY'] %}
                     <div hidden
                          aria-hidden="true"
                          hx-get="/game/session/state/combats?char_id={{ char_id }}"
@@ -591,6 +591,15 @@
                          hx-select="#main-content > .shell-constrained"
                          hx-swap="outerHTML"></div>
                 {% endif %}
+
+                <!-- WebSocket Realtime Refresh Trigger -->
+                <div hidden
+                     aria-hidden="true"
+                     hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                     hx-trigger="character-status-refresh from:body"
+                     hx-target="#main-content .shell-constrained"
+                     hx-select="#main-content > .shell-constrained"
+                     hx-swap="outerHTML"></div>
             </article>
         </section>
 {% else %}

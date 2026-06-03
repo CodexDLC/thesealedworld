@@ -304,12 +304,14 @@ def test_chat_shell_is_collapsible_footer() -> None:
     assert 'aria-controls="game-chat-container"' in header
     assert "is-chat-closed" not in footer
     assert "setChatStep(1)" not in footer
-    assert "setChatStep(0)" in template
+    # Desktop chat no longer exposes step 0 (the collapsed-strip mode is mobile-only).
+    assert "setChatStep(0)" not in template
+    assert "setChatStep(1)" in template
     assert 'class="chat-win-controls" @click.stop' in template
     assert "chat-tab-select-wrap" in template
-    assert "chat-tab-select" in template
-    assert "_tabSelectLabel(key)" in template
-    assert "@change=\"_activateTab($event.target.value)\"" in template
+    assert "chat-tab-select-trigger" in template
+    assert "chat-tab-select-dropdown" in template
+    assert "mobileSelectOpen" in template
     assert "data-chat-minmax-label" in template
     assert "toggleChatMinMax()" in template
     assert "chatMinimized ? '100px'" not in base
@@ -318,7 +320,7 @@ def test_chat_shell_is_collapsible_footer() -> None:
     assert "chatRow.style.removeProperty('height')" in main_js
     assert "data-chat-minmax-label" in main_js
     assert "window.toggleChatMinMax" in main_js
-    assert "chatStep: 0" in shell_js
+    assert "chatStep: chatWindowObj.open ? 2 : 0" in shell_js
     assert "chatStep: Alpine.$persist" not in shell_js
     assert "chatHeight: Alpine.$persist" not in shell_js
     assert 'class="chat-users"' not in template

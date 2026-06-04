@@ -59,9 +59,25 @@ class MonsterClanFlavorTaskHandler:
         if family is None:
             raise ValueError(f"Unknown monster family: {clan.family_id}")
 
-        clan.title = generated.name_ru
-        clan.description = generated.description
-        clan.encounter_texts = generated.encounter_texts.model_dump(mode="json")
+        clan.title = generated.display_name.ru
+        clan.description = generated.description.ru
+        clan.encounter_texts = generated.encounter_texts.ru_dict()
+        metadata = dict(clan.metadata_ or {})
+        flavor_content = dict(metadata.get("flavor_content") or {})
+        flavor_content["localized"] = {
+            "display_name": generated.display_name.model_dump(mode="json"),
+            "description": generated.description.model_dump(mode="json"),
+            "visual_hint": generated.visual_hint.model_dump(mode="json"),
+            "encounter_texts": generated.encounter_texts.model_dump(mode="json"),
+        }
+        flavor_content["loot_culture"] = generated.loot_culture.model_dump(mode="json")
+        flavor_content["variants_flavor"] = {
+            key: value
+            for key, value in generated.model_dump_with_variant_mapping().get("variants_flavor", {}).items()
+            if key
+        }
+        metadata["flavor_content"] = flavor_content
+        clan.metadata_ = metadata
 
         for member in clan.members:
             variant = family.variants.get(member.variant_id)
@@ -70,14 +86,11 @@ class MonsterClanFlavorTaskHandler:
             variant_flavor = generated.variants_by_key.get(member.variant_id)
             if variant_flavor is None:
                 continue
-            member.title = variant_flavor.name
-            member.short_description = variant_flavor.short_description
+            member.title = variant_flavor.display_name.ru
+            member.short_description = variant_flavor.short_description.ru
 
         await self.session.flush()
-        return [
-            build_monster_clan_image_task_spec_from_orm(clan),
-            *(build_monster_member_image_task_spec_from_orm(member, clan=clan) for member in clan.members),
-        ]
+        return []
 
 
 class MonsterClanImageTaskHandler:
@@ -204,7 +217,7 @@ def build_monster_clan_flavor_task_spec(clan: GeneratedClan) -> AIGenerationTask
         max_attempts=8,
         metadata={
             "family_id": clan.family_id,
-            "zone_id": clan.zone_id,
+            "zone_id": context_identity.get("zone_id"),
             "identity_hash": clan.identity_hash,
         },
     )
@@ -315,8 +328,9 @@ def build_monster_clan_flavor_payload(
         "rift_profile": context_meta.get("rift_profile"),
         "selected_traits": selected_traits,
         "text_contract": {
-            "clan": ["name_ru", "description", "encounter_texts", "loot_culture"],
-            "member": ["variant_id", "name", "short_description", "visual_hint"],
+            "locales": ["ru", "en"],
+            "clan": ["display_name", "description", "visual_hint", "encounter_texts", "loot_culture"],
+            "member": ["variant_id", "display_name", "short_description", "appearance", "visual_hint"],
             "encounter_states": {
                 "patrol": "moving or travel patrol contact",
                 "ambush": "surprise or monster-initiated attack",

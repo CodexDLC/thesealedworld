@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, ClassVar
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode
 
 import httpx
 from fastapi import Request
@@ -13,6 +13,7 @@ from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, Ta
 from fastapi_cabinet.rendering.layout_mapper import build_layout_map
 from fastapi_cabinet.runtime import resolve_active_admin
 from src.studio.integrations.backend_api.admin_monsters import (
+    AdminAIGenerationTask,
     AdminGeneratedMonsterClan,
     AdminGeneratedMonsterMember,
     AdminMonstersApi,
@@ -34,6 +35,37 @@ class MonsterBrowserContext:
     total_members: int
     missing_images: int
     error: str = ""
+
+
+@dataclass(frozen=True)
+class AITaskNotice:
+    kind: str
+    title: str
+    message: str
+    task_ids: list[str]
+    tasks: list[AdminAIGenerationTask]
+    requested: int = 0
+    error: str = ""
+
+    @property
+    def active(self) -> bool:
+        return any(task.status in {"pending", "running", "cooldown"} for task in self.tasks)
+
+    @property
+    def failed(self) -> bool:
+        return bool(self.error) or any(task.status == "failed" for task in self.tasks)
+
+    @property
+    def done(self) -> bool:
+        return bool(self.tasks) and all(task.status == "done" for task in self.tasks)
+
+    @property
+    def css_class(self) -> str:
+        if self.failed:
+            return "fc-task-notice--error"
+        if self.done:
+            return "fc-task-notice--done"
+        return "fc-task-notice--active"
 
 
 def _api(request: Request) -> AdminMonstersApi:
@@ -220,9 +252,9 @@ class ContentOpsAdmin(CabinetAdmin):
         "monster-maintenance": ("GET", "handle_monster_maintenance"),
         "monster-rebuild-plan": ("POST", "handle_monster_rebuild_plan"),
         "monster-rebuild-apply": ("POST", "handle_monster_rebuild_apply"),
-        "regenerate-clan-image": ("POST", "handle_regenerate_clan_image"),
-        "regenerate-clan-family-images": ("POST", "handle_regenerate_clan_family_images"),
-        "regenerate-visible-clan-images": ("POST", "handle_regenerate_visible_clan_images"),
+        "regenerate-clan-flavor": ("POST", "handle_regenerate_clan_flavor"),
+        "regenerate-clan-member-images": ("POST", "handle_regenerate_clan_member_images"),
+        "regenerate-visible-member-images": ("POST", "handle_regenerate_visible_member_images"),
         "regenerate-member-image": ("POST", "handle_regenerate_member_image"),
     }
     providers: ClassVar = {
@@ -252,28 +284,36 @@ class ContentOpsAdmin(CabinetAdmin):
 
     async def handle_monster_browser(self, request: Request) -> Response:
         browser = await _load_monster_browser_context(request)
+        task_notice = await _task_notice_from_query(request)
         return _render_custom(
             self,
             request,
             "cabinet/content_ops_monsters.html",
-            {"browser": browser, "base_url": _BASE},
+            {"browser": browser, "base_url": _BASE, "task_notice": task_notice},
         )
 
     async def handle_monster_detail(self, request: Request) -> Response:
         clan_id = request.query_params.get("id", "")
         clan = await _api(request).get_generated_clan(clan_id) if clan_id else None
-        return _render_custom(self, request, "cabinet/content_ops_monster_detail.html", {"clan": clan})
+        task_notice = await _task_notice_from_query(request)
+        return _render_custom(
+            self,
+            request,
+            "cabinet/content_ops_monster_detail.html",
+            {"clan": clan, "task_notice": task_notice},
+        )
 
     async def handle_monster_member_detail(self, request: Request) -> Response:
         clan_id = request.query_params.get("clan_id", "")
         member_id = request.query_params.get("member_id", "")
         clan = await _api(request).get_generated_clan(clan_id) if clan_id else None
         member = _find_member(clan, member_id) if clan and member_id else None
+        task_notice = await _task_notice_from_query(request)
         return _render_custom(
             self,
             request,
             "cabinet/content_ops_monster_member_detail.html",
-            {"clan": clan, "member": member},
+            {"clan": clan, "member": member, "task_notice": task_notice},
         )
 
     async def handle_monster_maintenance(self, request: Request) -> Response:
@@ -289,39 +329,133 @@ class ContentOpsAdmin(CabinetAdmin):
         result = await _api(request).apply_generated_rebuild(**_rebuild_options_from_form(form))
         return await _render_monster_maintenance(self, request, result=result, form=form)
 
-    async def handle_regenerate_clan_image(self, request: Request) -> Response:
+    async def handle_regenerate_clan_flavor(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
+        result: dict[str, Any] = {}
         if clan_id:
-            await _api(request).regenerate_clan_image(clan_id)
-        return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
+            try:
+                result = await _api(request).regenerate_clan_flavor(clan_id)
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                return RedirectResponse(
+                    url=_task_redirect_url(
+                        f"{_BASE}/monster-detail",
+                        {"id": clan_id},
+                        kind="clan_flavor",
+                        error=f"{exc.__class__.__name__}: {exc}",
+                    ),
+                    status_code=303,
+                )
+        return RedirectResponse(
+            url=_task_redirect_url(
+                f"{_BASE}/monster-detail",
+                {"id": clan_id},
+                kind="clan_flavor",
+                task_ids=_task_ids_from_result(result),
+                requested=int(result.get("requested") or 1) if result else 0,
+            ),
+            status_code=303,
+        )
 
-    async def handle_regenerate_clan_family_images(self, request: Request) -> Response:
+    async def handle_regenerate_clan_member_images(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
+        result: dict[str, Any] = {}
         if clan_id:
-            await _api(request).regenerate_clan_family_images(clan_id)
-        return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
+            try:
+                result = await _api(request).regenerate_clan_member_images(clan_id)
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                return RedirectResponse(
+                    url=_task_redirect_url(
+                        f"{_BASE}/monster-detail",
+                        {"id": clan_id},
+                        kind="member_images",
+                        error=f"{exc.__class__.__name__}: {exc}",
+                    ),
+                    status_code=303,
+                )
+        return RedirectResponse(
+            url=_task_redirect_url(
+                f"{_BASE}/monster-detail",
+                {"id": clan_id},
+                kind="member_images",
+                task_ids=_task_ids_from_result(result),
+                requested=int(result.get("requested") or len(_task_ids_from_result(result))),
+            ),
+            status_code=303,
+        )
 
-    async def handle_regenerate_visible_clan_images(self, request: Request) -> Response:
+    async def handle_regenerate_visible_member_images(self, request: Request) -> Response:
         form = await request.form()
         clan_ids = [str(value) for value in form.getlist("clan_ids") if str(value)]
+        result: dict[str, Any] = {}
+        redirect_base, redirect_params = _split_url_query(_monster_browser_redirect_url(form))
         if clan_ids:
-            await _api(request).regenerate_clan_images(clan_ids)
-        return RedirectResponse(url=_monster_browser_redirect_url(form), status_code=303)
+            try:
+                result = await _api(request).regenerate_clan_member_images_batch(clan_ids)
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                return RedirectResponse(
+                    url=_task_redirect_url(
+                        redirect_base,
+                        redirect_params,
+                        kind="member_images_batch",
+                        error=f"{exc.__class__.__name__}: {exc}",
+                    ),
+                    status_code=303,
+                )
+        return RedirectResponse(
+            url=_task_redirect_url(
+                redirect_base,
+                redirect_params,
+                kind="member_images_batch",
+                task_ids=_task_ids_from_result(result)[:30],
+                requested=int(result.get("requested") or len(_task_ids_from_result(result))),
+            ),
+            status_code=303,
+        )
 
     async def handle_regenerate_member_image(self, request: Request) -> Response:
         form = await request.form()
         clan_id = str(form.get("clan_id") or "")
         member_id = str(form.get("member_id") or "")
+        result: dict[str, Any] = {}
         if member_id:
-            await _api(request).regenerate_member_image(member_id)
+            try:
+                result = await _api(request).regenerate_member_image(member_id)
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                return_to_member = form.get("return_member_detail") == "1"
+                target = f"{_BASE}/monster-member-detail" if return_to_member else f"{_BASE}/monster-detail"
+                params = {"clan_id": clan_id, "member_id": member_id} if return_to_member else {"id": clan_id}
+                return RedirectResponse(
+                    url=_task_redirect_url(
+                        target,
+                        params,
+                        kind="member_image",
+                        error=f"{exc.__class__.__name__}: {exc}",
+                    ),
+                    status_code=303,
+                )
         if form.get("return_member_detail") == "1":
             return RedirectResponse(
-                url=f"{_BASE}/monster-member-detail?clan_id={clan_id}&member_id={member_id}",
+                url=_task_redirect_url(
+                    f"{_BASE}/monster-member-detail",
+                    {"clan_id": clan_id, "member_id": member_id},
+                    kind="member_image",
+                    task_ids=_task_ids_from_result(result),
+                    requested=int(result.get("requested") or 1) if result else 0,
+                ),
                 status_code=303,
             )
-        return RedirectResponse(url=f"{_BASE}/monster-detail?id={clan_id}", status_code=303)
+        return RedirectResponse(
+            url=_task_redirect_url(
+                f"{_BASE}/monster-detail",
+                {"id": clan_id},
+                kind="member_image",
+                task_ids=_task_ids_from_result(result),
+                requested=int(result.get("requested") or 1) if result else 0,
+            ),
+            status_code=303,
+        )
 
 
 def _render_custom(admin: Any, request: Request, template: str, context: dict[str, Any]) -> Response:
@@ -397,6 +531,101 @@ def _find_member(
     if clan is None:
         return None
     return next((member for member in clan.members if member.monster_id == member_id), None)
+
+
+async def _task_notice_from_query(request: Request) -> AITaskNotice | None:
+    kind = str(request.query_params.get("ai_kind") or "").strip()
+    raw_error = str(request.query_params.get("ai_error") or "").strip()
+    task_ids = [
+        task_id.strip() for task_id in str(request.query_params.get("ai_task_ids") or "").split(",") if task_id.strip()
+    ]
+    try:
+        requested = int(str(request.query_params.get("ai_requested") or "0"))
+    except ValueError:
+        requested = 0
+    if not kind and not raw_error and not task_ids:
+        return None
+    tasks: list[AdminAIGenerationTask] = []
+    status_error = raw_error
+    for task_id in task_ids:
+        try:
+            tasks.append(await _api(request).get_generation_task(task_id))
+        except (AttributeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+            status_error = status_error or f"не удалось получить статус задачи {task_id}: {exc.__class__.__name__}"
+    return AITaskNotice(
+        kind=kind,
+        title=_task_notice_title(kind),
+        message=_task_notice_message(kind, tasks=tasks, requested=requested, error=status_error),
+        task_ids=task_ids,
+        tasks=tasks,
+        requested=requested,
+        error=status_error,
+    )
+
+
+def _task_notice_title(kind: str) -> str:
+    return {
+        "clan_flavor": "Описания семьи",
+        "member_images": "Картинки участников",
+        "member_images_batch": "Картинки участников",
+        "member_image": "Картинка участника",
+    }.get(kind, "AI-задача")
+
+
+def _task_notice_message(
+    kind: str,
+    *,
+    tasks: list[AdminAIGenerationTask],
+    requested: int,
+    error: str,
+) -> str:
+    if error:
+        return "Ошибка постановки или чтения статуса задачи."
+    if not tasks:
+        return "Задача отправлена, но backend не вернул id для отслеживания."
+    if any(task.status == "failed" for task in tasks):
+        return "Одна или несколько задач завершились ошибкой."
+    if all(task.status == "done" for task in tasks):
+        return "Задача закончилась успешно." if len(tasks) == 1 else "Все отслеживаемые задачи закончились успешно."
+    if any(task.status == "running" for task in tasks):
+        return "Задача выполняется."
+    if any(task.status == "cooldown" for task in tasks):
+        return "Задача временно отложена после ошибки, будет повтор."
+    if kind == "member_images_batch" and requested > len(tasks):
+        return f"Задачи поставлены: {requested}. Отслеживаются первые {len(tasks)}."
+    return "Задача поставлена в очередь."
+
+
+def _task_ids_from_result(result: dict[str, Any]) -> list[str]:
+    if result.get("task_id"):
+        return [str(result["task_id"])]
+    return [str(task_id) for task_id in result.get("task_ids") or [] if str(task_id)]
+
+
+def _task_redirect_url(
+    path: str,
+    params: dict[str, str],
+    *,
+    kind: str,
+    task_ids: list[str] | None = None,
+    requested: int = 0,
+    error: str = "",
+) -> str:
+    query = dict(params)
+    if kind:
+        query["ai_kind"] = kind
+    if task_ids:
+        query["ai_task_ids"] = ",".join(task_ids)
+    if requested:
+        query["ai_requested"] = str(requested)
+    if error:
+        query["ai_error"] = error[:500]
+    return f"{path}?{urlencode(query)}"
+
+
+def _split_url_query(url: str) -> tuple[str, dict[str, str]]:
+    path, _, raw_query = url.partition("?")
+    return path, dict(parse_qsl(raw_query, keep_blank_values=False))
 
 
 def _monster_browser_redirect_url(form: Any) -> str:

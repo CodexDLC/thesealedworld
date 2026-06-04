@@ -40,13 +40,29 @@ class ItemMonsterNarrativeIntegration:
         if clan is None:
             raise ValueError(f"Generated clan not found for item text: {clan_id}")
 
-        flavor_content = dict(clan.flavor_content or {})
-        raw_tags = dict(clan.raw_tags or {})
+        metadata = dict(clan.metadata_ or {})
+        flavor_content = _dict(metadata.get("flavor_content"))
+        context_identity = _dict(clan.context_identity)
+        habitat = _dict(context_identity.get("habitat"))
         return {
             "clan_id": str(clan.id),
             "family_resource_id": clan.family_id,
-            "clan_name_ru": clan.name_ru or "",
+            "clan_name_ru": clan.title or "",
             "clan_description": clan.description or "",
-            "tags": list(raw_tags.get("tags") or []),
+            "biome_id": str(context_identity.get("biome_id") or habitat.get("biome") or ""),
+            "difficulty": str(context_identity.get("difficulty") or ""),
+            "tags": _strings(context_identity.get("tags")),
+            "habitat_keys": _strings(habitat.get("keys")),
+            "encounter_texts": dict(clan.encounter_texts or {}),
             "loot_culture": dict(flavor_content.get("loot_culture") or {}),
         }
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _strings(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if item]

@@ -4,6 +4,7 @@ import pytest
 
 from src.backend.features.monsters.api.router import (
     get_generated_monster_view_service,
+    get_monster_content_regeneration_service,
     get_monster_generated_rebuild_service,
     get_monster_visual_regeneration_service,
 )
@@ -36,16 +37,26 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
                         "family_id": "rat_swarm",
                         "tier": 1,
                         "zone_id": "zone-a",
+                        "title": "Rats",
                         "name_ru": "Rats",
                         "description": "Rats",
                         "gear_score_summary": {"count": 1, "min": 7, "avg": 7.0, "max": 7, "total": 7},
                         "members": [
                             {
+                                "member_id": str(uuid.uuid4()),
                                 "monster_id": str(uuid.uuid4()),
+                                "clan_id": str(uuid.uuid4()),
+                                "variant_id": "sewer_rat",
                                 "variant_key": "sewer_rat",
+                                "member_hash": "hash",
                                 "role": "minion",
+                                "title": "Rat",
                                 "member_tier": 1,
+                                "min_tier": 1,
+                                "max_tier": 1,
+                                "mongo_actor_key": "actor:rat",
                                 "name_ru": "Rat",
+                                "short_description": "Rat",
                                 "threat_rating": 7,
                                 "gear_score": 7,
                             }
@@ -66,33 +77,33 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["pagination"] == {"limit": 10, "offset": 20, "total": 42, "has_more": True}
+    assert payload["items"][0]["members"][0]["monster_id"]
+    assert payload["items"][0]["members"][0]["variant_key"] == "sewer_rat"
     assert payload["items"][0]["members"][0]["gear_score"] == 7
 
 
 @pytest.mark.unit
-def test_generated_clan_regeneration_route_returns_pending_task(client) -> None:
+def test_generated_clan_flavor_regeneration_route_returns_pending_task(client) -> None:
     class FakeService:
-        async def request_clan_image(self, clan_id: str):
+        async def request_clan_flavor(self, clan_id: str):
             assert clan_id == "clan-1"
             return {
-                "task_id": "task-1",
+                "task_id": "task-flavor",
                 "entity_type": "monster_clan",
                 "entity_id": "clan-1",
                 "status": "pending",
-                "storage_key": "monsters/generated/clans/hash.webp",
-                "image_url": "/static/generated-assets/old.webp",
             }
 
     from src.backend.app import app
 
-    app.dependency_overrides[get_monster_visual_regeneration_service] = lambda: FakeService()
+    app.dependency_overrides[get_monster_content_regeneration_service] = lambda: FakeService()
     try:
-        response = client.post("/api/admin/monsters/generated/clans/clan-1/regenerate-image")
+        response = client.post("/api/admin/monsters/generated/clans/clan-1/regenerate-flavor")
     finally:
-        app.dependency_overrides.pop(get_monster_visual_regeneration_service, None)
+        app.dependency_overrides.pop(get_monster_content_regeneration_service, None)
 
     assert response.status_code == 200
-    assert response.json()["task_id"] == "task-1"
+    assert response.json()["task_id"] == "task-flavor"
 
 
 @pytest.mark.unit
@@ -171,18 +182,17 @@ def test_generated_monster_rebuild_apply_route_returns_rebuilt_count(client) -> 
 
 
 @pytest.mark.unit
-def test_generated_clan_family_regeneration_route_returns_batch(client) -> None:
+def test_generated_clan_member_images_regeneration_route_returns_batch(client) -> None:
     class FakeService:
-        async def request_clan_family_images(self, clan_id: str):
+        async def request_clan_member_images(self, clan_id: str):
             assert clan_id == "clan-1"
             return {
-                "task_ids": ["task-clan", "task-member"],
-                "entity_type": "monster_clan_family",
+                "task_ids": ["task-member"],
+                "entity_type": "monster_clan_members",
                 "entity_id": "clan-1",
                 "status": "pending",
-                "requested": 2,
+                "requested": 1,
                 "storage_keys": [
-                    "monsters/generated/clans/hash.webp",
                     "monsters/generated/members/hash.webp",
                 ],
             }
@@ -191,29 +201,29 @@ def test_generated_clan_family_regeneration_route_returns_batch(client) -> None:
 
     app.dependency_overrides[get_monster_visual_regeneration_service] = lambda: FakeService()
     try:
-        response = client.post("/api/admin/monsters/generated/clans/clan-1/regenerate-family-images")
+        response = client.post("/api/admin/monsters/generated/clans/clan-1/regenerate-member-images")
     finally:
         app.dependency_overrides.pop(get_monster_visual_regeneration_service, None)
 
     assert response.status_code == 200
-    assert response.json()["requested"] == 2
-    assert response.json()["task_ids"] == ["task-clan", "task-member"]
+    assert response.json()["requested"] == 1
+    assert response.json()["task_ids"] == ["task-member"]
 
 
 @pytest.mark.unit
-def test_generated_clan_images_regeneration_route_accepts_selected_clans(client) -> None:
+def test_generated_clan_member_images_regeneration_route_accepts_selected_clans(client) -> None:
     class FakeService:
-        async def request_clan_images(self, clan_ids: list[str]):
+        async def request_clan_member_images_for_clans(self, clan_ids: list[str]):
             assert clan_ids == ["clan-1", "clan-2"]
             return {
                 "task_ids": ["task-1", "task-2"],
-                "entity_type": "monster_clans",
+                "entity_type": "monster_clan_members",
                 "entity_id": None,
                 "status": "pending",
                 "requested": 2,
                 "storage_keys": [
-                    "monsters/generated/clans/one.webp",
-                    "monsters/generated/clans/two.webp",
+                    "monsters/generated/members/one.webp",
+                    "monsters/generated/members/two.webp",
                 ],
             }
 
@@ -222,14 +232,14 @@ def test_generated_clan_images_regeneration_route_accepts_selected_clans(client)
     app.dependency_overrides[get_monster_visual_regeneration_service] = lambda: FakeService()
     try:
         response = client.post(
-            "/api/admin/monsters/generated/clans/regenerate-images",
+            "/api/admin/monsters/generated/clans/regenerate-member-images",
             json={"clan_ids": ["clan-1", "clan-2"]},
         )
     finally:
         app.dependency_overrides.pop(get_monster_visual_regeneration_service, None)
 
     assert response.status_code == 200
-    assert response.json()["entity_type"] == "monster_clans"
+    assert response.json()["entity_type"] == "monster_clan_members"
     assert response.json()["requested"] == 2
 
 

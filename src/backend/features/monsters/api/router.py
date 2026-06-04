@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from src.backend.core.database import get_db
 from src.backend.features.monsters.dto.generated_view import (
     GeneratedMonstersResponseDTO,
+    MonsterAIRegenerationResponseDTO,
     MonsterDataRebuildRequestDTO,
     MonsterDataRebuildResponseDTO,
     MonsterImageRegenerationBatchRequestDTO,
@@ -14,6 +15,7 @@ from src.backend.features.monsters.dto.generated_view import (
     MonsterImageRegenerationResponseDTO,
 )
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
+from src.backend.features.monsters.services.content_regeneration_service import MonsterContentRegenerationService
 from src.backend.features.monsters.services.generated_rebuild_service import MonsterGeneratedRebuildService
 from src.backend.features.monsters.services.generated_view_service import GeneratedMonsterViewService
 from src.backend.features.monsters.services.visual_regeneration_service import MonsterVisualRegenerationService
@@ -30,6 +32,16 @@ def get_monster_visual_regeneration_service(
     db_session=Depends(get_db),
 ) -> MonsterVisualRegenerationService:
     return MonsterVisualRegenerationService(
+        session=db_session,
+        arq=getattr(request.app.state, "generation_ai_arq", None),
+    )
+
+
+def get_monster_content_regeneration_service(
+    request: Request,
+    db_session=Depends(get_db),
+) -> MonsterContentRegenerationService:
+    return MonsterContentRegenerationService(
         session=db_session,
         arq=getattr(request.app.state, "generation_ai_arq", None),
     )
@@ -81,38 +93,38 @@ async def apply_generated_monster_rebuild(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/generated/clans/{clan_id}/regenerate-image", response_model=MonsterImageRegenerationResponseDTO)
-async def regenerate_generated_clan_image(
+@router.post("/generated/clans/{clan_id}/regenerate-flavor", response_model=MonsterAIRegenerationResponseDTO)
+async def regenerate_generated_clan_flavor(
     clan_id: str,
-    service: Annotated[MonsterVisualRegenerationService, Depends(get_monster_visual_regeneration_service)],
-) -> MonsterImageRegenerationResponseDTO:
+    service: Annotated[MonsterContentRegenerationService, Depends(get_monster_content_regeneration_service)],
+) -> MonsterAIRegenerationResponseDTO:
     try:
-        return await service.request_clan_image(clan_id)
+        return await service.request_clan_flavor(clan_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
-    "/generated/clans/{clan_id}/regenerate-family-images",
+    "/generated/clans/{clan_id}/regenerate-member-images",
     response_model=MonsterImageRegenerationBatchResponseDTO,
 )
-async def regenerate_generated_clan_family_images(
+async def regenerate_generated_clan_member_images(
     clan_id: str,
     service: Annotated[MonsterVisualRegenerationService, Depends(get_monster_visual_regeneration_service)],
 ) -> MonsterImageRegenerationBatchResponseDTO:
     try:
-        return await service.request_clan_family_images(clan_id)
+        return await service.request_clan_member_images(clan_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/generated/clans/regenerate-images", response_model=MonsterImageRegenerationBatchResponseDTO)
-async def regenerate_generated_clan_images(
+@router.post("/generated/clans/regenerate-member-images", response_model=MonsterImageRegenerationBatchResponseDTO)
+async def regenerate_generated_clan_member_images_batch(
     payload: MonsterImageRegenerationBatchRequestDTO,
     service: Annotated[MonsterVisualRegenerationService, Depends(get_monster_visual_regeneration_service)],
 ) -> MonsterImageRegenerationBatchResponseDTO:
     try:
-        return await service.request_clan_images(payload.clan_ids)
+        return await service.request_clan_member_images_for_clans(payload.clan_ids)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -130,6 +142,7 @@ async def regenerate_generated_member_image(
 
 __all__ = [
     "get_generated_monster_view_service",
+    "get_monster_content_regeneration_service",
     "get_monster_generated_rebuild_service",
     "get_monster_visual_regeneration_service",
     "router",

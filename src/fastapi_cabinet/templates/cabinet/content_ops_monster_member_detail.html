@@ -1,9 +1,17 @@
 {% extends "cabinet/base.html" %}
 
+{% block extra_head %}
+    {% if task_notice and task_notice.active %}
+        <meta http-equiv="refresh" content="5">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
     {% if not clan or not member %}
         <p class="fc-empty">Сгенерированный монстр не найден.</p>
     {% else %}
+        {% include "cabinet/includes/content_ops_task_notice.html" %}
+
         <div class="fc-page-head">
             <div>
                 <h1 class="fc-page-title">{{ member.name_ru or member.variant_key }}</h1>

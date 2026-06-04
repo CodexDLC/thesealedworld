@@ -34,7 +34,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "minion",
             "spawn_weight": 20,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A desperate settler turned marauder, armed with a crude axe and a wooden shield.",
             "base_stats": build_role_ladder_stats(
                 "minion",
@@ -63,7 +63,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "minion",
             "spawn_weight": 20,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A former hunter, now an outlaw. Uses a simple short bow and wears leather scraps.",
             "base_stats": build_role_ladder_stats(
                 "minion",
@@ -92,7 +92,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "minion",
             "spawn_weight": 20,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A nervous lookout with a spear and patched leather, watching ruined streets for prey.",
             "extra_tags": ["watcher", "spear", "scout"],
             "base_stats": build_role_ladder_stats(
@@ -121,7 +121,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "minion",
             "spawn_weight": 20,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A thin alley fighter carrying a chipped dagger and too much confidence.",
             "extra_tags": ["dagger", "ambusher", "street"],
             "base_stats": build_role_ladder_stats(
@@ -151,8 +151,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_cutthroat",
             "role": "boss",
             "spawn_weight": 600,
-            "min_tier": 2,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "A quick and ruthless knife-boss with two daggers, likely a former city rogue.",
             "base_stats": build_role_ladder_stats(
                 "boss",
@@ -188,7 +188,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "veteran",
             "spawn_weight": 50,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A hard-handed raider with a mace and shield, used to breaking doors and skulls.",
             "extra_tags": ["raider", "shield", "bruiser"],
             "base_stats": build_role_ladder_stats(
@@ -218,7 +218,7 @@ BANDITS_FAMILY: MonsterFamily = {
             "role": "veteran",
             "spawn_weight": 50,
             "min_tier": 0,
-            "max_tier": 2,
+            "max_tier": 5,
             "narrative_hint": "A ruined-road enforcer with a hooked polearm for dragging victims off balance.",
             "extra_tags": ["polearm", "disabler", "roadside"],
             "base_stats": build_role_ladder_stats(
@@ -247,8 +247,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_captain",
             "role": "elite",
             "spawn_weight": 150,
-            "min_tier": 1,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "The leader of this small gang, a hardened survivor with a sword, shield, and reinforced mail.",
             "base_stats": build_role_ladder_stats(
                 "elite",
@@ -282,8 +282,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_hedge_wizard",
             "role": "veteran",
             "spawn_weight": 50,
-            "min_tier": 1,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "An outcast who dabbles in forbidden magic, using a crude staff to cast chaotic spells.",
             "base_stats": build_role_ladder_stats(
                 "veteran",
@@ -310,8 +310,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_blackguard",
             "role": "boss",
             "spawn_weight": 600,
-            "min_tier": 2,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "A disciplined killer in stolen armor, carrying a heavy mace and a tower shield.",
             "extra_tags": ["blackguard", "heavy", "guard"],
             "base_stats": build_role_ladder_stats(
@@ -348,8 +348,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_kingpin",
             "role": "elite",
             "spawn_weight": 150,
-            "min_tier": 1,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "A road executioner who favors a heavy two-handed weapon and a direct charge.",
             "base_stats": build_role_ladder_stats(
                 "elite",
@@ -382,8 +382,8 @@ BANDITS_FAMILY: MonsterFamily = {
             "id": "bandit_warlord",
             "role": "elite",
             "spawn_weight": 150,
-            "min_tier": 1,
-            "max_tier": 2,
+            "min_tier": 0,
+            "max_tier": 5,
             "narrative_hint": "A hard-eyed bandit marksman who keeps the line pinned while allies close in.",
             "extra_tags": ["marksman", "commander", "ranged"],
             "base_stats": build_role_ladder_stats(

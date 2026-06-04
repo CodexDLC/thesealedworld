@@ -35,7 +35,9 @@ class GeneratedMonsterActorRepository:
 
     def __init__(self, database: Any | None = None) -> None:
         self.database = database
-        self.collection = (database or get_mongo_provider().database())[GENERATED_MONSTER_ACTORS_COLLECTION]
+        self.collection = (database if database is not None else get_mongo_provider().database())[
+            GENERATED_MONSTER_ACTORS_COLLECTION
+        ]
 
     async def ensure_indexes(self) -> None:
         await self.collection.create_index(

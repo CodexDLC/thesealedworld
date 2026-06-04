@@ -19,13 +19,20 @@ TASK: Create a unique Monster Clan identity from the provided creature family an
 
 Return JSON only:
 {
-  "name_ru": "Russian clan name",
-  "description": "Russian atmospheric bestiary description, 3-4 sentences",
+  "display_name": {"ru": "Russian clan name", "en": "English clan name"},
+  "description": {
+    "ru": "Russian atmospheric bestiary description, 3-4 sentences",
+    "en": "English atmospheric bestiary description, 3-4 sentences"
+  },
+  "visual_hint": {
+    "ru": "Russian compact clan-level visual direction for image generation",
+    "en": "English compact clan-level visual direction for image generation"
+  },
   "encounter_texts": {
-    "patrol": "Clan-level text for a moving/travel patrol contact, 1 sentence",
-    "ambush": "Clan-level text for a surprise or monster-initiated attack, 1 sentence",
-    "lair": "Clan-level text for a guarded lair/node/boss position, 1 sentence",
-    "random_meeting": "Clan-level text for an ordinary random meeting, 1 sentence"
+    "patrol": {"ru": "Russian patrol text, 1 sentence", "en": "English patrol text, 1 sentence"},
+    "ambush": {"ru": "Russian ambush text, 1 sentence", "en": "English ambush text, 1 sentence"},
+    "lair": {"ru": "Russian lair/node text, 1 sentence", "en": "English lair/node text, 1 sentence"},
+    "random_meeting": {"ru": "Russian random meeting text, 1 sentence", "en": "English random meeting text, 1 sentence"}
   },
   "loot_culture": {
     "craft_style": "How this clan obtains, makes, steals, repairs, or repurposes equipment",
@@ -37,9 +44,10 @@ Return JSON only:
   "variants_flavor": [
     {
       "variant_key": "unit_key",
-      "name": "Russian monster/variant title",
-      "short_description": "Short static member description, 1 sentence",
-      "visual_hint": "Optional compact visual hint for image generation"
+      "display_name": {"ru": "Russian monster/variant title", "en": "English monster/variant title"},
+      "short_description": {"ru": "Russian static member description, 1 sentence", "en": "English static member description, 1 sentence"},
+      "appearance": {"ru": "Russian compact visible appearance, 1 sentence", "en": "English compact visible appearance, 1 sentence"},
+      "visual_hint": {"ru": "Russian compact visual hint for image generation", "en": "English compact visual hint for image generation"}
     }
   ]
 }
@@ -57,18 +65,21 @@ Rules:
 - For humanoid gangs in city ruins, prefer scavenged and stolen gear: gate plating, door boards, shop shutters, straps, nails, scrap metal, and repaired armor. For rift-touched clans, include rift-specific salvage from the payload.
 - Tier 0-1 means ragged, hungry, weak, scavenging. Tier 5+ means ancient, evolved, or magically altered.
 - Unit keys are technical ids from the input. Keep the same keys and write player-facing title/text fields for them.
-- Do not put encounter, detected, ambush, idle, or behavior prose into variants_flavor. Variants only get title, short_description, and optional visual_hint.
+- Do not put encounter, detected, ambush, idle, or behavior prose into variants_flavor. Variants only get title, short_description, appearance, and visual_hint.
 - If selected_traits is present, use those traits to shape clan name, tone, encounter_texts, and member flavor.
+- Every localized field must contain both ru and en. The English text must be a natural English rewrite, not transliterated Russian.
+- Keep ru and en semantically equivalent enough for gameplay and search, but idiomatic in each language.
 - Respect field length limits strictly:
-  name_ru <= 80 chars;
-  description <= 1200 chars;
-  encounter_texts.* <= 500 chars each;
+  display_name.* <= 80 chars;
+  description.* <= 1200 chars;
+  visual_hint.* <= 300 chars;
+  encounter_texts.*.* <= 500 chars each;
   loot_culture.craft_style <= 300 chars and preferably 1 short sentence;
   loot_culture.craft_skill_hint <= 500 chars;
-  variant.name <= 80 chars;
-  variant.short_description <= 300 chars;
-  variant.visual_hint <= 300 chars.
-- Russian only for player-facing strings.
+  variant.display_name.* <= 80 chars;
+  variant.short_description.* <= 300 chars;
+  variant.appearance.* <= 300 chars;
+  variant.visual_hint.* <= 300 chars.
 - No markdown, no explanations."""
     user = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     return PromptResult(

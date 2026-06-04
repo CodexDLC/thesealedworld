@@ -7,6 +7,33 @@ from src.frontend.core.api import BaseApiClient
 
 
 @dataclass(frozen=True)
+class AdminAIGenerationTask:
+    task_id: str
+    task_type: str
+    entity_type: str
+    entity_id: str
+    output_kind: str
+    status: str
+    storage_key: str = ""
+    generated_url: str = ""
+    error: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AdminAIGenerationTask:
+        return cls(
+            task_id=str(data.get("task_id") or ""),
+            task_type=str(data.get("task_type") or ""),
+            entity_type=str(data.get("entity_type") or ""),
+            entity_id=str(data.get("entity_id") or ""),
+            output_kind=str(data.get("output_kind") or ""),
+            status=str(data.get("status") or ""),
+            storage_key=str(data.get("storage_key") or ""),
+            generated_url=str(data.get("generated_url") or ""),
+            error=dict(data.get("error") or {}),
+        )
+
+
+@dataclass(frozen=True)
 class AdminMonsterVisual:
     status: str = ""
     image_url: str = ""
@@ -33,6 +60,7 @@ class AdminGeneratedMonsterMember:
     role: str
     member_tier: int
     name_ru: str
+    localized: dict[str, Any]
     description: str
     text_content: dict[str, Any]
     scaled_attributes: dict[str, Any]
@@ -70,6 +98,7 @@ class AdminGeneratedMonsterMember:
             role=str(data.get("role") or ""),
             member_tier=int(data.get("member_tier") or 0),
             name_ru=str(data.get("name_ru") or ""),
+            localized=dict(data.get("localized") or {}),
             description=str(data.get("description") or ""),
             text_content=dict(data.get("text_content") or {}),
             scaled_attributes=dict(data.get("scaled_attributes") or {}),
@@ -106,7 +135,9 @@ class AdminGeneratedMonsterClan:
     unique_hash: str
     raw_tags: dict[str, Any]
     flavor_content: dict[str, Any]
+    encounter_texts: dict[str, Any]
     name_ru: str
+    localized: dict[str, Any]
     description: str
     metadata_: dict[str, Any]
     context: dict[str, Any]
@@ -132,7 +163,9 @@ class AdminGeneratedMonsterClan:
             unique_hash=str(data.get("unique_hash") or ""),
             raw_tags=dict(data.get("raw_tags") or {}),
             flavor_content=dict(data.get("flavor_content") or {}),
+            encounter_texts=dict(data.get("encounter_texts") or {}),
             name_ru=str(data.get("name_ru") or ""),
+            localized=dict(data.get("localized") or {}),
             description=str(data.get("description") or ""),
             metadata_=dict(data.get("metadata_") or {}),
             context=dict(data.get("context") or {}),
@@ -186,21 +219,21 @@ class AdminMonstersApi(BaseApiClient):
             return None
         return AdminGeneratedMonsterClan.from_dict(items[0])
 
-    async def regenerate_clan_image(self, clan_id: str) -> dict[str, Any]:
+    async def regenerate_clan_flavor(self, clan_id: str) -> dict[str, Any]:
         return dict(
-            await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-image") or {}
+            await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-flavor") or {}
         )
 
-    async def regenerate_clan_family_images(self, clan_id: str) -> dict[str, Any]:
+    async def regenerate_clan_member_images(self, clan_id: str) -> dict[str, Any]:
         return dict(
-            await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-family-images") or {}
+            await self._request("POST", f"/api/admin/monsters/generated/clans/{clan_id}/regenerate-member-images") or {}
         )
 
-    async def regenerate_clan_images(self, clan_ids: list[str]) -> dict[str, Any]:
+    async def regenerate_clan_member_images_batch(self, clan_ids: list[str]) -> dict[str, Any]:
         return dict(
             await self._request(
                 "POST",
-                "/api/admin/monsters/generated/clans/regenerate-images",
+                "/api/admin/monsters/generated/clans/regenerate-member-images",
                 json={"clan_ids": clan_ids},
             )
             or {}
@@ -210,6 +243,10 @@ class AdminMonstersApi(BaseApiClient):
         return dict(
             await self._request("POST", f"/api/admin/monsters/generated/members/{member_id}/regenerate-image") or {}
         )
+
+    async def get_generation_task(self, task_id: str) -> AdminAIGenerationTask:
+        raw = await self._request("GET", f"/api/admin/generation-ai/tasks/{task_id}")
+        return AdminAIGenerationTask.from_dict(dict(raw or {}))
 
     async def plan_generated_rebuild(
         self,

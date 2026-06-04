@@ -377,6 +377,7 @@ class MonsterClanGenerationBuilder:
                     role=plan.variant.role,
                     member_name=active_template.text_content.name_ru or plan.variant.id,
                     appearance=active_template.text_content.appearance_ru or plan.variant.narrative_hint,
+                    context_tags=[context.habitat_biome, *context.habitat_keys],
                 ),
                 "meta": active_template.meta.model_dump(mode="json"),
             },

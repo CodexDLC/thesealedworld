@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ layout.title }}</title>
         <link rel="stylesheet" href="{{ layout.static_mount_path }}/css/cabinet.css?v={{ layout.static_version }}">
+        {% block extra_head %}{% endblock %}
     </head>
     <body class="fc-shell">
         <aside class="fc-sidebar-col">

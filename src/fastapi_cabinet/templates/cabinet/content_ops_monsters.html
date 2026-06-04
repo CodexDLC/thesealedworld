@@ -1,13 +1,21 @@
 {% extends "cabinet/base.html" %}
 
+{% block extra_head %}
+    {% if task_notice and task_notice.active %}
+        <meta http-equiv="refresh" content="5">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
+    {% include "cabinet/includes/content_ops_task_notice.html" %}
+
     <div class="fc-page-head">
         <div>
             <h1 class="fc-page-title">Сгенерированные монстры</h1>
             <p class="fc-page-subtitle">Просмотр сгенерированных семей и участников с безопасной перегенерацией в карточке.</p>
         </div>
         <div class="fc-page-actions">
-            <form method="post" action="{{ base_url }}/regenerate-visible-clan-images" class="fc-inline-action">
+            <form method="post" action="{{ base_url }}/regenerate-visible-member-images" class="fc-inline-action">
                 {% for clan in browser.clans %}
                     <input type="hidden" name="clan_ids" value="{{ clan.clan_id }}">
                 {% endfor %}
@@ -20,10 +28,10 @@
                 <button
                     type="submit"
                     class="fc-action-btn fc-action-btn--primary"
-                    title="Поставить задачи генерации изображений для всех семей в текущей выдаче"
+                    title="Поставить задачи генерации изображений участников для всех семей в текущей выдаче"
                     {% if not browser.clans %}disabled{% endif %}
                 >
-                    Перегенерировать видимые
+                    Перегенерировать картинки участников
                 </button>
             </form>
             <a class="fc-action-btn" href="{{ base_url }}">Обзор</a>

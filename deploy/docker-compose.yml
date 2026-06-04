@@ -46,6 +46,7 @@ services:
     image: mongo:8
     container_name: tbmmorpg-mongo
     restart: unless-stopped
+    command: ["mongod", "--quiet"]
     ports:
       - "27017:27017"
     volumes:

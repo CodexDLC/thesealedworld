@@ -14,10 +14,8 @@ from src.backend.features.monsters.dto.generated_view import (
     MonsterImageRegenerationBatchResponseDTO,
     MonsterImageRegenerationResponseDTO,
 )
-from src.backend.features.monsters.resources import get_family_config
-from src.backend.features.monsters.resources.visuals import build_clan_visual, build_member_visual
+from src.backend.features.monsters.resources.visuals import build_member_visual
 from src.backend.features.monsters.tasks_ai import (
-    build_monster_clan_image_task_spec_from_orm,
     build_monster_member_image_task_spec_from_orm,
 )
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
@@ -28,45 +26,30 @@ class MonsterVisualRegenerationService:
         self.session = session
         self.arq = arq
 
-    async def request_clan_image(self, clan_id: str) -> MonsterImageRegenerationResponseDTO:
+    async def request_clan_member_images(self, clan_id: str) -> MonsterImageRegenerationBatchResponseDTO:
         clan = await self._get_clan(clan_id)
-        prepared = [self._prepare_clan_image(clan)]
-        task_ids, service = await self._enqueue_prepared(prepared)
-        await self.session.commit()
-        await service.schedule_pending_task_ids()
-        item = prepared[0]
-        return MonsterImageRegenerationResponseDTO(
-            task_id=task_ids[0],
-            entity_type=item.entity_type,
-            entity_id=item.entity_id,
-            status="pending",
-            storage_key=item.storage_key,
-            image_url=item.image_url,
-        )
-
-    async def request_clan_family_images(self, clan_id: str) -> MonsterImageRegenerationBatchResponseDTO:
-        clan = await self._get_clan(clan_id)
-        prepared = [self._prepare_clan_image(clan)]
-        prepared.extend(self._prepare_member_image(member, clan=clan) for member in clan.members)
+        prepared = [self._prepare_member_image(member, clan=clan) for member in clan.members]
         task_ids, service = await self._enqueue_prepared(prepared)
         await self.session.commit()
         await service.schedule_pending_task_ids()
         return _batch_response(
             task_ids=task_ids,
-            entity_type="monster_clan_family",
+            entity_type="monster_clan_members",
             entity_id=str(clan.id),
             prepared=prepared,
         )
 
-    async def request_clan_images(self, clan_ids: list[str]) -> MonsterImageRegenerationBatchResponseDTO:
+    async def request_clan_member_images_for_clans(
+        self, clan_ids: list[str]
+    ) -> MonsterImageRegenerationBatchResponseDTO:
         clans = await self._get_clans(clan_ids)
-        prepared = [self._prepare_clan_image(clan) for clan in clans]
+        prepared = [self._prepare_member_image(member, clan=clan) for clan in clans for member in clan.members]
         task_ids, service = await self._enqueue_prepared(prepared)
         await self.session.commit()
         await service.schedule_pending_task_ids()
         return _batch_response(
             task_ids=task_ids,
-            entity_type="monster_clans",
+            entity_type="monster_clan_members",
             entity_id=None,
             prepared=prepared,
         )
@@ -119,31 +102,6 @@ class MonsterVisualRegenerationService:
         clans = [clans_by_id[clan_id] for clan_id in ids]
         return clans
 
-    def _prepare_clan_image(self, clan: GeneratedClanORM) -> _PreparedVisualRegeneration:
-        metadata = dict(clan.metadata_ or {})
-        previous_visual = dict(metadata.get("visual") or {})
-        next_visual = build_clan_visual(
-            clan.family_id,
-            clan_name=clan.title or clan.family_id,
-            description=clan.description or "",
-            context_tags=list((clan.context_identity or {}).get("tags") or []),
-            member_roster=_member_roster(clan),
-        )
-        metadata["visual"] = _pending_visual(next_visual, previous_visual)
-        clan.metadata_ = metadata
-
-        spec = build_monster_clan_image_task_spec_from_orm(clan)
-        return _PreparedVisualRegeneration(
-            spec=spec,
-            entity_type="monster_clan",
-            entity_id=str(clan.id),
-            storage_key=str(spec.input_payload["visual"]["storage_key"]),
-            image_url=str(metadata["visual"].get("image_url") or ""),
-            target=clan,
-            json_field="metadata_",
-            payload=metadata,
-        )
-
     def _prepare_member_image(
         self,
         member: GeneratedMonsterORM,
@@ -158,6 +116,9 @@ class MonsterVisualRegenerationService:
             role=member.role,
             member_name=member.title or member.variant_id,
             appearance=_member_appearance(member),
+            visual_hint=_member_visual_hint(member, clan),
+            context_tags=list((clan.context_identity or {}).get("tags") or []),
+            clan_name=clan.title or clan.family_id,
         )
         metadata["visual"] = _pending_visual(next_visual, previous_visual)
         member.metadata_ = metadata
@@ -238,21 +199,20 @@ def _pending_visual(next_visual: dict[str, Any], previous_visual: dict[str, Any]
     }
 
 
-def _member_roster(clan: GeneratedClanORM) -> list[dict[str, str]]:
-    family = get_family_config(clan.family_id)
-    rows: list[dict[str, str]] = []
-    for member in clan.members:
-        variant = family.variants.get(member.variant_id) if family is not None else None
-        rows.append(
-            {
-                "variant_key": member.variant_id,
-                "role": member.role,
-                "name": member.title or member.variant_id,
-                "appearance": _member_appearance(member) or (variant.narrative_hint if variant is not None else ""),
-            }
-        )
-    return rows
-
-
 def _member_appearance(member: GeneratedMonsterORM) -> str:
     return str(member.short_description or member.variant_id)
+
+
+def _member_visual_hint(member: GeneratedMonsterORM, clan: GeneratedClanORM) -> str:
+    metadata = dict(clan.metadata_ or {})
+    flavor_content = dict(metadata.get("flavor_content") or {})
+    variants_flavor = flavor_content.get("variants_flavor")
+    if not isinstance(variants_flavor, dict):
+        return ""
+    variant_flavor = variants_flavor.get(member.variant_id)
+    if not isinstance(variant_flavor, dict):
+        return ""
+    visual_hint = variant_flavor.get("visual_hint")
+    if isinstance(visual_hint, dict):
+        return str(visual_hint.get("en") or visual_hint.get("ru") or "")
+    return str(visual_hint or variant_flavor.get("visual_hint_en") or variant_flavor.get("visual_hint_ru") or "")

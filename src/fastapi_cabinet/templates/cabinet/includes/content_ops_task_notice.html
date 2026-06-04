@@ -1,0 +1,57 @@
+{% if task_notice %}
+    <section class="fc-widget fc-widget--wide fc-task-notice {{ task_notice.css_class }}">
+        <h2>{{ task_notice.title }}</h2>
+        <p>{{ task_notice.message }}</p>
+        {% if task_notice.requested %}
+            <p class="fc-muted">Запрошено задач: {{ task_notice.requested }}</p>
+        {% endif %}
+        {% if task_notice.error %}
+            <p class="fc-muted">{{ task_notice.error }}</p>
+        {% endif %}
+        {% if task_notice.tasks %}
+            <table class="fc-table">
+                <thead>
+                    <tr>
+                        <th>Задача</th>
+                        <th>Статус</th>
+                        <th>Тип</th>
+                        <th>Результат</th>
+                        <th>Ошибка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in task_notice.tasks %}
+                        <tr>
+                            <td>{{ task.task_id }}</td>
+                            <td>
+                                {% if task.status == "done" %}
+                                    <span class="fc-pill">готово</span>
+                                {% elif task.status == "failed" %}
+                                    <span class="fc-pill fc-pill--warn">ошибка</span>
+                                {% elif task.status == "running" %}
+                                    <span class="fc-pill">в работе</span>
+                                {% elif task.status == "cooldown" %}
+                                    <span class="fc-pill fc-pill--warn">повтор</span>
+                                {% else %}
+                                    <span class="fc-pill">{{ task.status or "очередь" }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.task_type }}</td>
+                            <td>{{ task.generated_url or task.storage_key or "—" }}</td>
+                            <td>
+                                {% if task.error %}
+                                    {{ task.error.get("message") or task.error }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        {% if task_notice.active %}
+            <p class="fc-muted">Страница обновляется, пока задача не перейдет в готово или ошибку.</p>
+        {% endif %}
+    </section>
+{% endif %}

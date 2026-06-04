@@ -13,7 +13,7 @@ from src.backend.features.monsters.dto.generation import GeneratedClan, Generate
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, HabitatClanPoolEntryORM, Monster
 from src.backend.infrastructure.monsters.actor_documents import (  # type: ignore
     GeneratedMonsterActorRepository,
-    MissingGeneratedMonsterActorDocument,
+    MissingGeneratedMonsterActorDocumentError,
 )
 
 if TYPE_CHECKING:
@@ -266,7 +266,7 @@ class MonsterGenerationRepository:
                 source = source_by_id.get(row.id)
                 document = dict(source.actor_document) if source is not None else {}
                 if not document:
-                    raise MissingGeneratedMonsterActorDocument(
+                    raise MissingGeneratedMonsterActorDocumentError(
                         f"Missing generated monster actor document for member={row.id}"
                     )
                 row.mongo_document_id = await self.actor_repo.upsert_actor_document(document)
@@ -301,7 +301,7 @@ class MonsterGenerationRepository:
         for member in members:
             document = documents.get(member.mongo_actor_key)
             if document is None:
-                raise MissingGeneratedMonsterActorDocument(
+                raise MissingGeneratedMonsterActorDocumentError(
                     f"Missing generated monster actor document: {member.mongo_actor_key}"
                 )
             generated = _to_generated_monster(member, actor_document=document, clan=clan)

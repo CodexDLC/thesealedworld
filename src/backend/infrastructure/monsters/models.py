@@ -31,7 +31,7 @@ class GeneratedClanORM(Base, TimestampMixin, LifecycleStatusMixin, MetadataConte
     encounter_texts: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     generation_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     resource_version: Mapped[str] = mapped_column(String(32), nullable=False, default="1")
-    mongo_document_id: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    mongo_document_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mongo_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     mongo_stored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -88,7 +88,7 @@ class Monster(Base, TimestampMixin, LifecycleStatusMixin, MetadataContextMixin, 
     min_tier: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     max_tier: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     mongo_actor_key: Mapped[str] = mapped_column(String(160), nullable=False, unique=True, index=True)
-    mongo_document_id: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    mongo_document_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mongo_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     mongo_stored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

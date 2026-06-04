@@ -92,7 +92,7 @@ class GameFeatureContainer:
                         scope_type="region",
                         scope_id=str(region.id),
                         population_profile=dict(region.population_profile or {}),
-                        fallback_biome=str(region.biome_id or "wasteland"),
+                        default_biome=str(region.biome_id or "wasteland"),
                         tier=max(1, int(region.tier_min or 1)),
                         source_meta={"region_archetype": str(region.region_archetype or "")},
                     )

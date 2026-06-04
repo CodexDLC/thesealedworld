@@ -42,26 +42,15 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
     member = GeneratedMonster(
         id=member_id,
         clan_id=clan_id,
-        variant_key="bandit_cutthroat",
+        variant_id="bandit_cutthroat",
+        member_hash="member-hash",
         role="minion",
-        member_tier=2,
-        threat_rating=31,
-        name_ru="Cutthroat",
-        description="A quick knife fighter.",
-        text_content={"appearance_ru": "В плаще с ржавым ножом.", "behavior_ru": "Держится сбоку."},
-        scaled_attributes={"strength": 12},
-        scaled_skills={"skill_swords": 0.3},
-        items={
-            "layout": {"equipment": {"main_hand": "knife-1", "body": "coat-1"}},
-            "by_id": {
-                "knife-1": {"name_ru": "Rust knife", "kind": "weapon", "affixes": ["sharp"]},
-                "coat-1": {"name_ru": "Patched coat", "kind": "armor", "affixes": ["worn"]},
-            },
-        },
-        vitals={"hp": {"current": 50, "max": 50}},
-        ai_profile={"profile": "aggressive"},
-        generation_meta={
-            "balance": {"gear_score": 11},
+        title="Cutthroat",
+        short_description="A quick knife fighter.",
+        min_tier=1,
+        max_tier=3,
+        mongo_actor_key="actor:bandit",
+        metadata_={
             "visual": {
                 "status": "generated",
                 "image_url": "/static/generated-assets/monsters/member.webp",
@@ -69,17 +58,65 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
                 "storage_backend": "local",
             },
         },
-        combat_actor_snapshot={"meta": {"source": "generated_monsters"}},
+        active_snapshot={
+            "member_tier": 2,
+            "text_content": {
+                "name_ru": "Old snapshot name",
+                "short_name_ru": "Old snapshot name",
+                "appearance_ru": "В плаще с ржавым ножом.",
+                "behavior_ru": "Держится сбоку.",
+            },
+            "scaled_attributes": {"strength": 12},
+            "scaled_skills": {"skill_swords": 0.3},
+            "items": {
+                "layout": {"equipment": {"main_hand": "knife-1", "body": "coat-1"}},
+                "by_id": {
+                    "knife-1": {"name_ru": "Rust knife", "kind": "weapon", "affixes": ["sharp"]},
+                    "coat-1": {"name_ru": "Patched coat", "kind": "armor", "affixes": ["worn"]},
+                },
+            },
+            "vitals": {"hp": {"current": 50, "max": 50}},
+            "ai_profile": {"profile": "aggressive"},
+            "balance": {"organization_type": "gang"},
+            "gear_score": 11,
+            "combat_snapshot_input": {"meta": {"source": "generated_monsters"}},
+        },
+        actor_document={"tier_snapshots": {}},
     )
     clan = GeneratedClan(
         id=clan_id,
         family_id="bandit_gang",
-        tier=2,
-        zone_id="zone-a",
+        identity_hash="unique",
+        context_identity={"zone_id": "zone-a", "tier": 2},
         context_hash="ctx",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={
+        selected_traits=[],
+        title="Bandits",
+        description="A gang",
+        encounter_texts={},
+        generation_version=1,
+        resource_version="1",
+        metadata_={
+            "seed": "test",
+            "flavor_content": {
+                "variants_flavor": {
+                    "bandit_cutthroat": {
+                        "display_name": {"ru": "Ножевой Дозорный", "en": "Knife Lookout"},
+                        "name": "Ножевой Дозорный",
+                        "short_description": {
+                            "ru": "Быстрый боец с ножом.",
+                            "en": "A quick knife fighter.",
+                        },
+                        "appearance": {
+                            "ru": "плащ и ржавый нож",
+                            "en": "cloak and rusty knife",
+                        },
+                        "visual_hint": {
+                            "ru": "плащ и ржавый нож",
+                            "en": "patched cloak, rusty knife",
+                        },
+                    }
+                }
+            },
             "visual": {
                 "status": "generated",
                 "image_url": "/static/generated-assets/monsters/clan.webp",
@@ -87,9 +124,6 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
                 "storage_backend": "local",
             }
         },
-        name_ru="Bandits",
-        description="A gang",
-        metadata_={"seed": "test"},
         context={"biome": "ruins"},
         source_context={"source": "test"},
         members=[member],
@@ -103,11 +137,40 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
     assert item.visual.storage_key == "monsters/clan.webp"
     assert item.members[0].visual.image_url == "/static/generated-assets/monsters/member.webp"
     assert item.members[0].description == "A quick knife fighter."
+    assert item.members[0].monster_id == str(member_id)
+    assert item.members[0].variant_key == "bandit_cutthroat"
+    assert item.members[0].member_tier == 2
+    assert item.members[0].name_ru == "Cutthroat"
+    assert item.members[0].localized["display_name"]["en"] == "Knife Lookout"
+    assert item.members[0].gear_score == 11
     assert item.members[0].text_content == {
-        "appearance_ru": "В плаще с ржавым ножом.",
+        "appearance_ru": "плащ и ржавый нож",
         "behavior_ru": "Держится сбоку.",
+        "description_ru": "A quick knife fighter.",
+        "localized": {
+            "appearance": {
+                "en": "cloak and rusty knife",
+                "ru": "плащ и ржавый нож",
+            },
+            "display_name": {
+                "en": "Knife Lookout",
+                "ru": "Ножевой Дозорный",
+            },
+            "short_description": {
+                "en": "A quick knife fighter.",
+                "ru": "Быстрый боец с ножом.",
+            },
+            "visual_hint": {
+                "en": "patched cloak, rusty knife",
+                "ru": "плащ и ржавый нож",
+            },
+        },
+        "name_ru": "Cutthroat",
+        "short_name_ru": "Cutthroat",
+        "visual_hint": "плащ и ржавый нож",
     }
-    assert item.metadata_ == {"seed": "test"}
+    assert item.metadata_["seed"] == "test"
+    assert item.metadata_["visual"]["storage_key"] == "monsters/clan.webp"
     assert item.context == {"biome": "ruins"}
     assert item.source_context == {"source": "test"}
     assert item.members[0].scaled_attributes == {"strength": 12}
@@ -125,46 +188,53 @@ async def test_generated_view_projects_visual_storage_and_equipment_summary() ->
 
 
 @pytest.mark.unit
-async def test_generated_view_refreshes_stale_gear_scores_before_projection() -> None:
+async def test_generated_view_projects_snapshot_gear_scores_without_legacy_refresh() -> None:
     clan_id = uuid.uuid4()
     member = GeneratedMonster(
         id=uuid.uuid4(),
         clan_id=clan_id,
-        variant_key="bandit_thug",
+        variant_id="bandit_thug",
+        member_hash="member-hash",
         role="minion",
-        member_tier=0,
-        threat_rating=20,
-        name_ru="Thug",
-        description="",
-        text_content={},
-        scaled_attributes={
-            "strength": 8,
-            "agility": 6,
-            "endurance": 8,
-            "intellect": 1,
-            "memory": 1,
-            "mental": 2,
-            "perception": 4,
-            "projection": 1,
-            "prediction": 2,
+        title="Thug",
+        short_description="",
+        min_tier=0,
+        max_tier=1,
+        mongo_actor_key="actor:thug",
+        active_snapshot={
+            "member_tier": 0,
+            "text_content": {},
+            "scaled_attributes": {
+                "strength": 8,
+                "agility": 6,
+                "endurance": 8,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 2,
+                "perception": 4,
+                "projection": 1,
+                "prediction": 2,
+            },
+            "scaled_skills": {"skill_tactics": 0.1},
+            "items": {},
+            "vitals": {},
+            "ai_profile": {},
+            "balance": {"gear_score_version": 1},
+            "gear_score": 999,
         },
-        scaled_skills={"skill_tactics": 0.1},
-        items={},
-        vitals={},
-        ai_profile={},
-        generation_meta={"balance": {"gear_score": 999, "gear_score_version": 1}},
     )
     clan = GeneratedClan(
         id=clan_id,
         family_id="bandit_gang",
-        tier=1,
-        zone_id="zone-a",
+        identity_hash="unique",
+        context_identity={"zone_id": "zone-a", "tier": 1},
         context_hash="ctx",
-        unique_hash="unique",
-        raw_tags={"gear_score_summary": {"version": 1, "count": 1, "min": 999, "avg": 999, "max": 999}},
-        flavor_content={},
-        name_ru="Bandits",
+        selected_traits=[],
+        title="Bandits",
         description="A gang",
+        encounter_texts={},
+        generation_version=1,
+        resource_version="1",
         members=[member],
     )
     member.clan = clan
@@ -172,7 +242,7 @@ async def test_generated_view_refreshes_stale_gear_scores_before_projection() ->
 
     result = await GeneratedMonsterViewService(repository).list_generated()
 
-    assert repository.refresh_calls == [clan_id]
-    assert result.items[0].members[0].gear_score != 999
-    assert result.items[0].members[0].generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+    assert repository.refresh_calls == []
+    assert result.items[0].members[0].gear_score == 999
+    assert result.items[0].members[0].generation_meta["balance"]["gear_score_version"] == 1
     assert result.items[0].gear_score_summary.version == MonsterGearScoreService.VERSION

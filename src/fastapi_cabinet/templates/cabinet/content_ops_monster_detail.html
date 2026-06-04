@@ -1,9 +1,17 @@
 {% extends "cabinet/base.html" %}
 
+{% block extra_head %}
+    {% if task_notice and task_notice.active %}
+        <meta http-equiv="refresh" content="5">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
     {% if not clan %}
         <p class="fc-empty">Сгенерированная семья монстров не найдена.</p>
     {% else %}
+        {% include "cabinet/includes/content_ops_task_notice.html" %}
+
         <div class="fc-page-head">
             <div>
                 <h1 class="fc-page-title">{{ clan.name_ru or clan.family_id }}</h1>
@@ -21,7 +29,7 @@
                 {% endif %}
             </div>
             <div>
-                <h2>Визуал семьи</h2>
+                <h2>Контент семьи</h2>
                 <p>{{ clan.description or "Описание отсутствует." }}</p>
                 <table class="fc-table">
                     <tbody>
@@ -38,13 +46,13 @@
                         <tr><th>Updated</th><td>{{ clan.updated_at or "—" }}</td></tr>
                     </tbody>
                 </table>
-                <form method="post" action="/admin/content-ops/regenerate-clan-image" class="fc-inline-action">
+                <form method="post" action="/admin/content-ops/regenerate-clan-flavor" class="fc-inline-action">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
-                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать изображение семьи</button>
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перезаказать описания</button>
                 </form>
-                <form method="post" action="/admin/content-ops/regenerate-clan-family-images" class="fc-inline-action">
+                <form method="post" action="/admin/content-ops/regenerate-clan-member-images" class="fc-inline-action">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
-                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перегенерировать все изображения семьи</button>
+                    <button type="submit" class="fc-action-btn fc-action-btn--approve">Перезаказать картинки участников</button>
                 </form>
             </div>
         </section>
@@ -109,12 +117,15 @@
             <table class="fc-table">
                 <tbody>
                     <tr><th>Биом</th><td>{{ clan.raw_tags.get("biome_id") or clan.raw_tags.get("biome") or "—" }}</td></tr>
+                    <tr><th>Среда/ключи</th><td>{{ clan.raw_tags.get("habitat_keys", [])|join(", ") if clan.raw_tags.get("habitat_keys") else "—" }}</td></tr>
                     <tr><th>Сложность генерации</th><td>{{ clan.raw_tags.get("difficulty") or "—" }}</td></tr>
                     <tr><th>Версия ресурса семьи</th><td>{{ clan.raw_tags.get("family_resource_version") or "—" }}</td></tr>
                     <tr><th>Версия боевой математики</th><td>{{ clan.raw_tags.get("combat_math_version") or "—" }}</td></tr>
                     <tr><th>Теги контекста</th><td>{{ tags|join(", ") if tags else "—" }}</td></tr>
                     <tr><th>Контекст события</th><td>{{ context_meta if context_meta else "—" }}</td></tr>
-                    <tr><th>Культура лута</th><td>{{ loot_culture.get("craft_style") or loot_culture.get("material_logic") or "—" }}</td></tr>
+                    <tr><th>Культура снаряжения</th><td>{{ loot_culture.get("craft_style") or loot_culture.get("material_logic") or "—" }}</td></tr>
+                    <tr><th>Качество ремесла</th><td>{{ loot_culture.get("craft_skill_hint") or "—" }}</td></tr>
+                    <tr><th>Источники материалов</th><td>{{ loot_culture.get("salvage_sources")|join(", ") if loot_culture.get("salvage_sources") else "—" }}</td></tr>
                     <tr><th>Тон лута</th><td>{{ loot_culture.get("tone_hints")|join(", ") if loot_culture.get("tone_hints") else "—" }}</td></tr>
                     <tr>
                         <th>Сила шаблона</th>
@@ -128,11 +139,24 @@
                     <tr>
                         <th>Raw сила</th>
                         <td>
-                            avg {{ gear_summary.get("raw_avg", "—") }} /
-                            min {{ gear_summary.get("raw_min", "—") }} /
-                            max {{ gear_summary.get("raw_max", "—") }}
+                            avg {{ gear_summary.get("raw_avg", gear_summary.get("avg", "—")) }} /
+                            min {{ gear_summary.get("raw_min", gear_summary.get("min", "—")) }} /
+                            max {{ gear_summary.get("raw_max", gear_summary.get("max", "—")) }}
                         </td>
                     </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="fc-widget fc-widget--wide">
+            <h2>Тексты встреч</h2>
+            {% set encounter_texts = clan.encounter_texts or clan.flavor_content.get("encounter_texts", {}) %}
+            <table class="fc-table">
+                <tbody>
+                    <tr><th>Патруль</th><td>{{ encounter_texts.get("patrol") or "—" }}</td></tr>
+                    <tr><th>Засада</th><td>{{ encounter_texts.get("ambush") or "—" }}</td></tr>
+                    <tr><th>Логово / узел</th><td>{{ encounter_texts.get("lair") or "—" }}</td></tr>
+                    <tr><th>Случайная встреча</th><td>{{ encounter_texts.get("random_meeting") or "—" }}</td></tr>
                 </tbody>
             </table>
         </section>

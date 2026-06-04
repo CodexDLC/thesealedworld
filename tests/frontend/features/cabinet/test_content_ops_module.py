@@ -6,17 +6,18 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import src.frontend.features.cabinet.modules.content_ops.cabinet as content_ops
+import src.studio.features.cabinet.modules.content_ops.cabinet as content_ops
 from fastapi_cabinet import include_cabinet
 from src.frontend.cabinet import CABINET_MODULES
-from src.frontend.features.cabinet.modules.content_ops.cabinet import (
+from src.studio.features.cabinet.modules.content_ops.cabinet import (
     ContentOpsAdmin,
     _filter_monster_clans,
     _find_member,
     _load_monster_browser_context,
     _monster_browser_redirect_url,
 )
-from src.frontend.integrations.backend_api.admin_monsters import (
+from src.studio.integrations.backend_api.admin_monsters import (
+    AdminAIGenerationTask,
     AdminGeneratedMonsterClan,
     AdminGeneratedMonsterMember,
     AdminMonsterVisual,
@@ -45,8 +46,9 @@ def test_content_ops_admin_declares_operational_sections() -> None:
     assert "monster-maintenance" in ContentOpsAdmin.action_routes
     assert "monster-rebuild-plan" in ContentOpsAdmin.action_routes
     assert "monster-rebuild-apply" in ContentOpsAdmin.action_routes
-    assert "regenerate-clan-family-images" in ContentOpsAdmin.action_routes
-    assert "regenerate-visible-clan-images" in ContentOpsAdmin.action_routes
+    assert "regenerate-clan-flavor" in ContentOpsAdmin.action_routes
+    assert "regenerate-clan-member-images" in ContentOpsAdmin.action_routes
+    assert "regenerate-visible-member-images" in ContentOpsAdmin.action_routes
 
 
 def test_content_ops_filters_monsters_by_domain_safe_fields() -> None:
@@ -82,7 +84,7 @@ def test_content_ops_custom_pages_render_operational_surfaces() -> None:
     assert "Сгенерированные монстры" in monsters.text
     assert "Тир семьи" in monsters.text
     assert "Без изображения" in monsters.text
-    assert "Перегенерировать видимые" in monsters.text
+    assert "Перегенерировать картинки участников" in monsters.text
 
     maintenance = client.get("/admin/content-ops/monster-maintenance")
     assert maintenance.status_code == 200
@@ -153,7 +155,21 @@ def test_content_ops_detail_pages_render_domain_summary_instead_of_raw_json(monk
     clan_response = client.get("/admin/content-ops/monster-detail?id=rat-clan")
     assert clan_response.status_code == 200
     assert "Профиль сгенерированной семьи" in clan_response.text
+    assert "Перезаказать описания" in clan_response.text
+    assert "Перезаказать картинки участников" in clan_response.text
+    assert "Перегенерировать изображение семьи" not in clan_response.text
+    assert "city_ruins" in clan_response.text
+    assert "mid" in clan_response.text
+    assert "combat-v2" in clan_response.text
+    assert "Тексты встреч" in clan_response.text
+    assert "Патруль" in clan_response.text
+    assert "Крысы идут по следу." in clan_response.text
+    assert "Засада" in clan_response.text
+    assert "Крысы бросаются из щелей." in clan_response.text
+    assert "переделка городского лома" in clan_response.text
     assert "Состав шаблона" in clan_response.text
+    assert "0..7" in clan_response.text
+    assert "scout" in clan_response.text
     assert "Persisted JSON" not in clan_response.text
     assert "raw_tags" not in clan_response.text
 
@@ -176,6 +192,91 @@ def test_content_ops_detail_pages_render_domain_summary_instead_of_raw_json(monk
     assert "per tier" not in member_response.text
     assert "Persisted JSON" not in member_response.text
     assert "generation_meta" not in member_response.text
+
+
+def test_content_ops_regeneration_redirects_to_visible_task_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    clan = _clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)
+
+    class FakeAdminMonstersApi:
+        async def regenerate_clan_flavor(self, clan_id: str):
+            assert clan_id == "rat-clan"
+            return {"task_id": "task-flavor", "status": "pending", "requested": 1}
+
+        async def get_generated_clan(self, clan_id: str):
+            assert clan_id == "rat-clan"
+            return clan
+
+        async def get_generation_task(self, task_id: str):
+            assert task_id == "task-flavor"
+            return AdminAIGenerationTask(
+                task_id="task-flavor",
+                task_type="monster.clan_flavor",
+                entity_type="monster_clan",
+                entity_id="rat-clan",
+                output_kind="json",
+                status="pending",
+            )
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+    app = FastAPI()
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+    client = TestClient(app)
+
+    response = client.post(
+        "/admin/content-ops/regenerate-clan-flavor",
+        data={"clan_id": "rat-clan"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert "ai_kind=clan_flavor" in location
+    assert "ai_task_ids=task-flavor" in location
+
+    detail = client.get(location)
+
+    assert detail.status_code == 200
+    assert "Описания семьи" in detail.text
+    assert "Задача поставлена в очередь." in detail.text
+    assert "task-flavor" in detail.text
+    assert "очередь" in detail.text or "pending" in detail.text
+    assert 'http-equiv="refresh"' in detail.text
+
+
+def test_content_ops_task_notice_renders_done_and_failed_states(monkeypatch: pytest.MonkeyPatch) -> None:
+    clan = _clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)
+    task_statuses = {"task-done": "done", "task-failed": "failed"}
+
+    class FakeAdminMonstersApi:
+        async def get_generated_clan(self, clan_id: str):
+            assert clan_id == "rat-clan"
+            return clan
+
+        async def get_generation_task(self, task_id: str):
+            return AdminAIGenerationTask(
+                task_id=task_id,
+                task_type="monster.member_visual",
+                entity_type="monster_member",
+                entity_id="rat-clan-scout",
+                output_kind="image",
+                status=task_statuses[task_id],
+                error={"message": "provider rejected prompt"} if task_id == "task-failed" else {},
+            )
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+    app = FastAPI()
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin")
+    client = TestClient(app)
+
+    done = client.get("/admin/content-ops/monster-detail?id=rat-clan&ai_kind=member_image&ai_task_ids=task-done")
+    failed = client.get("/admin/content-ops/monster-detail?id=rat-clan&ai_kind=member_image&ai_task_ids=task-failed")
+
+    assert "Задача закончилась успешно." in done.text
+    assert "готово" in done.text
+    assert 'http-equiv="refresh"' not in done.text
+    assert "Одна или несколько задач завершились ошибкой." in failed.text
+    assert "provider rejected prompt" in failed.text
+    assert "ошибка" in failed.text
 
 
 def test_monster_browser_redirect_preserves_bulk_filters() -> None:
@@ -237,9 +338,32 @@ def _clan(
         zone_id="zone",
         context_hash="context",
         unique_hash="unique",
-        raw_tags={"tag": "value"},
-        flavor_content={"visual": {}},
+        raw_tags={
+            "biome_id": "city_ruins",
+            "difficulty": "mid",
+            "family_resource_version": "family-v1",
+            "combat_math_version": "combat-v2",
+            "tags": ["rift", "roadside"],
+            "context_meta": {"source": "test"},
+            "gear_score_summary": {"count": len(roles), "avg": 12, "min": 9, "max": 15},
+            "variant_window": {"min_tier": 0, "max_tier": 7},
+            "composition": list(roles),
+        },
+        flavor_content={
+            "visual": {},
+            "loot_culture": {
+                "craft_style": "переделка городского лома",
+                "tone_hints": ["ржавчина", "ремни"],
+            },
+        },
+        encounter_texts={
+            "patrol": "Крысы идут по следу.",
+            "ambush": "Крысы бросаются из щелей.",
+            "lair": "Крысы держат гнездо.",
+            "random_meeting": "Крысы выходят на дорогу.",
+        },
         name_ru=clan_id,
+        localized={},
         description="",
         metadata_={},
         context={},
@@ -272,6 +396,7 @@ def _clan(
                 role=role,
                 member_tier=1,
                 name_ru=role,
+                localized={},
                 description=f"{role} description",
                 text_content={"appearance_ru": f"{role} appearance"},
                 scaled_attributes={"strength": 10},

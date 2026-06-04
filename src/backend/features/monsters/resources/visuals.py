@@ -181,6 +181,9 @@ def build_member_visual(
     role: str,
     member_name: str,
     appearance: str,
+    visual_hint: str = "",
+    context_tags: list[str] | None = None,
+    clan_name: str = "",
 ) -> dict[str, object]:
     visual = get_family_visual(family_id)
     visual["scope"] = "monster_member_template"
@@ -191,6 +194,9 @@ def build_member_visual(
         "role": role,
         "member_name": member_name,
         "appearance": appearance,
+        "visual_hint": visual_hint,
+        "context_tags": sorted(set(context_tags or [])),
+        "clan_name": clan_name,
     }
     payload = _visual_asset_payload(
         scope="monster_member_template",

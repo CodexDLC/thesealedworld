@@ -45,15 +45,29 @@ class GeneratedMonsterEquipmentSummaryDTO(BaseModel):
 
 class GeneratedMonsterViewDTO(BaseModel):
     member_id: str
+    monster_id: str
     clan_id: str
     variant_id: str
+    variant_key: str
     member_hash: str
     role: str
     title: str
+    name_ru: str
+    localized: dict[str, Any] = Field(default_factory=dict)
     short_description: str = ""
+    description: str = ""
     min_tier: int
     max_tier: int
+    member_tier: int = 0
     mongo_actor_key: str
+    text_content: dict[str, Any] = Field(default_factory=dict)
+    scaled_attributes: dict[str, Any] = Field(default_factory=dict)
+    scaled_skills: dict[str, Any] = Field(default_factory=dict)
+    items: dict[str, Any] = Field(default_factory=dict)
+    vitals: dict[str, Any] = Field(default_factory=dict)
+    ai_profile: dict[str, Any] = Field(default_factory=dict)
+    generation_meta: dict[str, Any] = Field(default_factory=dict)
+    combat_actor_snapshot: dict[str, Any] = Field(default_factory=dict)
     metadata_: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any] = Field(default_factory=dict)
     source_context: dict[str, Any] = Field(default_factory=dict)
@@ -63,20 +77,29 @@ class GeneratedMonsterViewDTO(BaseModel):
     schema_version: int = 1
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    threat_rating: int = 0
+    gear_score: int | None = None
     visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
+    equipment_summary: GeneratedMonsterEquipmentSummaryDTO = Field(default_factory=GeneratedMonsterEquipmentSummaryDTO)
 
 
 class GeneratedClanViewDTO(BaseModel):
     clan_id: str
     family_id: str
+    tier: int = 0
     zone_id: str | None = None
     context_hash: str = ""
     identity_hash: str = ""
+    unique_hash: str = ""
     context_identity: dict[str, Any] = Field(default_factory=dict)
     selected_traits: list[dict[str, Any]] = Field(default_factory=list)
     title: str
+    name_ru: str
+    localized: dict[str, Any] = Field(default_factory=dict)
     description: str
     encounter_texts: dict[str, Any] = Field(default_factory=dict)
+    raw_tags: dict[str, Any] = Field(default_factory=dict)
+    flavor_content: dict[str, Any] = Field(default_factory=dict)
     generation_version: int = 1
     resource_version: str = ""
     metadata_: dict[str, Any] = Field(default_factory=dict)
@@ -112,6 +135,13 @@ class MonsterImageRegenerationResponseDTO(BaseModel):
     status: str
     storage_key: str
     image_url: str
+
+
+class MonsterAIRegenerationResponseDTO(BaseModel):
+    task_id: str
+    entity_type: str
+    entity_id: str
+    status: str
 
 
 class MonsterImageRegenerationBatchRequestDTO(BaseModel):
@@ -163,6 +193,7 @@ __all__ = [
     "GeneratedClanViewDTO",
     "GeneratedMonsterEquipmentSummaryDTO",
     "GeneratedMonsterViewDTO",
+    "MonsterAIRegenerationResponseDTO",
     "MonsterDataRebuildItemDTO",
     "MonsterDataRebuildRequestDTO",
     "MonsterDataRebuildResponseDTO",

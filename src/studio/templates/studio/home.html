@@ -1,37 +1,49 @@
 {% extends "studio/base_studio.html" %}
 
 {% block content %}
-<section style="max-width:48rem; margin:3rem auto; padding:0 1.5rem;">
-    <h1 style="font-family:'EB Garamond', serif; font-size:2rem; margin-bottom:1rem;">
-        Studio is running
+<section style="max-width:72rem; margin:3rem auto; padding:0 1.5rem;">
+    <h1 style="font-family:'EB Garamond', serif; font-size:2rem; margin-bottom:0.5rem;">
+        Studio
     </h1>
-
-    <p style="opacity:0.7; margin-bottom:2rem;">
-        This is the local-only analytical cabinet. Heavy reports, AI simulations,
-        and historical aggregations will land here as they migrate out of the
-        prod frontend. The current build only has the shell — analytical
-        modules are added one PR at a time.
+    <p style="opacity:0.6; margin-bottom:2rem;">
+        Локальный аналитический кабинет. Активный источник:
+        <strong style="color:{{ studio_source_badge_color }};">{{ studio_source_label }}</strong>.
+        {% if tunnel_check and tunnel_check.cli_command and not tunnel_check.ok %}
+            <br>Туннель не поднят — открой:
+            <code style="opacity:0.8;">{{ tunnel_check.cli_command }}</code>
+        {% endif %}
     </p>
 
-    <div style="border:1px solid currentColor; border-radius:0.5rem; padding:1rem 1.25rem; font-family:'JetBrains Mono', monospace; font-size:0.875rem; opacity:0.85;">
-        <div><strong>Active source:</strong> {{ studio_source_kind }}</div>
-        <div><strong>Source label:</strong> {{ studio_source_label }}</div>
-        {% if tunnel_check %}
-            <div style="margin-top:0.5rem;">
-                <strong>Tunnel:</strong>
-                {% if tunnel_check.ok %}
-                    OK
-                {% else %}
-                    missing ports {{ tunnel_check.missing_ports|join(', ') }} ·
-                    open with: <code>{{ tunnel_check.cli_command }}</code>
-                {% endif %}
+    {% for group_label, modules in groups.items() %}
+        <div style="margin-bottom:2rem;">
+            <h2 style="font-family:'JetBrains Mono', monospace; font-size:0.875rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.5; margin-bottom:0.75rem;">
+                {{ group_label }}
+            </h2>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(16rem, 1fr)); gap:1rem;">
+                {% for module in modules %}
+                    <a href="{{ module.path }}"
+                       style="display:block; padding:1.25rem 1.5rem; border:1px solid currentColor; border-radius:0.5rem; text-decoration:none; color:inherit; opacity:0.85; transition:opacity 120ms, transform 120ms;"
+                       onmouseover="this.style.opacity='1'; this.style.transform='translateY(-2px)';"
+                       onmouseout="this.style.opacity='0.85'; this.style.transform='translateY(0)';">
+                        <div style="font-family:'EB Garamond', serif; font-size:1.25rem; margin-bottom:0.25rem;">
+                            {{ module.label }}
+                        </div>
+                        <div style="font-family:'JetBrains Mono', monospace; font-size:0.75rem; opacity:0.5;">
+                            {{ module.path }}
+                        </div>
+                    </a>
+                {% endfor %}
             </div>
-        {% endif %}
-    </div>
+        </div>
+    {% else %}
+        <p style="opacity:0.6;">
+            Нет зарегистрированных модулей. Заполни <code>src/studio/cabinet.py::CABINET_MODULES</code>.
+        </p>
+    {% endfor %}
 
-    <p style="margin-top:2rem; opacity:0.5; font-size:0.875rem;">
-        Switch source via the dropdown in the header. The badge colour reflects
-        whether you are looking at local data (green) or prod read-only data (red).
+    <p style="margin-top:3rem; opacity:0.4; font-size:0.8125rem; font-family:'JetBrains Mono', monospace;">
+        Переключатель источника справа сверху меняет local ↔ prod (read-only).
+        Студия не запускает действий на prod — только читает данные для аналитики.
     </p>
 </section>
 {% endblock content %}

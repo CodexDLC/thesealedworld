@@ -20,4 +20,6 @@ CABINET_MODULES: tuple[str, ...] = (
     "src.studio.features.cabinet.modules.exploration.cabinet",
     # Бой (rollups + drilldown + многомерная аналитика)
     "src.studio.features.cabinet.modules.combat.cabinet",
+    # AI-симуляции боя (CPU-bound)
+    "src.studio.features.cabinet.modules.combat_ai_testing.cabinet",
 )

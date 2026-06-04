@@ -16,7 +16,6 @@ from fastapi_cabinet.contracts.widgets import (
     TableColumnMap,
     TableWidgetMap,
 )
-from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.combat_ai_testing import CombatAiSimulationRun, CombatAiTestingApi
 
 _BASE = "/admin/combat-ai-testing"
@@ -67,7 +66,7 @@ _TACTICAL_SKILL_CHARTS = {
 
 def _api(request: Request) -> CombatAiTestingApi:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    return CombatAiTestingApi(client=client, base_url=settings.backend_base_url)
+    return CombatAiTestingApi(client=client, base_url=request.state.source.api_base)
 
 
 async def _run_launcher_provider(request: Request) -> TableWidgetMap:

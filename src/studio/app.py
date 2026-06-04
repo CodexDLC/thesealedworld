@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -90,6 +91,9 @@ async def lifespan(app: FastAPI):
     app.state.ssh_tunnel = SshTunnelManager(mode="detect")
     app.state.pg_pools = PostgresPoolRegistry()
     app.state.redis_clients = RedisClientRegistry()
+    # Long-lived httpx client used by cabinet modules to call the backend API
+    # at request.state.source.api_base (set per-request by SourceSelectorMiddleware).
+    app.state.backend_http_client = httpx.AsyncClient(timeout=10.0)
 
     logger.bind(
         templates_studio=str(settings.studio_templates_dir),
@@ -102,6 +106,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         try:
+            await app.state.backend_http_client.aclose()
             await app.state.pg_pools.close_all()
             await app.state.redis_clients.close_all()
             await app.state.ssh_tunnel.shutdown()

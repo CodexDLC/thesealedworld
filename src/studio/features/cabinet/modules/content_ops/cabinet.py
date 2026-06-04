@@ -12,8 +12,7 @@ from fastapi_cabinet import CabinetAdmin, ListWidget, MetricWidget, SidebarItem,
 from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, TableColumnMap, TableWidgetMap
 from fastapi_cabinet.rendering.layout_mapper import build_layout_map
 from fastapi_cabinet.runtime import resolve_active_admin
-from src.frontend.config.settings import settings
-from src.frontend.integrations.backend_api.admin_monsters import (
+from src.studio.integrations.backend_api.admin_monsters import (
     AdminGeneratedMonsterClan,
     AdminGeneratedMonsterMember,
     AdminMonstersApi,
@@ -39,7 +38,7 @@ class MonsterBrowserContext:
 
 def _api(request: Request) -> AdminMonstersApi:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    return AdminMonstersApi(client=client, base_url=settings.backend_base_url)
+    return AdminMonstersApi(client=client, base_url=request.state.source.api_base)
 
 
 async def _overview_provider(request: Request) -> ListWidgetMap:

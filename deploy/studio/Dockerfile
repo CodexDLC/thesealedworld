@@ -49,7 +49,7 @@ COPY src/shared          ./src/shared
 RUN chown -R appuser:appuser /app
 USER appuser
 
-ENTRYPOINT ["uvicorn", "src.studio.app:app", "--host", "0.0.0.0", "--port", "9100"]
+CMD ["uvicorn", "src.studio.app:app", "--host", "0.0.0.0", "--port", "9100"]
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=6 \
     CMD curl -f http://localhost:9100/health || exit 1

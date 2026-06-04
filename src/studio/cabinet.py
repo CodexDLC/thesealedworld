@@ -11,4 +11,7 @@ migrate out of `src/frontend/features/cabinet/modules/` per the migration plan
 (see `C:/Users/prime/.claude/plans/iterative-sleeping-thunder.md`).
 """
 
-CABINET_MODULES: tuple[str, ...] = ()
+CABINET_MODULES: tuple[str, ...] = (
+    # Контент (тяжёлые выборки монстров + примет)
+    "src.studio.features.cabinet.modules.content_ops.cabinet",
+)

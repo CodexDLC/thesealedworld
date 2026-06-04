@@ -8,6 +8,7 @@ Use:
 
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md` for repository-wide rules, source-tree ownership, donor-code migration, shared contracts, and handoff prompts.
 - `docs/agent-skills/turnbasedmmorpg-frontend/SKILL.md` for frontend routes, services, view models, templates, static assets, middleware placement, and backend API clients.
+- `docs/agent-skills/turnbasedmmorpg-studio/SKILL.md` for `src/studio/*` (local-only analytical cabinet on port 9100): source-switcher contract, read-only-on-prod policy, module migration rules, what belongs in studio vs prod cabinet.
 - `docs/agent-skills/turnbasedmmorpg-design-system/SKILL.md` for frontend design-system usage, shared class reuse order, shell/include drift checks, and rules for adding CSS only after existing project styles are exhausted.
 - `docs/agent-skills/turnbasedmmorpg-backend/SKILL.md` for backend feature layout, APIs, DTOs, models, repositories, services, workers, runtime code, and data ownership.
 - `docs/agent-skills/turnbasedmmorpg-redis-streams/SKILL.md` for Redis Streams, `GameStreamRouter`, `GameEventProducer`, event handlers, publishing, and `correlation_id` reply flows.

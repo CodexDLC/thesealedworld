@@ -1,0 +1,67 @@
+{# Studio base template.
+
+Inherits the prod frontend's cabinet shell (`site/base_cabinet.html`) so the
+admin CSS bundle, fonts, Alpine, and design tokens are shared verbatim. The
+header is replaced with a studio-specific bar that hosts the Source Switcher
+and the LOCAL/PROD READ-ONLY badge. The footer is replaced with a minimal
+local-build line.
+
+Variables expected in context (provided by routes):
+- `studio_source_kind`: "local" | "prod" — the currently active source kind.
+- `studio_source_label`: human-readable label for the badge.
+- `studio_source_badge_color`: CSS color name for the badge text.
+- `request`: the FastAPI request (used to compute the return URL of the form).
+#}
+{% extends "site/base_cabinet.html" %}
+
+{% block meta %}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Studio · {{ studio_source_label|default('local') }}</title>
+{% endblock meta %}
+
+{% block body_class %}studio-body{% endblock %}
+
+{% block header %}
+<header class="studio-header" role="banner">
+    <div class="studio-header-container">
+        <a class="studio-logo" href="/" aria-label="Studio">
+            <span class="studio-logo-text">
+                <span class="studio-logo-main">STUDIO</span>
+                <span class="studio-logo-sub">local analytics</span>
+            </span>
+        </a>
+
+        <div class="studio-source"
+             role="region"
+             aria-label="Active data source"
+             style="display:flex; align-items:center; gap:0.75rem;">
+            <span class="studio-source-badge"
+                  style="padding:0.25rem 0.625rem; border:1px solid {{ studio_source_badge_color }}; color:{{ studio_source_badge_color }}; border-radius:0.25rem; font-family:'JetBrains Mono', monospace; font-size:0.75rem; letter-spacing:0.05em;">
+                {{ studio_source_label }}
+            </span>
+
+            <form action="/studio/source" method="post"
+                  style="display:flex; align-items:center; gap:0.375rem;">
+                <input type="hidden" name="next_url" value="{{ request.url.path }}">
+                <label for="studio-source-select" class="sr-only">Источник данных</label>
+                <select id="studio-source-select"
+                        name="source"
+                        onchange="this.form.submit()"
+                        style="background:transparent; color:inherit; border:1px solid currentColor; border-radius:0.25rem; padding:0.25rem 0.5rem; font-family:inherit;">
+                    <option value="local" {% if studio_source_kind == 'local' %}selected{% endif %}>local</option>
+                    <option value="prod" {% if studio_source_kind == 'prod' %}selected{% endif %}>prod (read-only)</option>
+                </select>
+            </form>
+        </div>
+    </div>
+</header>
+{% endblock header %}
+
+{% block footer %}
+<footer class="studio-footer" role="contentinfo"
+        style="padding:1rem; text-align:center; opacity:0.6; font-family:'JetBrains Mono', monospace; font-size:0.75rem;">
+    Studio · local-only build · never deployed to prod
+</footer>
+{% endblock footer %}

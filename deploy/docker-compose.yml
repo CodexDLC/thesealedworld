@@ -211,6 +211,54 @@ services:
     networks:
       - tbmmorpg-network
 
+  # Local-only analytical cabinet. NOT included in prod compose files
+  # (compose.site.yml / compose.game.yml / compose.infra.yml). The prod
+  # Dockerfiles use whitelisted `COPY src/<dir>` and never include src/studio,
+  # so even if this service were accidentally added to prod composition the
+  # image would lack the studio code.
+  studio:
+    build:
+      context: ..
+      dockerfile: deploy/studio/Dockerfile
+    container_name: tbmmorpg-studio
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      # LOCAL source — inside docker network, reach services by container name.
+      LOCAL_PG_DSN: postgresql://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
+      LOCAL_REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379/0
+      LOCAL_API_BASE: http://backend:8001
+      # PROD source via host SSH tunnel — Docker Desktop on Windows/macOS
+      # exposes the host's loopback at host.docker.internal.
+      PROD_PG_DSN: postgresql://studio_ro@host.docker.internal:15432/tbmmorpg_game  # pragma: allowlist secret
+      PROD_REDIS_URL: redis://host.docker.internal:16379/0
+      PROD_API_BASE: http://host.docker.internal:18001
+      STUDIO_SOURCE: ${STUDIO_SOURCE:-local}
+      PYTHONPATH: /app:/app/src
+      DEBUG: "True"
+    ports:
+      - "9100:9100"
+    volumes:
+      - ../src/studio:/app/src/studio
+      - ../src/frontend:/app/src/frontend
+      - ../src/fastapi_cabinet:/app/src/fastapi_cabinet
+      - ../src/shared:/app/src/shared
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: >
+      uvicorn src.studio.app:app
+      --host 0.0.0.0
+      --port 9100
+      --reload
+      --log-level info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tbmmorpg-network
+
   chat:
     build:
       context: ..

@@ -75,7 +75,8 @@ class StudioSettings(BaseCommonSettings):
     prod_api_base: str = "http://127.0.0.1:18001"
     prod_pg_dsn: str = "postgresql://studio_ro@127.0.0.1:15432/tbmmorpg_game"  # pragma: allowlist secret
     prod_redis_url: str = "redis://127.0.0.1:16379/0"
-    prod_ssh_host: str = "prod"  # alias from ~/.ssh/config
+    prod_ssh_host: str = "my_game"  # alias from ~/.ssh/config; same host the
+    # project's admin tunnel uses (see deploy/README.md, CloudBeaver / RedisInsight)
 
     # Reuse frontend static + templates as design-system library.
     frontend_templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"

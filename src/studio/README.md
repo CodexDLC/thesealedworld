@@ -32,10 +32,13 @@ uv run uvicorn src.studio.app:app --host 127.0.0.1 --port 9100 --reload
 
 ### Prod data via SSH tunnel
 
-To switch the Source Switcher to `prod` you need an SSH tunnel open on the host:
+To switch the Source Switcher to `prod` you need an SSH tunnel open on the
+host. The project already uses the `my_game` host alias for admin tools
+(CloudBeaver, RedisInsight — see `deploy/README.md`); studio reuses the same
+alias with different forwards:
 
 ```powershell
-ssh -L 15432:127.0.0.1:5432 -L 16379:127.0.0.1:6379 -L 18001:127.0.0.1:8001 prod
+ssh -N -L 15432:127.0.0.1:5432 -L 16379:127.0.0.1:6379 -L 18001:127.0.0.1:8001 my_game
 ```
 
 The studio container reaches these forwarded ports through

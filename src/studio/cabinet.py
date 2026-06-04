@@ -14,4 +14,6 @@ migrate out of `src/frontend/features/cabinet/modules/` per the migration plan
 CABINET_MODULES: tuple[str, ...] = (
     # Контент (тяжёлые выборки монстров + примет)
     "src.studio.features.cabinet.modules.content_ops.cabinet",
+    # Сценарии (история сессий, большие таблицы)
+    "src.studio.features.cabinet.modules.scenario.cabinet",
 )

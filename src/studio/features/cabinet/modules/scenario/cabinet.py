@@ -6,7 +6,6 @@ import httpx
 
 from fastapi_cabinet import CabinetAdmin, ListWidget, MetricWidget, SidebarItem, TableWidget, cabinet_site
 from fastapi_cabinet.contracts.widgets import ListWidgetMap, MetricWidgetMap, TableColumnMap, TableWidgetMap
-from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.scenario_sessions import ScenarioSessionsApi
 
 if TYPE_CHECKING:
@@ -42,7 +41,7 @@ async def _recent_provider(request: Request) -> TableWidgetMap:
 
 async def _sessions_provider(request: Request) -> TableWidgetMap:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = ScenarioSessionsApi(client=client, base_url=settings.backend_base_url)
+    api = ScenarioSessionsApi(client=client, base_url=request.state.source.api_base)
     try:
         sessions = await api.list_active()
     except (httpx.HTTPStatusError, httpx.RequestError):

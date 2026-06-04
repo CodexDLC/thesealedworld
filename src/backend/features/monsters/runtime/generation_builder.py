@@ -292,7 +292,7 @@ class MonsterClanGenerationBuilder:
         raw_flavor = context.context_meta.get("clan_flavor")
         if raw_flavor is None:
             raise ValueError("Monster clan generation requires clan_flavor in context_meta")
-        return MonsterClanFlavorDTO.model_validate(raw_flavor).model_dump(mode="json")
+        return MonsterClanFlavorDTO.model_validate(raw_flavor).model_dump_with_variant_mapping()
 
     async def _enqueue_ai_flavor(self, clan: GeneratedClan) -> None:
         if self.generation_ai is None:

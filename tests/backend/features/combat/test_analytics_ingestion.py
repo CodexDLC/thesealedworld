@@ -119,7 +119,11 @@ def test_rollup_builder_is_idempotent_for_same_fact_set_and_version() -> None:
     second = CombatAnalyticsIngestionService.build_rollups(facts, aggregate_version=1)
 
     assert first == second
-    day_rollup = next(row for row in first if row["bucket_grain"] == "day")
+    day_rollup = next(
+        row
+        for row in first
+        if row["bucket_grain"] == "day" and row["metric_key"] == "damage_by_weapon_armor"
+    )
     assert day_rollup["aggregate_version"] == 1
     assert day_rollup["dimensions"]["weapon_base_id"] == "iron_dagger"
     assert day_rollup["counters"]["attempts"] == 1

@@ -293,5 +293,5 @@ async def test_build_runtime_applies_bootstrapped_family_bindings(monkeypatch) -
             "tags": ["starter_rift", "primary", "bandit_gang"],
         },
         "normalized_tags": ["bandit_gang", "primary", "starter_rift"],
-        "source": "rift_static_bootstrap",
+        "source": "rift_static",
     }

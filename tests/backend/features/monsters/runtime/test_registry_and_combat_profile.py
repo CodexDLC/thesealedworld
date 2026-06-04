@@ -751,7 +751,7 @@ def test_anchor_sovereigns_family_defines_four_tier_seven_bosses() -> None:
 
 @pytest.mark.unit
 async def test_rat_beast_profile_builds_combat_ready_context() -> None:
-    monster = await _build_member("rat_swarm")
+    monster = await _build_member("rat_swarm", "sewer_rat")
     snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
     combat = snapshot["combat"]
 

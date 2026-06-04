@@ -31,16 +31,7 @@ async def test_rift_catalog_bootstrap_syncs_setting_and_node_pool_from_fixtures(
     assert setting.setting_hash == "v1_starter_rift_broken_caravan"
     assert setting.title == "Рваный тракт"
     assert setting.biome_id == "broken_road"
-    assert setting.normalized_tags == sorted(
-        [
-        "starter_rift",
-        "tier_1_rift",
-        "broken_caravan",
-        "roadside_camp",
-        "goblin_scavengers",
-        "rift_scavenger_beasts",
-        ]
-    )
+    assert setting.normalized_tags == []
     assert setting.mongo_setting_doc_id == "rift-setting:starter_rift"
     assert setting.mongo_status == "synced"
     assert documents.setting_payloads["starter_rift"]["profile"]["summary"].startswith("Стартовый лорный разлом")

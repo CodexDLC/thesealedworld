@@ -18,4 +18,6 @@ CABINET_MODULES: tuple[str, ...] = (
     "src.studio.features.cabinet.modules.scenario.cabinet",
     # Путешествия (история сессий, большие таблицы)
     "src.studio.features.cabinet.modules.exploration.cabinet",
+    # Бой (rollups + drilldown + многомерная аналитика)
+    "src.studio.features.cabinet.modules.combat.cabinet",
 )

@@ -1,6 +1,6 @@
 from fastapi_cabinet.contracts.widgets import MetricWidgetMap, TableColumnMap, TableWidgetMap
-from src.frontend.features.cabinet.modules.combat.service import CombatStats
 from src.frontend.integrations.backend_api.game_config import ConfigEntryDTO
+from src.studio.features.cabinet.modules.combat.service import CombatStats
 
 
 class CombatCabinetMapper:

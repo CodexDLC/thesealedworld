@@ -8,7 +8,6 @@ import httpx
 if TYPE_CHECKING:
     from fastapi import Request
 
-from src.frontend.config.settings import settings
 from src.frontend.integrations.backend_api.game_config import ConfigEntryDTO, GameConfigApi
 
 
@@ -31,7 +30,7 @@ class CombatCabinetService:
 
     async def get_config(self, request: Request) -> list[ConfigEntryDTO]:
         client: httpx.AsyncClient = request.app.state.backend_http_client
-        api = GameConfigApi(client=client, base_url=settings.backend_base_url)
+        api = GameConfigApi(client=client, base_url=request.state.source.api_base)
         try:
             return await api.list_namespace("combat")
         except (httpx.HTTPStatusError, httpx.RequestError):

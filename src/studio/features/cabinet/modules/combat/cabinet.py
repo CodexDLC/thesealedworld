@@ -13,11 +13,10 @@ from fastapi_cabinet.contracts.widgets import ChartWidgetMap, MetricWidgetMap, T
 from fastapi_cabinet.rendering.layout_mapper import build_layout_map
 from fastapi_cabinet.rendering.widget_mapper import resolve_admin_widgets
 from fastapi_cabinet.runtime import resolve_active_admin
-from src.frontend.config.settings import settings
-from src.frontend.features.cabinet.modules.combat.mapper import CombatCabinetMapper
-from src.frontend.features.cabinet.modules.combat.service import CombatCabinetService
-from src.frontend.integrations.backend_api.combat_analytics import CombatAnalyticsApi
 from src.frontend.integrations.backend_api.combat_sessions import CombatSessionsApi
+from src.studio.features.cabinet.modules.combat.mapper import CombatCabinetMapper
+from src.studio.features.cabinet.modules.combat.service import CombatCabinetService
+from src.studio.integrations.backend_api.combat_analytics import CombatAnalyticsApi
 
 _MOUNT_PATH = "/admin"
 _DETAIL_URL = "/admin/combat/session-detail"
@@ -119,7 +118,7 @@ async def _recent_provider(request: Request) -> TableWidgetMap:
 
 async def _sessions_provider(request: Request) -> TableWidgetMap:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = CombatSessionsApi(client=client, base_url=settings.backend_base_url)
+    api = CombatSessionsApi(client=client, base_url=request.state.source.api_base)
     try:
         sessions = await api.list_active()
     except (httpx.HTTPStatusError, httpx.RequestError):
@@ -189,7 +188,7 @@ async def _fetch_session_meta(request: Request) -> dict:
     if not session_id:
         return {}
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = CombatSessionsApi(client=client, base_url=settings.backend_base_url)
+    api = CombatSessionsApi(client=client, base_url=request.state.source.api_base)
     return await api.get_session(session_id) or {}
 
 
@@ -198,7 +197,7 @@ async def _fetch_session_meta(request: Request) -> dict:
 
 async def _get_summary_data(request: Request, *, days: int = 30) -> dict:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = CombatAnalyticsApi(client=client, base_url=settings.backend_base_url)
+    api = CombatAnalyticsApi(client=client, base_url=request.state.source.api_base)
     try:
         return await api.get_combat_summary(days=days)
     except (httpx.HTTPStatusError, httpx.RequestError):
@@ -207,7 +206,7 @@ async def _get_summary_data(request: Request, *, days: int = 30) -> dict:
 
 async def _get_analytics_rows(request: Request, *, days: int = 30) -> list[dict]:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = CombatAnalyticsApi(client=client, base_url=settings.backend_base_url)
+    api = CombatAnalyticsApi(client=client, base_url=request.state.source.api_base)
     date_from = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
     try:
         data = await api.get_rollups(bucket_grain="day", date_from=date_from)
@@ -218,7 +217,7 @@ async def _get_analytics_rows(request: Request, *, days: int = 30) -> list[dict]
 
 async def _get_drilldown_data(request: Request, *, limit: int = 100, offset: int = 0) -> dict:
     client: httpx.AsyncClient = request.app.state.backend_http_client
-    api = CombatAnalyticsApi(client=client, base_url=settings.backend_base_url)
+    api = CombatAnalyticsApi(client=client, base_url=request.state.source.api_base)
     date_from = (datetime.now(UTC) - timedelta(days=30)).date().isoformat()
     try:
         return await api.get_drilldown(limit=limit, offset=offset, date_from=date_from)

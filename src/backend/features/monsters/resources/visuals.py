@@ -107,7 +107,7 @@ def get_family_visual(family_id: str) -> dict[str, object]:
             "status": "missing",
             "source": "none",
             "image_url": "",
-            "fallback_image_url": "",
+            "placeholder_image_url": "",
             "generated_image_url": _generated_image_url("families", asset_hash),
             "storage_key": _storage_key("families", asset_hash),
             "asset_hash": asset_hash,
@@ -125,10 +125,10 @@ def get_family_visual(family_id: str) -> dict[str, object]:
     )
     asset_hash = compute_visual_asset_hash(payload)
     return {
-        "status": "fallback",
+        "status": "placeholder",
         "source": "family_default",
         "image_url": visual.image_url,
-        "fallback_image_url": visual.image_url,
+        "placeholder_image_url": visual.image_url,
         "generated_image_url": _generated_image_url("families", asset_hash),
         "storage_key": _storage_key("families", asset_hash),
         "asset_hash": asset_hash,
@@ -266,7 +266,7 @@ def version_generated_asset_url(url: str | None, visual: dict[str, Any] | None =
 
 def version_visual_image_urls(visual: dict[str, Any]) -> dict[str, Any]:
     versioned = dict(visual)
-    for key in ("image_url", "generated_image_url", "fallback_image_url", "previous_image_url"):
+    for key in ("image_url", "generated_image_url", "placeholder_image_url", "previous_image_url"):
         value = versioned.get(key)
         if isinstance(value, str) and value:
             versioned[key] = version_generated_asset_url(value, versioned)

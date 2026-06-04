@@ -14,11 +14,13 @@ from src.backend.features.rift.services.catalog_bootstrap import RiftCatalogBoot
 async def test_rift_catalog_bootstrap_syncs_setting_and_node_pool_from_fixtures() -> None:
     settings = _FakeRepository()
     nodes = _FakeRepository()
+    documents = _FakeCatalogDocumentRepository()
 
     result = await RiftCatalogBootstrapService(
         loader=RiftResourceLoader(),
         setting_repository=settings,
         node_pool_repository=nodes,
+        catalog_document_repository=documents,
     ).sync_fixtures(["starter_rift"])
 
     assert result.settings == 1
@@ -39,9 +41,14 @@ async def test_rift_catalog_bootstrap_syncs_setting_and_node_pool_from_fixtures(
         "rift_scavenger_beasts",
         ]
     )
-    assert setting.profile_json["summary"].startswith("Стартовый лорный разлом")
-    assert setting.generation_rules_json["assembly_options"]["default_seed"] == "starter-rift-dev"
-    assert setting.text_vocabulary_json["transition_combat"]
+    assert setting.mongo_setting_doc_id == "rift-setting:starter_rift"
+    assert setting.mongo_status == "synced"
+    assert documents.setting_payloads["starter_rift"]["profile"]["summary"].startswith("Стартовый лорный разлом")
+    assert (
+        documents.setting_payloads["starter_rift"]["generation_rules"]["assembly_options"]["default_seed"]
+        == "starter-rift-dev"
+    )
+    assert documents.setting_payloads["starter_rift"]["text_vocabulary"]["transition_combat"]
 
     first_node = nodes.upserts[0]
     assert first_node.pool_node_id == "starter_rift:001_broken_milestone"
@@ -53,10 +60,13 @@ async def test_rift_catalog_bootstrap_syncs_setting_and_node_pool_from_fixtures(
     assert "Старая дорожная веха" in first_node.description
     assert first_node.tags == ["road", "starter_rift"]
     assert first_node.role_fit == ["start", "generic"]
-    assert first_node.approach_view_json["open_suffix"]
-    assert first_node.transition_text_json["enter_target"] == "к разбитой вехе"
-    assert first_node.generation_json["source"] == "manual"
-    assert first_node.generation_json["pool_order"] == 0
+    assert first_node.mongo_node_doc_id == "rift-node:starter_rift:001_broken_milestone"
+    assert first_node.mongo_status == "synced"
+    first_node_payload = documents.node_payloads["starter_rift:001_broken_milestone"]
+    assert first_node_payload["approach_view"]["open_suffix"]
+    assert first_node_payload["transition_text"]["enter_target"] == "к разбитой вехе"
+    assert first_node_payload["generation"]["source"] == "manual"
+    assert first_node_payload["generation"]["pool_order"] == 0
 
 
 @pytest.mark.unit
@@ -74,3 +84,25 @@ class _FakeRepository:
     async def upsert(self, value: Any) -> Any:
         self.upserts.append(value)
         return value
+
+
+class _FakeCatalogDocumentRepository:
+    def __init__(self) -> None:
+        self.setting_payloads: dict[str, dict[str, Any]] = {}
+        self.node_payloads: dict[str, dict[str, Any]] = {}
+
+    async def upsert_setting_document(self, *, setting_key: str, payload: dict[str, Any]) -> str:
+        self.setting_payloads[setting_key] = payload
+        return f"rift-setting:{setting_key}"
+
+    async def upsert_node_document(
+        self,
+        *,
+        pool_node_id: str,
+        setting_key: str,
+        pool_node_key: str,
+        payload: dict[str, Any],
+    ) -> str:
+        _ = setting_key, pool_node_key
+        self.node_payloads[pool_node_id] = payload
+        return f"rift-node:{pool_node_id}"

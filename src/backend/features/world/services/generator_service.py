@@ -10,7 +10,11 @@ from src.backend.features.world.resources.static.d4_city_map import build_d4_cit
 from src.backend.features.world.resources.static.start_village import STATIC_LOCATIONS
 from src.backend.features.world.runtime.config import HUB_CENTER, REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.geography import WorldGeographyService
-from src.backend.features.world.runtime.profiles import build_region_profile, build_zone_profile
+from src.backend.features.world.runtime.profiles import (
+    build_habitat_population_profile_payload,
+    build_region_profile,
+    build_zone_profile,
+)
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
 from src.backend.features.world.services.navigation_service import WorldNavigationService
@@ -218,7 +222,7 @@ class LLMWorldGenerator:
             tier_min=region_profile.tier_band[0],
             tier_max=region_profile.tier_band[1],
             navigation_profile_id=region_profile.navigation_profile_id,
-            population_profile=region_profile.population_profile.model_dump(),
+            population_profile=build_habitat_population_profile_payload(region_profile),
             anchor_influence=region_profile.anchor_influence,
             is_locked_frontier=region_profile.is_locked_frontier,
         )
@@ -1007,7 +1011,7 @@ class LLMWorldGenerator:
                     tier_min=region_profile.tier_band[0],
                     tier_max=region_profile.tier_band[1],
                     navigation_profile_id=region_profile.navigation_profile_id,
-                    population_profile=region_profile.population_profile.model_dump(),
+                    population_profile=build_habitat_population_profile_payload(region_profile),
                     anchor_influence=region_profile.anchor_influence,
                     is_locked_frontier=region_profile.is_locked_frontier,
                 )

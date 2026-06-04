@@ -1,12 +1,6 @@
 from typing import Literal, NotRequired, TypedDict
 
 
-class FamilyModifierEntry(TypedDict, total=False):
-    target: str
-    value: float
-    per_tier: float
-
-
 # ==========================================
 # 1. ХАРАКТЕРИСТИКИ (STATS)
 # ==========================================
@@ -147,7 +141,6 @@ class MonsterFamily(TypedDict):
     loot_profile: NotRequired[MonsterLootProfile]
     clan_model: NotRequired[MonsterClanResourceModel]
     member_models: NotRequired[list[MonsterMemberResourceModel]]
-    family_modifiers: NotRequired[list[FamilyModifierEntry]]
 
     hierarchy: FamilyHierarchy
     variants: dict[str, MonsterVariant]

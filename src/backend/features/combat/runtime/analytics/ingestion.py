@@ -32,24 +32,28 @@ class CombatAnalyticsIngestionService:
         finalization: dict[str, Any],
         *,
         aggregate_version: int = 1,
+        mongo_document_id: str | None = None,
     ) -> None:
-        facts = cls.extract_exchange_facts(finalization)
-        if not facts:
+        rollup_facts = cls.extract_exchange_facts(finalization, include_trace=True)
+        if not rollup_facts:
             return
+        facts = [cls._sql_fact(fact, mongo_document_id=mongo_document_id) for fact in rollup_facts]
 
         repo = CombatAnalyticsRepository(session)
         await repo.replace_facts_for_combat(str(finalization["combat_id"]), facts)
-        finished_values = [fact["finished_at"] for fact in facts if fact.get("finished_at") is not None]
+        finished_values = [fact["finished_at"] for fact in rollup_facts if fact.get("finished_at") is not None]
         if not finished_values:
             return
         start = min(finished_values).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end = cls._next_month(max(finished_values))
-        bucket_facts = await repo.facts_for_buckets(start=start, end=end)
+        bucket_facts = rollup_facts
         rollups = cls.build_rollups(bucket_facts, aggregate_version=aggregate_version)
         await repo.replace_rollups(rollups, aggregate_version=aggregate_version, start=start, end=end)
 
     @classmethod
-    def extract_exchange_facts(cls, finalization: dict[str, Any]) -> list[dict[str, Any]]:
+    def extract_exchange_facts(
+        cls, finalization: dict[str, Any], *, include_trace: bool = False
+    ) -> list[dict[str, Any]]:
         analytics: dict[str, Any] = (
             finalization.get("analytics") if isinstance(finalization.get("analytics"), dict) else {}
         )
@@ -88,10 +92,48 @@ class CombatAnalyticsIngestionService:
                 battle_type=battle_type,
                 location_id=location_id,
                 entry=entry,
+                include_trace=include_trace,
             )
             if fact is not None:
                 facts.append(fact)
         return facts
+
+    @classmethod
+    def build_combat_document(
+        cls,
+        finalization: dict[str, Any],
+        exchanges: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        meta = finalization.get("meta") if isinstance(finalization.get("meta"), dict) else {}
+        finished_at = cls._datetime_from_epoch(finalization.get("finished_at"))
+        analytics = finalization.get("analytics") if isinstance(finalization.get("analytics"), dict) else {}
+        report = finalization.get("report") if isinstance(finalization.get("report"), dict) else {}
+        return {
+            "schema_version": int(finalization.get("schema_version") or 2),
+            "combat_id": str(finalization.get("combat_id") or ""),
+            "status": str(finalization.get("status") or "finalized"),
+            "finished_at": finished_at,
+            "battle_type": cls._optional_str(meta.get("battle_type")),
+            "location_id": cls._optional_str(meta.get("location_id")),
+            "winner_team": cls._optional_str(finalization.get("winner_team")),
+            "participant_char_ids": [
+                int(value)
+                for value in finalization.get("participant_char_ids", [])
+                if cls._optional_int(value) is not None
+            ],
+            "meta": meta,
+            "teams": finalization.get("teams") if isinstance(finalization.get("teams"), dict) else {},
+            "actors": finalization.get("actors") if isinstance(finalization.get("actors"), dict) else {},
+            "finalization": finalization,
+            "analytics": analytics,
+            "report": report,
+            "reward_hooks": finalization.get("reward_hooks")
+            if isinstance(finalization.get("reward_hooks"), list)
+            else [],
+            "exchanges": exchanges
+            if exchanges is not None
+            else cls.extract_exchange_facts(finalization, include_trace=True),
+        }
 
     _METRIC_CONFIGS: list[tuple[str, str]] = [
         ("damage_by_weapon_armor", "_dimensions_damage"),
@@ -140,6 +182,7 @@ class CombatAnalyticsIngestionService:
         battle_type: Any,
         location_id: Any,
         entry: dict[str, Any],
+        include_trace: bool = False,
     ) -> dict[str, Any] | None:
         damage_trace: dict[str, Any] = entry.get("dt") if isinstance(entry.get("dt"), dict) else {}
         details: dict[str, Any] = damage_trace.get("details") if isinstance(damage_trace.get("details"), dict) else {}
@@ -157,7 +200,7 @@ class CombatAnalyticsIngestionService:
         damage = entry.get("dmg") if isinstance(entry.get("dmg"), list) else []
         raw_damage = CombatAnalyticsIngestionService._float_at(damage, 0, damage_trace.get("raw"))
         final_damage = CombatAnalyticsIngestionService._float_at(damage, 2, damage_trace.get("final"))
-        return {
+        fact = {
             "schema_version": 2,
             "combat_id": combat_id,
             "turn": CombatAnalyticsIngestionService._int_value(entry.get("t")),
@@ -168,6 +211,8 @@ class CombatAnalyticsIngestionService:
             "location_id": CombatAnalyticsIngestionService._optional_str(location_id),
             "source_actor_id": CombatAnalyticsIngestionService._optional_str(entry.get("s")),
             "target_actor_id": CombatAnalyticsIngestionService._optional_str(entry.get("d")),
+            "source_combatant_key": CombatAnalyticsIngestionService._optional_str(entry.get("s_combatant_key")),
+            "target_combatant_key": CombatAnalyticsIngestionService._optional_str(entry.get("d_combatant_key")),
             "action_id": CombatAnalyticsIngestionService._optional_str(action.get("id") or entry.get("a")),
             "feint_id": CombatAnalyticsIngestionService._optional_str(action.get("feint_id")),
             "outcome": outcome,
@@ -188,12 +233,27 @@ class CombatAnalyticsIngestionService:
             "phys_res_raw": CombatAnalyticsIngestionService._optional_float(resl.get("raw")),
             "phys_res_effective": CombatAnalyticsIngestionService._optional_float(resl.get("effective")),
             "physical_suppression": CombatAnalyticsIngestionService._optional_float(resl.get("suppression")),
-            "checks": entry.get("chk") if isinstance(entry.get("chk"), list) else [],
-            "damage_trace": damage_trace,
-            "trigger_attempts": entry.get("trga") if isinstance(entry.get("trga"), list) else [],
-            "mutations": entry.get("mut") if isinstance(entry.get("mut"), list) else [],
-            "equipment": equipment,
-            "tags": CombatAnalyticsIngestionService._tags(entry),
+        }
+        if include_trace:
+            fact.update(
+                {
+                    "checks": entry.get("chk") if isinstance(entry.get("chk"), list) else [],
+                    "damage_trace": damage_trace,
+                    "trigger_attempts": entry.get("trga") if isinstance(entry.get("trga"), list) else [],
+                    "mutations": entry.get("mut") if isinstance(entry.get("mut"), list) else [],
+                    "equipment": equipment,
+                    "tags": CombatAnalyticsIngestionService._tags(entry),
+                }
+            )
+        return fact
+
+    @staticmethod
+    def _sql_fact(fact: dict[str, Any], *, mongo_document_id: str | None) -> dict[str, Any]:
+        excluded = {"checks", "damage_trace", "trigger_attempts", "mutations", "equipment", "tags"}
+        return {
+            **{key: value for key, value in fact.items() if key not in excluded},
+            "mongo_document_id": mongo_document_id,
+            "trace_status": "mongo" if mongo_document_id else "missing",
         }
 
     @staticmethod
@@ -299,6 +359,8 @@ class CombatAnalyticsIngestionService:
             "armor_tier": fact.get("armor_tier"),
             "feint_id": fact.get("feint_id"),
             "trigger_id": trigger_id,
+            "source_combatant_key": fact.get("source_combatant_key"),
+            "target_combatant_key": fact.get("target_combatant_key"),
             "battle_type": fact.get("battle_type"),
             "location_id": fact.get("location_id"),
             "source_type": fact.get("source_type"),
@@ -309,6 +371,8 @@ class CombatAnalyticsIngestionService:
         return {
             "action_id": fact.get("action_id"),
             "feint_id": fact.get("feint_id"),
+            "source_combatant_key": fact.get("source_combatant_key"),
+            "target_combatant_key": fact.get("target_combatant_key"),
             "source_type": fact.get("source_type"),
             "battle_type": fact.get("battle_type"),
             "location_id": fact.get("location_id"),

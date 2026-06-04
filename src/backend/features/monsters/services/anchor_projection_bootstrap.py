@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from src.backend.features.character.runtime import CharacterVitalsCalculator
+from src.backend.features.character.runtime.combat_actor_input import CharacterCombatActorInputBuilder
+from src.backend.features.character.runtime.gear_score import CharacterGearScoreCalculator
 from src.backend.features.character.schemas.session import CharacterSessionAttributesDTO
 from src.backend.features.monsters.dto.generation import GeneratedMonster
 from src.backend.features.monsters.integrations.item_generation import (
@@ -15,11 +17,12 @@ from src.backend.features.monsters.integrations.item_generation import (
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.resources.visuals import build_member_visual
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
+from src.backend.features.monsters.runtime.combat_math_model import MonsterCombatMathModelBuilder
+from src.backend.features.monsters.runtime.generation_builder import _item_affixes, _items_for_player_mapper
 from src.backend.features.monsters.runtime.generation_fields import (
     build_generated_monster_template,
     build_member_tier,
 )
-from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 from src.backend.infrastructure.monsters.managers import (
     AnchorProjectionSnapshotCacheManager,
 )
@@ -54,6 +57,7 @@ class AnchorProjectionBootstrapService:
         self.item_generation = item_generation
         self.redis = redis
         self.actor_builder = actor_builder or MonsterCombatActorInputBuilder()
+        self.combat_math = MonsterCombatMathModelBuilder()
 
     async def bootstrap(self) -> dict[str, Any]:
         family = get_family_config(ANCHOR_PROJECTION_FAMILY_ID)
@@ -61,7 +65,7 @@ class AnchorProjectionBootstrapService:
             raise ValueError(f"Anchor projection family is missing: {ANCHOR_PROJECTION_FAMILY_ID}")
 
         members = await self._build_members(family)
-        snapshots = {member.variant_key: self.actor_builder.build_snapshot(member) for member in members}
+        snapshots = {member.variant_id: self.actor_builder.build_snapshot(member) for member in members}
         if self.redis is not None:
             await AnchorProjectionSnapshotCacheManager(self.redis).save_snapshots(snapshots)
             logger.bind(variants=sorted(snapshots)).info("AnchorProjectionSnapshotsCached")
@@ -101,27 +105,83 @@ class AnchorProjectionBootstrapService:
                 CharacterSessionAttributesDTO.model_validate(template.scaled_attributes.model_dump(mode="json")),
                 profile_key=f"monster:{family.archetype}",
             ).model_dump(mode="json")
+            attributes = template.scaled_attributes.model_dump(mode="json")
+            skills = template.scaled_skills.model_dump(mode="json")["skills"]
+            items = template.items.model_dump(mode="json")
+            meta = template.meta.model_dump(mode="json")
+            balance = template.balance.model_dump(mode="json")
+            raw = self.combat_math.build_raw(
+                attributes=attributes,
+                items=items,
+                skills=skills,
+                monster_meta={
+                    **meta,
+                    "family_id": family.id,
+                    "archetype": family.archetype,
+                    "role": variant.role,
+                    "organization_type": family.organization_type,
+                },
+                balance=balance,
+            )
+            loadout = CharacterCombatActorInputBuilder._loadout(
+                _items_for_player_mapper(items),
+                skills,
+                include_basic_gift_abilities=False,
+            )
+            gear_score = CharacterGearScoreCalculator.calculate_from_raw(raw, skills=skills, loadout=loadout)
+            combat_snapshot_input = {
+                "meta": {
+                    "actor_type": "monster",
+                    "actor_id": str(member_id),
+                    "name": template.text_content.name_ru or variant.id,
+                    "role": variant.role,
+                    "family_id": family.id,
+                    "variant_id": variant.id,
+                    "effective_tier": 7,
+                    "archetype": family.archetype,
+                    "organization_type": family.organization_type,
+                    "tags": ["monster", family.id, variant.id],
+                },
+                "source": {
+                    "monster_id": str(member_id),
+                    "clan_id": str(clan_id),
+                    "family_id": family.id,
+                    "variant_id": variant.id,
+                    "member_hash": variant.id,
+                    "identity_hash": ANCHOR_PROJECTION_UNIQUE_HASH,
+                },
+                "status": vitals,
+                "raw": raw,
+                "skills": skills,
+                "loadout": loadout,
+            }
+            active_snapshot = {
+                "schema_version": 1,
+                "effective_tier": 7,
+                "attributes": attributes,
+                "skills": skills,
+                "loadout": loadout,
+                "items": items,
+                "affixes": _item_affixes(items),
+                "gear_score": gear_score,
+                "combat_snapshot_input": combat_snapshot_input,
+            }
             member = GeneratedMonster(
                 id=member_id,
                 clan_id=clan_id,
-                variant_key=variant.id,
+                variant_id=variant.id,
+                member_hash=variant.id,
                 role=variant.role,
-                member_tier=template.member_tier,
-                threat_rating=0,
-                name_ru=template.text_content.name_ru or ANCHOR_PROJECTION_NAMES_RU.get(variant.id, variant.id),
-                description=template.text_content.appearance_ru or variant.narrative_hint,
-                text_content=template.text_content.model_dump(mode="json"),
-                scaled_attributes=template.scaled_attributes.model_dump(mode="json"),
-                scaled_skills=template.scaled_skills.model_dump(mode="json")["skills"],
-                items=template.items.model_dump(mode="json"),
-                vitals=vitals,
-                ai_profile=template.ai_profile.model_dump(mode="json"),
-                generation_meta={
+                title=template.text_content.name_ru or ANCHOR_PROJECTION_NAMES_RU.get(variant.id, variant.id),
+                short_description=template.text_content.appearance_ru or variant.narrative_hint,
+                min_tier=7,
+                max_tier=7,
+                mongo_actor_key=f"anchor:{variant.id}",
+                active_snapshot=active_snapshot,
+                metadata_={
                     "schema_version": 1,
                     "source": "anchor_projection_bootstrap",
                     "meta": template.meta.model_dump(mode="json"),
-                    "balance": template.balance.model_dump(mode="json"),
-                    "family_modifiers": template.family_modifiers,
                     "visual": build_member_visual(
                         family.id,
                         variant_key=variant.id,
@@ -131,7 +191,6 @@ class AnchorProjectionBootstrapService:
                     ),
                 },
             )
-            MonsterGearScoreService(self.actor_builder).apply_monster_gear_score(member)
             members.append(member)
         return members
 
@@ -158,7 +217,7 @@ class AnchorProjectionBootstrapService:
                             natural_key=key,
                             rarity_tier=7,
                             seed=f"{ANCHOR_PROJECTION_UNIQUE_HASH}:{variant.id}:{slot}",
-                            source_context={"variant_key": variant.id, "slot": slot},
+                            source_context={"variant_id": variant.id, "slot": slot},
                         )
                     )
                 else:
@@ -173,7 +232,7 @@ class AnchorProjectionBootstrapService:
                             item_kind=self._item_kind(slot, key),
                             rarity_tier=7,
                             seed=f"{ANCHOR_PROJECTION_UNIQUE_HASH}:{variant.id}:{slot}",
-                            source_context={"variant_key": variant.id, "slot": slot},
+                            source_context={"variant_id": variant.id, "slot": slot},
                         )
                     )
         return list(await self.item_generation.generate_runtime_projections(to_item_generation_requests(requests)))

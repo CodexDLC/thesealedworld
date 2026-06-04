@@ -16,23 +16,30 @@ def _monster(
     return GeneratedMonster(
         id=uuid.uuid4(),
         clan_id=uuid.uuid4(),
-        variant_key=variant_key,
+        variant_id=variant_key,
+        member_hash=variant_key,
         role=role,
-        member_tier=0,
-        threat_rating=threat,
-        name_ru=variant_key,
-        description=variant_key,
-        text_content={},
-        scaled_attributes={"endurance": 1},
-        scaled_skills={},
-        items={},
-        vitals={},
-        ai_profile={},
-        generation_meta={
-            "balance": {
-                "gear_score": gear_score if gear_score is not None else threat,
-                "organization_type": organization_type,
-            }
+        title=variant_key,
+        short_description=variant_key,
+        min_tier=1,
+        max_tier=7,
+        mongo_actor_key=f"actor:{variant_key}",
+        active_snapshot={
+            "snapshot_tier": 1,
+            "raw_gear_score": threat,
+            "gear_score": gear_score if gear_score is not None else threat,
+            "assembly_cost": gear_score if gear_score is not None else threat,
+        },
+        actor_document={
+            "base_projection": {"organization_type": organization_type},
+            "tier_snapshots": {
+                "tier_1": {
+                    "snapshot_tier": 1,
+                    "raw_gear_score": threat,
+                    "gear_score": gear_score if gear_score is not None else threat,
+                    "assembly_cost": gear_score if gear_score is not None else threat,
+                }
+            },
         },
     )
 
@@ -79,7 +86,7 @@ def test_group_assembler_uses_gear_score_as_member_cost() -> None:
         composition_policy=_policy(max_units=2, role_caps={"minion": 2, "veteran": 0, "elite": 0, "boss": 0}),
     )
 
-    assert "low_threat_expensive" not in [member.variant_key for member in result.members]
+    assert "low_threat_expensive" not in [member.variant_id for member in result.members]
     assert result.total_power <= 90
     assert result.adjusted_budget == 90
 
@@ -100,7 +107,7 @@ def test_group_assembler_applies_danger_budget_bonus() -> None:
     )
 
     assert result.adjusted_budget == 150
-    assert [member.variant_key for member in result.members] == ["c"]
+    assert [member.variant_id for member in result.members] == ["c"]
 
 
 def test_group_assembler_swarm_fills_minions_before_upgrading() -> None:
@@ -196,7 +203,7 @@ def test_group_assembler_can_repeat_member_templates_to_fill_budget() -> None:
         composition_policy=_policy(max_units=5, role_caps={"minion": 5, "veteran": 3, "elite": 0, "boss": 0}),
     )
 
-    assert [member.variant_key for member in result.members] == ["cub", "cub"]
+    assert [member.variant_id for member in result.members] == ["cub", "cub"]
     assert result.total_power == 338
 
 
@@ -215,8 +222,8 @@ def test_group_assembler_uses_weakest_same_role_candidates_for_base_group() -> N
         members, budget=170, tier=1, danger=0.0, composition_policy=policy
     )
 
-    assert [member.variant_key for member in first.members] == ["cub_b", "cub_b", "cub_b"]
-    assert [member.variant_key for member in second.members] == ["cub_b", "cub_b", "cub_b"]
+    assert [member.variant_id for member in first.members] == ["cub_b", "cub_b", "cub_b"]
+    assert [member.variant_id for member in second.members] == ["cub_b", "cub_b", "cub_b"]
 
 
 def test_group_assembler_can_prefer_distinct_member_templates_for_policy_groups() -> None:
@@ -239,7 +246,7 @@ def test_group_assembler_can_prefer_distinct_member_templates_for_policy_groups(
         },
     )
 
-    assert [member.variant_key for member in result.members] == ["cub_b", "cub_a", "cub_c"]
+    assert [member.variant_id for member in result.members] == ["cub_b", "cub_a", "cub_c"]
 
 
 def test_group_assembler_repeats_only_after_unique_same_role_candidates_do_not_fit() -> None:
@@ -256,7 +263,7 @@ def test_group_assembler_repeats_only_after_unique_same_role_candidates_do_not_f
         composition_policy=_policy(max_units=3, role_caps={"minion": 3, "veteran": 0, "elite": 0, "boss": 0}),
     )
 
-    assert [member.variant_key for member in result.members] == ["cheap", "cheap", "cheap"]
+    assert [member.variant_id for member in result.members] == ["cheap", "cheap", "cheap"]
     assert result.total_power == 120
 
 
@@ -281,7 +288,7 @@ def test_group_assembler_composition_policy_can_force_boss_only() -> None:
         },
     )
 
-    assert [member.variant_key for member in result.members] == ["heart_boss"]
+    assert [member.variant_id for member in result.members] == ["heart_boss"]
     assert result.total_power == 180
 
 
@@ -305,7 +312,7 @@ def test_group_assembler_composition_policy_keeps_under_budget_required_boss() -
         },
     )
 
-    assert [member.variant_key for member in result.members] == ["tier_two_boss"]
+    assert [member.variant_id for member in result.members] == ["tier_two_boss"]
     assert result.total_power == 800
 
 

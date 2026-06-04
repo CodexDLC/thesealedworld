@@ -332,9 +332,10 @@ class CombatAdmin(CabinetAdmin):
         SidebarItem(key="analytics", label="Обзор", path="/admin/combat/analytics", order=30),
         SidebarItem(key="a-weapon", label="По оружию", path="/admin/combat/analytics-weapon", order=40),
         SidebarItem(key="a-armor", label="По броне", path="/admin/combat/analytics-armor", order=50),
-        SidebarItem(key="a-feint", label="Скиллы & Финты", path="/admin/combat/analytics-feint", order=60),
-        SidebarItem(key="a-outcomes", label="Итоги боёв", path="/admin/combat/analytics-outcomes", order=70),
-        SidebarItem(key="a-drill", label="Журнал", path="/admin/combat/analytics-drilldown", order=80),
+        SidebarItem(key="a-builds", label="По сборкам", path="/admin/combat/analytics-builds", order=60),
+        SidebarItem(key="a-feint", label="Скиллы & Финты", path="/admin/combat/analytics-feint", order=70),
+        SidebarItem(key="a-outcomes", label="Итоги боёв", path="/admin/combat/analytics-outcomes", order=80),
+        SidebarItem(key="a-drill", label="Журнал", path="/admin/combat/analytics-drilldown", order=90),
     )
     dashboard_widgets = (
         MetricWidget(key="active_combats", title="Активных боёв", provider="combat.active", order=10),
@@ -352,6 +353,7 @@ class CombatAdmin(CabinetAdmin):
         "analytics": ("GET", "handle_analytics_overview"),
         "analytics-weapon": ("GET", "handle_analytics_weapon"),
         "analytics-armor": ("GET", "handle_analytics_armor"),
+        "analytics-builds": ("GET", "handle_analytics_builds"),
         "analytics-feint": ("GET", "handle_analytics_feint"),
         "analytics-outcomes": ("GET", "handle_analytics_outcomes"),
         "analytics-drilldown": ("GET", "handle_analytics_drilldown"),
@@ -631,6 +633,93 @@ class CombatAdmin(CabinetAdmin):
         ]
         return _render_analytics_page(self, request, "Аналитика: по броне", widgets)
 
+    # ── Analytics: combatant build breakdown ─────────────────────────────────
+
+    async def handle_analytics_builds(self, request: Request) -> Response:
+        rows = await _get_analytics_rows(request)
+        attackers = _group_and_aggregate(rows, ["source_combatant_key"])
+        defenders = _group_and_aggregate(rows, ["target_combatant_key"])
+        pairings = _group_and_aggregate(rows, ["source_combatant_key", "target_combatant_key"])[:30]
+
+        top_attackers = [row for row in attackers if row["source_combatant_key"] != "—"][:15]
+
+        widgets: list = [
+            ChartWidgetMap(
+                key="build_attack_usage",
+                title="Атаки по боевому ключу",
+                chart_type="bar",
+                labels=[str(row["source_combatant_key"]) for row in top_attackers],
+                datasets=[
+                    {
+                        "label": "Попыток",
+                        "data": [row["attempts"] for row in top_attackers],
+                        "backgroundColor": "rgba(14,165,233,0.8)",
+                    }
+                ],
+                height=300,
+                span=2,
+            ),
+            ChartWidgetMap(
+                key="build_hit_rate",
+                title="Hit Rate по боевому ключу",
+                chart_type="bar",
+                labels=[str(row["source_combatant_key"]) for row in top_attackers],
+                datasets=[
+                    {
+                        "label": "Hit %",
+                        "data": [row["hit_rate"] for row in top_attackers],
+                        "backgroundColor": "rgba(34,197,94,0.75)",
+                    }
+                ],
+                height=300,
+                span=2,
+            ),
+            TableWidgetMap(
+                key="attack_builds",
+                title=f"Атакующие сборки — {len(attackers)} групп",
+                columns=[
+                    TableColumnMap(key="source_combatant_key", label="Атакующий ключ"),
+                    TableColumnMap(key="attempts", label="Попыток"),
+                    TableColumnMap(key="hit_rate", label="Hit %"),
+                    TableColumnMap(key="crit_rate", label="Crit %"),
+                    TableColumnMap(key="dodge_rate", label="Dodge %"),
+                    TableColumnMap(key="avg_raw_dmg", label="Ср. сырой"),
+                    TableColumnMap(key="avg_final_dmg", label="Ср. итог."),
+                    TableColumnMap(key="armor_ignore_pct", label="Проб %"),
+                ],
+                rows=attackers,
+            ),
+            TableWidgetMap(
+                key="defense_builds",
+                title=f"Защитные сборки — {len(defenders)} групп",
+                columns=[
+                    TableColumnMap(key="target_combatant_key", label="Целевой ключ"),
+                    TableColumnMap(key="attempts", label="Атак принято"),
+                    TableColumnMap(key="hit_rate", label="Hit по ним %"),
+                    TableColumnMap(key="block_rate", label="Block %"),
+                    TableColumnMap(key="parry_rate", label="Parry %"),
+                    TableColumnMap(key="avg_armor_effective", label="Ср. броня"),
+                    TableColumnMap(key="avg_final_dmg", label="Ср. урон"),
+                ],
+                rows=defenders,
+            ),
+            TableWidgetMap(
+                key="build_pairings",
+                title="Матчапы сборок — топ-30",
+                columns=[
+                    TableColumnMap(key="source_combatant_key", label="Атакующий"),
+                    TableColumnMap(key="target_combatant_key", label="Цель"),
+                    TableColumnMap(key="attempts", label="Попыток"),
+                    TableColumnMap(key="hit_rate", label="Hit %"),
+                    TableColumnMap(key="crit_rate", label="Crit %"),
+                    TableColumnMap(key="avg_final_dmg", label="Ср. итог."),
+                    TableColumnMap(key="proc_rate_pct", label="Proc %"),
+                ],
+                rows=pairings,
+            ),
+        ]
+        return _render_analytics_page(self, request, "Аналитика: по сборкам", widgets)
+
     # ── Analytics: feints & triggers ──────────────────────────────────────────
 
     async def handle_analytics_feint(self, request: Request) -> Response:
@@ -817,6 +906,8 @@ class CombatAdmin(CabinetAdmin):
                 "combat_id": (r.get("combat_id") or "")[:16],
                 "turn": r.get("turn", ""),
                 "outcome": r.get("outcome", ""),
+                "source_key": r.get("source_combatant_key") or "—",
+                "target_key": r.get("target_combatant_key") or "—",
                 "weapon": r.get("weapon_base_id") or "—",
                 "tier": r.get("weapon_tier") if r.get("weapon_tier") is not None else "—",
                 "armor": r.get("armor_class") or "—",
@@ -836,6 +927,8 @@ class CombatAdmin(CabinetAdmin):
                     TableColumnMap(key="combat_id", label="Бой (ID)"),
                     TableColumnMap(key="turn", label="Ход"),
                     TableColumnMap(key="outcome", label="Исход"),
+                    TableColumnMap(key="source_key", label="Атакующий"),
+                    TableColumnMap(key="target_key", label="Цель"),
                     TableColumnMap(key="weapon", label="Оружие"),
                     TableColumnMap(key="tier", label="Тир"),
                     TableColumnMap(key="armor", label="Броня"),

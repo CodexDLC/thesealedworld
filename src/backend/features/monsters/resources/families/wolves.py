@@ -18,12 +18,6 @@ WOLVES_FAMILY: MonsterFamily = {
     "archetype": "beast",
     "organization_type": "pack",  # TSP Base: 50
     "default_tags": ["beast", "wolf", "predator", "pack"],
-    "family_modifiers": [
-        {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01},
-        {"target": "physical_damage_bonus", "value": 0.04, "per_tier": 0.015},
-        {"target": "dodge_chance", "value": 0.04, "per_tier": 0.01},
-        {"target": "bleed_damage_bonus", "value": 2.0, "per_tier": 1.0},
-    ],
     "loot_profile": {
         "salvage_type": "beast_parts",
         "loot_mode": "salvage",

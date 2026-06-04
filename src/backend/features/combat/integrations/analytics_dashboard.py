@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.backend.infrastructure.combat.repositories import CombatAnalyticsRepository
+    from src.backend.infrastructure.mongo import CombatDocumentRepository
 
 
 class CombatAnalyticsDashboardIntegration:
-    def __init__(self, repository: CombatAnalyticsRepository) -> None:
+    def __init__(self, repository: CombatAnalyticsRepository, document_repository: CombatDocumentRepository) -> None:  # type: ignore
         self.repository = repository
+        self.document_repository = document_repository
 
     async def latest_aggregate_version(self) -> int | None:
         return await self.repository.latest_aggregate_version()
@@ -54,7 +56,10 @@ class CombatAnalyticsDashboardIntegration:
         )
 
     async def get_raw_analytics(self, combat_id: str) -> dict[str, Any] | None:
-        return await self.repository.get_finalization_analytics(combat_id)
+        document = await self.document_repository.get_by_combat_id(combat_id)  # type: ignore
+        if document is None:
+            return None
+        return {"combat_id": document.get("combat_id"), "analytics": document.get("analytics") or {}}
 
     async def query_combats_per_day(
         self,

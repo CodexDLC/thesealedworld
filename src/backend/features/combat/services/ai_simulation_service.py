@@ -1402,7 +1402,7 @@ async def _run_policy_family_pve_reward(
     participants = [
         _training_actor_participant(player),
         *[
-            _training_actor_participant(actor, family_id=family_id, role=member.role, variant_key=member.variant_key)
+            _training_actor_participant(actor, family_id=family_id, role=member.role, variant_key=member.variant_key)  # type: ignore
             for actor, member in zip(enemies, selected_members, strict=False)
         ],
     ]
@@ -1439,7 +1439,7 @@ async def _run_policy_family_duel_reward(
                 actor,
                 family_id=opponent_family_id,
                 role=member.role,
-                variant_key=member.variant_key,
+                variant_key=member.variant_key,  # type: ignore
             )
             for actor, member in zip(opponent_actors, opponent_members, strict=False)
         ],
@@ -1448,7 +1448,7 @@ async def _run_policy_family_duel_reward(
                 actor,
                 family_id=family_id,
                 role=member.role,
-                variant_key=member.variant_key,
+                variant_key=member.variant_key,  # type: ignore
             )
             for actor, member in zip(candidate_actors, candidate_members, strict=False)
         ],
@@ -1538,7 +1538,7 @@ def _select_battle_training_family_members(
         selected = select_members_for_composition(members, composition)
         if selected:
             return selected
-    return sorted(members, key=lambda member: (member.role, member.variant_key, str(member.id)))[:5]
+    return sorted(members, key=lambda member: (member.role, member.variant_key, str(member.id)))[:5]  # type: ignore
 
 
 def _monster_actors_for_training(

@@ -18,12 +18,6 @@ RATS_FAMILY: MonsterFamily = {
     "archetype": "beast",
     "organization_type": "swarm",  # TSP Base: 30
     "default_tags": ["beast", "rat", "disease", "swarm"],
-    "family_modifiers": [
-        {"target": "poison_efficiency", "value": 0.05, "per_tier": 0.02},
-        {"target": "poison_resistance", "value": 0.06, "per_tier": 0.01},
-        {"target": "bleed_resistance", "value": 0.04, "per_tier": 0.01},
-        {"target": "anti_dodge_chance", "value": 0.03, "per_tier": 0.01},
-    ],
     "loot_profile": {
         "salvage_type": "beast_parts",
         "loot_mode": "salvage",

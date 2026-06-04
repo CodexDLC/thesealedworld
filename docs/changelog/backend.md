@@ -4,6 +4,7 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Generated monster profiles now keep heavy dynamic payloads in Mongo-owned documents while PostgreSQL keeps only indexed facts and Mongo sync metadata.
 - Generated starter monster families now get +1 to the shared role attribute
   baseline, and the old global family accuracy penalty has been removed.
 - Shield mastery now owns a dedicated defensive tactic: shield defenders skip

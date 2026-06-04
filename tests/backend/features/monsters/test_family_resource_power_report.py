@@ -1,32 +1,8 @@
-from __future__ import annotations
-
 import pytest
-from tools.monsters.family_resource_power_report import build_rows, summarize
+
+from tools.monsters import family_resource_power_report
 
 
-@pytest.mark.unit
-def test_family_resource_power_report_covers_starter_variants_without_database() -> None:
-    rows = build_rows()
-
-    assert len(rows) == 48
-    assert {row.family_id for row in rows} == {"rat_swarm", "wolf_pack", "bandit_gang", "goblin_tribe"}
-    assert all(row.resource_power > 0 for row in rows)
-
-
-@pytest.mark.unit
-def test_family_resource_power_report_exposes_boss_skill_width() -> None:
-    rows = build_rows()
-    role_summary = {row.label: row for row in summarize(rows, key="family_role")}
-
-    assert role_summary["wolf_pack/boss"].avg_attrs == pytest.approx(153.0)
-    assert role_summary["bandit_gang/boss"].avg_attrs == pytest.approx(153.0)
-    assert role_summary["wolf_pack/boss"].avg_skills > role_summary["bandit_gang/boss"].avg_skills
-
-
-@pytest.mark.unit
-def test_family_resource_power_report_filters_variants_by_context_tier() -> None:
-    rows = build_rows(tier=1)
-
-    assert rows
-    assert all(row.min_tier <= 1 <= row.max_tier for row in rows)
-    assert all(row.context_tier == 1 for row in rows)
+def test_family_resource_power_report_is_disabled_for_replacement_only_contract() -> None:
+    with pytest.raises(RuntimeError, match="replacement-only storage contract"):
+        family_resource_power_report.main()

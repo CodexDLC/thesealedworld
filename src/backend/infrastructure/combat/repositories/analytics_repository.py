@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime  # noqa: TC003 - SQLAlchemy filters need this at runtime in method signatures.
 from typing import Any
 
-from sqlalchemy import bindparam, cast, delete, func, select
-from sqlalchemy.dialects.postgresql import JSONPATH
+from sqlalchemy import delete, func, select
 
 from src.backend.infrastructure.combat.models import CombatBalanceRollup, CombatExchangeFact, CombatFinalization
 
@@ -15,8 +13,11 @@ FACT_DIMENSION_COLUMNS = {
     "armor_class": CombatExchangeFact.armor_class,
     "armor_tier": CombatExchangeFact.armor_tier,
     "feint_id": CombatExchangeFact.feint_id,
+    "source_combatant_key": CombatExchangeFact.source_combatant_key,
+    "target_combatant_key": CombatExchangeFact.target_combatant_key,
     "battle_type": CombatExchangeFact.battle_type,
     "location_id": CombatExchangeFact.location_id,
+    "source_type": CombatExchangeFact.source_type,
 }
 
 
@@ -144,14 +145,6 @@ class CombatAnalyticsRepository:
         if end is not None:
             stmt = stmt.where(CombatExchangeFact.finished_at < end)
         for key, value in dimensions.items():
-            if key == "trigger_id":
-                stmt = stmt.where(
-                    func.jsonb_path_exists(
-                        CombatExchangeFact.trigger_attempts,
-                        cast(bindparam(f"trigger_path_{abs(hash(value))}", _trigger_id_jsonpath(value)), JSONPATH),
-                    )
-                )
-                continue
             column = FACT_DIMENSION_COLUMNS.get(key)
             if column is not None:
                 stmt = stmt.where(column == value)
@@ -166,16 +159,7 @@ class CombatAnalyticsRepository:
         return [self._fact_to_dict(row) for row in result.scalars().all()]
 
     async def get_finalization_analytics(self, combat_id: str) -> dict[str, Any] | None:
-        result = await self.session.execute(
-            select(CombatFinalization.combat_id, CombatFinalization.analytics).where(
-                CombatFinalization.combat_id == str(combat_id)
-            )
-        )
-        row = result.first()
-        if row is None:
-            return None
-        analytics = row.analytics if isinstance(row.analytics, dict) else {}
-        return {"combat_id": row.combat_id, "analytics": analytics}
+        return None
 
     async def query_combats_per_day(
         self,
@@ -188,7 +172,7 @@ class CombatAnalyticsRepository:
             CombatFinalization.winner_team,
             CombatFinalization.battle_type,
             CombatFinalization.participant_char_ids,
-            CombatFinalization.finalization["teams"].label("teams"),
+            CombatFinalization.player_win,
         ).where(CombatFinalization.finished_at.is_not(None))
         if start is not None:
             stmt = stmt.where(CombatFinalization.finished_at >= start)
@@ -207,7 +191,7 @@ class CombatAnalyticsRepository:
                 by_date[date_key]["pvp_total"] += 1
             else:
                 by_date[date_key]["pve_total"] += 1
-                if _is_player_win(row.winner_team, row.participant_char_ids, row.teams):
+                if bool(row.player_win):
                     by_date[date_key]["pve_wins"] += 1
         return sorted(by_date.values(), key=lambda r: r["date"], reverse=True)
 
@@ -251,13 +235,13 @@ class CombatAnalyticsRepository:
     ) -> dict[str, Any]:
         subq = select(
             CombatExchangeFact.combat_id,
-            func.max(CombatExchangeFact.turn).label("max_turn"),
-        )
+            CombatFinalization.turns.label("turns"),
+        ).where(CombatFinalization.turns.is_not(None))
         if start is not None:
-            subq = subq.where(CombatExchangeFact.finished_at >= start)
+            subq = subq.where(CombatFinalization.finished_at >= start)
         if end is not None:
-            subq = subq.where(CombatExchangeFact.finished_at < end)
-        subq = subq.group_by(CombatExchangeFact.combat_id).subquery()
+            subq = subq.where(CombatFinalization.finished_at < end)
+        subq = subq.subquery()
         stmt = select(
             func.avg(subq.c.max_turn).label("avg"),
             func.min(subq.c.max_turn).label("min"),
@@ -284,22 +268,3 @@ class CombatAnalyticsRepository:
             for column in CombatBalanceRollup.__table__.columns
             if column.name != "id"
         }
-
-
-def _trigger_id_jsonpath(value: Any) -> str:
-    return f"$[*] ? (@[0] == {json.dumps(str(value))})"
-
-
-def _is_player_win(winner_team: Any, participant_char_ids: Any, teams: Any) -> bool:
-    """True if the winning team contains at least one player character."""
-    if not winner_team or winner_team == "draw":
-        return False
-    player_ids = {str(cid) for cid in (participant_char_ids or []) if cid is not None}
-    if not player_ids:
-        return False
-    if not isinstance(teams, dict):
-        return False
-    team_members = teams.get(str(winner_team))
-    if not isinstance(team_members, list):
-        return False
-    return any(str(m) in player_ids for m in team_members)

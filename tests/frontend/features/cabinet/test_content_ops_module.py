@@ -251,6 +251,20 @@ def _clan(
         created_at="",
         updated_at="",
         visual=AdminMonsterVisual(image_url="/static/generated-assets/clan.webp", storage_backend=storage),
+        selected_traits=[
+            {
+                "key": "scarred_hide",
+                "label": "Scarred Hide",
+                "flavor": "Clan hides carry old wounds.",
+                "modifiers": [
+                    {
+                        "target": "physical_resistance",
+                        "base": 0.03,
+                        "per_tier": 0.01,
+                    }
+                ],
+            }
+        ],
         members=[
             AdminGeneratedMonsterMember(
                 monster_id=f"{clan_id}-{role}",
@@ -288,17 +302,7 @@ def _clan(
                 },
                 vitals={"hp": {"max": 50}},
                 ai_profile={"profile": "aggressive"},
-                generation_meta={
-                    "balance": {"gear_score": 1},
-                    "family_modifiers": [
-                        {
-                            "target": "physical_resistance",
-                            "value": 0.03,
-                            "per_tier": 0.01,
-                            "effective_value": 0.04,
-                        }
-                    ],
-                },
+                generation_meta={"balance": {"gear_score": 1}},
                 combat_actor_snapshot={"meta": {}},
                 metadata_={},
                 context={},

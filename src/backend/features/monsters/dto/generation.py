@@ -18,6 +18,7 @@ MonsterItemKind = Literal["weapon", "armor", "shield", "ammo", "accessory"]
 class MonsterGenerationContext(BaseModel):
     zone_id: str | None = None
     biome_id: str = "wasteland"
+    habitat: MonsterHabitatDTO | None = None
     tags: list[str] = Field(default_factory=list)
     tier: int = Field(ge=0, le=7)
     threat: int | None = Field(default=None, ge=0)
@@ -25,6 +26,65 @@ class MonsterGenerationContext(BaseModel):
     role: str | None = None
     count: int = Field(default=1, ge=1)
     context_meta: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def habitat_biome(self) -> str:
+        return self.habitat.biome if self.habitat is not None else self.biome_id
+
+    @property
+    def habitat_keys(self) -> list[str]:
+        return list(self.habitat.keys) if self.habitat is not None else []
+
+
+class MonsterHabitatDTO(BaseModel):
+    biome: str
+    keys: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def normalize_habitat(self) -> MonsterHabitatDTO:
+        self.biome = _normalized_token(self.biome) or "wasteland"
+        self.keys = sorted({_normalized_token(key) for key in self.keys if _normalized_token(key)})
+        return self
+
+
+class ClanPoolPolicyEntryDTO(BaseModel):
+    family_id: str
+    weight: int = Field(default=1, ge=1)
+
+    @model_validator(mode="after")
+    def normalize_family_id(self) -> ClanPoolPolicyEntryDTO:
+        self.family_id = _normalized_token(self.family_id)
+        return self
+
+
+class ClanPoolPolicyDTO(BaseModel):
+    primary: list[ClanPoolPolicyEntryDTO] = Field(default_factory=list)
+    secondary: list[ClanPoolPolicyEntryDTO] = Field(default_factory=list)
+    blocked: list[str] = Field(default_factory=list)
+    policy_version: int = Field(default=1, ge=1)
+
+    @model_validator(mode="after")
+    def normalize_blocked(self) -> ClanPoolPolicyDTO:
+        self.blocked = sorted(
+            {_normalized_token(family_id) for family_id in self.blocked if _normalized_token(family_id)}
+        )
+        return self
+
+
+class HabitatClanPoolEntryDTO(BaseModel):
+    scope_type: Literal["region", "rift"]
+    scope_id: str
+    clan_identity_hash: str
+    family_id: str
+    pool_tier: Literal["primary", "secondary"]
+    weight: int = Field(ge=1)
+    enabled: bool = True
+    habitat: MonsterHabitatDTO
+    policy_version: int = Field(default=1, ge=1)
+
+
+def _normalized_token(value: Any) -> str:
+    return str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
 
 
 class MonsterLocationContext(BaseModel):
@@ -76,6 +136,7 @@ class MonsterGroupResult(BaseModel):
     total_power: int
     monster_ids: list[str]
     actor_commitments: dict[str, str] = Field(default_factory=dict)
+    encounter_texts: dict[str, str] = Field(default_factory=dict)
     previews: list[MonsterGroupMemberPreview] = Field(default_factory=list)
     reused_existing_clan: bool
     context_hash: str
@@ -84,14 +145,12 @@ class MonsterGroupResult(BaseModel):
 
 
 class MonsterTextContentDTO(BaseModel):
-    """Encounter presentation text persisted on a generated monster row."""
+    """Minimal member presentation text persisted on a generated monster row."""
 
     name_ru: str = ""
     short_name_ru: str = ""
     appearance_ru: str = ""
-    detected_ru: str = ""
-    ambush_ru: str = ""
-    idle_ru: str = ""
+    visual_hint: str = ""
 
 
 class MonsterMetaDTO(BaseModel):
@@ -104,7 +163,7 @@ class MonsterMetaDTO(BaseModel):
 
 
 class MonsterScaledAttributesDTO(BaseModel):
-    """Player-compatible generated attributes for monster combat inputs."""
+    """Player-shaped generated attributes for monster combat inputs."""
 
     strength: int = Field(ge=0)
     agility: int = Field(ge=0)
@@ -206,12 +265,7 @@ class MonsterBalanceDTO(BaseModel):
 
 
 class GeneratedMonsterTemplateDTO(BaseModel):
-    """Target DB contract for one generated monster row.
-
-    This is the post-refactor contract. The legacy GeneratedMonster dataclass
-    remains below until the persistence migration and runtime generation are
-    moved to the new shape.
-    """
+    """Actor-document source payload used while building Mongo tier snapshots."""
 
     schema_version: int = Field(default=1, ge=1)
     variant_key: str
@@ -225,7 +279,6 @@ class GeneratedMonsterTemplateDTO(BaseModel):
     granted_abilities: MonsterGrantedAbilitiesDTO = Field(default_factory=MonsterGrantedAbilitiesDTO)
     ai_profile: MonsterAIProfileDTO = Field(default_factory=MonsterAIProfileDTO)
     balance: MonsterBalanceDTO
-    family_modifiers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MonsterVitalsDTO(BaseModel):
@@ -236,47 +289,19 @@ class MonsterVitalsDTO(BaseModel):
 
 
 @dataclass(slots=True)
-class GeneratedClan:
-    id: uuid.UUID
-    family_id: str
-    tier: int
-    zone_id: str | None
-    context_hash: str
-    unique_hash: str
-    raw_tags: dict[str, Any]
-    flavor_content: dict[str, Any]
-    name_ru: str
-    description: str
-    metadata_: dict[str, Any] = field(default_factory=dict)
-    context: dict[str, Any] = field(default_factory=dict)
-    source_context: dict[str, Any] = field(default_factory=dict)
-    lifecycle_status: str = "active"
-    archived_at: datetime | None = None
-    expires_at: datetime | None = None
-    schema_version: int = 1
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-    members: list[GeneratedMonster] = field(default_factory=list)
-
-
-@dataclass(slots=True)
 class GeneratedMonster:
     id: uuid.UUID
     clan_id: uuid.UUID
-    variant_key: str
+    variant_id: str
+    member_hash: str
     role: str
-    member_tier: int
-    threat_rating: int
-    name_ru: str
-    description: str
-    text_content: dict[str, Any]
-    scaled_attributes: dict[str, int]
-    scaled_skills: dict[str, Any]
-    items: dict[str, Any]
-    vitals: dict[str, Any]
-    ai_profile: dict[str, Any]
-    generation_meta: dict[str, Any] = field(default_factory=dict)
-    combat_actor_snapshot: dict[str, Any] = field(default_factory=dict)
+    title: str
+    short_description: str
+    min_tier: int
+    max_tier: int
+    mongo_actor_key: str
+    actor_document: dict[str, Any] = field(default_factory=dict)
+    active_snapshot: dict[str, Any] = field(default_factory=dict)
     metadata_: dict[str, Any] = field(default_factory=dict)
     context: dict[str, Any] = field(default_factory=dict)
     source_context: dict[str, Any] = field(default_factory=dict)
@@ -291,3 +316,37 @@ class GeneratedMonster:
     @property
     def family_id(self) -> str | None:
         return self.clan.family_id if self.clan else None
+
+
+@dataclass(slots=True)
+class GeneratedClan:
+    id: uuid.UUID
+    family_id: str
+    identity_hash: str
+    context_identity: dict[str, Any]
+    context_hash: str
+    selected_traits: list[dict[str, Any]]
+    title: str
+    description: str
+    encounter_texts: dict[str, Any]
+    generation_version: int
+    resource_version: str
+    metadata_: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+    source_context: dict[str, Any] = field(default_factory=dict)
+    lifecycle_status: str = "active"
+    archived_at: datetime | None = None
+    expires_at: datetime | None = None
+    schema_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    members: list[GeneratedMonster] = field(default_factory=list)
+
+    @property
+    def zone_id(self) -> str | None:
+        value = self.context_identity.get("zone_id")
+        return str(value) if value else None
+
+    @property
+    def unique_hash(self) -> str:
+        return self.identity_hash

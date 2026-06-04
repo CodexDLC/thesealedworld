@@ -4,215 +4,122 @@ import uuid
 
 import pytest
 
-from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, MonsterGenerationContext
-from src.backend.features.monsters.runtime.hashing import (
-    MonsterHashContext,
-    compute_context_hash,
-    compute_monster_context_hash,
-    compute_unique_clan_hash,
-    normalize_tags,
-)
+from src.backend.features.monsters.dto.generation import GeneratedClan, MonsterGenerationContext, MonsterHabitatDTO
+from src.backend.features.monsters.resources import get_family_config
+from src.backend.features.monsters.resources.traits import select_monster_clan_traits_for_habitat
+from src.backend.features.monsters.runtime.hashing import compute_clan_identity_hash, compute_habitat_hash
 from src.backend.features.monsters.services import EncounterMonsterService
-from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 
 class FakeClanFactory:
     def __init__(self, repository: FakeMonsterRepository) -> None:
         self.repository = repository
+        self.calls: list[dict] = []
 
-    def select_family_id(self, context: MonsterGenerationContext, context_hash: str) -> str | None:
-        del context, context_hash
-        return "wolf_pack"
-
-    def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
-        del context
-        return ["wolf_pack", "goblin_tribe"]
-
-    async def build_clan_template(
-        self,
-        *,
-        family_id: str,
-        context: MonsterGenerationContext,
-        context_hash: str,
-        unique_hash: str,
-        normalized_tags: list[str],
-        reuse_existing: bool = False,
-    ) -> GeneratedClan:
-        del normalized_tags, reuse_existing
-        clan = _clan(context_hash, unique_hash)
-        clan.family_id = family_id
-        clan.zone_id = context.zone_id
-        members = [_monster(clan.id, threat=10 + index) for index in range(max(1, context.count))]
-        clan.members.extend(members)
-        for member in members:
-            member.clan = clan
-        return await self.repository.create_clan_with_members(clan, members)
+    async def build_clan_template(self, **kwargs) -> GeneratedClan:
+        self.calls.append(dict(kwargs))
+        clan = GeneratedClan(
+            id=uuid.uuid4(),
+            family_id=kwargs["family_id"],
+            identity_hash=kwargs["identity_hash"],
+            context_identity={"habitat": kwargs["context"].habitat.model_dump(mode="json")},
+            context_hash=kwargs["context_hash"],
+            selected_traits=[],
+            title="Generated",
+            description="Generated",
+            encounter_texts={},
+            generation_version=2,
+            resource_version="1",
+        )
+        self.repository.clans_by_identity[clan.identity_hash] = clan
+        return clan
 
 
 class FakeMonsterRepository:
     def __init__(self) -> None:
-        self.clans_by_context: dict[str, list[GeneratedClan]] = {}
-        self.clans_by_unique: dict[str, GeneratedClan] = {}
-        self.members_by_clan: dict[uuid.UUID, list[GeneratedMonster]] = {}
-        self.created = False
-        self.updated = False
+        self.clans_by_identity: dict[str, GeneratedClan] = {}
+        self.prune_requests: list[dict[str, set[tuple[str, str]]]] = []
 
-    async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
-        return self.clans_by_context.get(context_hash, [])
+    async def get_clan_by_identity_hash(self, identity_hash: str) -> GeneratedClan | None:
+        return self.clans_by_identity.get(identity_hash)
 
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
-        return self.clans_by_unique.get(unique_hash)
-
-    async def create_clan_with_members(
-        self,
-        clan: GeneratedClan,
-        members: list[GeneratedMonster],
-    ) -> GeneratedClan:
-        self.created = True
-        self.clans_by_unique[clan.unique_hash] = clan
-        self.clans_by_context.setdefault(clan.context_hash, []).append(clan)
-        self.members_by_clan[clan.id] = members
-        return clan
-
-    async def get_clan_members(self, clan_id: uuid.UUID) -> list[GeneratedMonster]:
-        return self.members_by_clan.get(clan_id, [])
-
-    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
-        self.updated = True
-        self.clans_by_unique[clan.unique_hash] = clan
-        self.members_by_clan[clan.id] = list(clan.members)
-        return clan
+    async def delete_generated_clans_outside_zone_contexts(self, expected: dict[str, set[tuple[str, str]]]) -> int:
+        self.prune_requests.append(expected)
+        return 3
 
 
-def _clan(context_hash: str, unique_hash: str = "unique") -> GeneratedClan:
-    return GeneratedClan(
-        id=uuid.uuid4(),
-        family_id="wolf_pack",
+def _context() -> MonsterGenerationContext:
+    return MonsterGenerationContext(
+        zone_id="rift:starter_rift",
+        biome_id="broken_road",
+        habitat=MonsterHabitatDTO(biome="broken_road", keys=["road_tract", "scavenger_camp"]),
         tier=1,
-        zone_id="zone-a",
-        context_hash=context_hash,
-        unique_hash=unique_hash,
-        raw_tags={},
-        flavor_content={},
-        name_ru="Wolves",
-        description="Existing wolves",
-    )
-
-
-def _monster(
-    clan_id: uuid.UUID,
-    role: str = "minion",
-    threat: int = 20,
-    *,
-    gear_score: int | None = None,
-    organization_type: str = "swarm",
-) -> GeneratedMonster:
-    return GeneratedMonster(
-        id=uuid.uuid4(),
-        clan_id=clan_id,
-        variant_key=f"{role}_{threat}",
-        role=role,
-        member_tier=0,
-        threat_rating=threat,
-        name_ru="Wolf",
-        description="Wolf",
-        text_content={"name_ru": "Wolf"},
-        scaled_attributes={
-            "strength": 10,
-            "agility": 10,
-            "endurance": 10,
-            "intellect": 1,
-            "memory": 1,
-            "mental": 1,
-            "perception": 5,
-            "projection": 1,
-            "prediction": 1,
-        },
-        scaled_skills={"skill_unarmed": 0.1},
-        items={},
-        vitals={"hp": {"current": 20, "max": 20}},
-        ai_profile={},
-        generation_meta={
-            "balance": {
-                "gear_score": gear_score if gear_score is not None else threat,
-                "gear_score_version": MonsterGearScoreService.VERSION,
-                "organization_type": organization_type,
-            }
-        },
+        tags=["road_tract", "scavenger_camp"],
+        difficulty="mid",
+        context_meta={"clan_flavor": {"name_ru": "Authored"}},
     )
 
 
 @pytest.mark.unit
 def test_prepare_encounter_monsters_legacy_api_is_removed() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))  # type: ignore[arg-type]
 
     assert not hasattr(service, "prepare_encounter_monsters")
+    assert not hasattr(service, "ensure_clan_for_hash_context")
 
 
 @pytest.mark.unit
-async def test_ensure_clan_for_context_creates_one_requested_family() -> None:
+async def test_ensure_clan_for_context_uses_habitat_identity_contract() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(
-        zone_id="D4_0_1",
-        biome_id="city_ruins",
-        tier=1,
-        tags=["mana_leak"],
-        difficulty="mid",
-    )
+    factory = FakeClanFactory(repo)
+    service = EncounterMonsterService(repo, factory=factory)  # type: ignore[arg-type]
+    context = _context()
 
     clan = await service.ensure_clan_for_context(context, "goblin_tribe")
 
     assert clan.family_id == "goblin_tribe"
-    assert len(repo.clans_by_unique) == 1
+    assert clan.context_hash == compute_habitat_hash(biome="broken_road", keys=["road_tract", "scavenger_camp"])
+    family = get_family_config("goblin_tribe")
+    assert family is not None
+    selected_trait_keys = [
+        trait.key
+        for trait in select_monster_clan_traits_for_habitat(
+            family,
+            biome_id="broken_road",
+            habitat_keys=["road_tract", "scavenger_camp"],
+        )
+    ]
+    assert clan.identity_hash == compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="broken_road",
+        keys=["road_tract", "scavenger_camp"],
+        selected_trait_keys=selected_trait_keys,
+        generation_version=2,
+        resource_version=1.4,
+    )
+    assert factory.calls[0]["normalized_tags"] == ["broken_road", "road_tract", "scavenger_camp"]
 
 
 @pytest.mark.unit
-async def test_ensure_clan_for_context_reuses_existing_family_context_hash() -> None:
+async def test_ensure_clan_for_context_reuses_existing_identity_hash() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(
-        zone_id="D4_0_1",
-        biome_id="city_ruins",
-        tier=1,
-        tags=["mana_leak"],
-        difficulty="mid",
-    )
+    factory = FakeClanFactory(repo)
+    service = EncounterMonsterService(repo, factory=factory)  # type: ignore[arg-type]
+    context = _context()
 
     first = await service.ensure_clan_for_context(context, "goblin_tribe")
     second = await service.ensure_clan_for_context(context, "goblin_tribe")
 
     assert second.id == first.id
-    assert len(repo.clans_by_unique) == 1
+    assert len(factory.calls) == 1
 
 
 @pytest.mark.unit
-async def test_ensure_clan_for_hash_context_uses_same_rift_hash_contract_as_group_ordering() -> None:
+async def test_prune_delegates_to_replacement_repository_contract() -> None:
     repo = FakeMonsterRepository()
-    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))
-    context = MonsterGenerationContext(
-        zone_id="rift:starter_rift:primary",
-        biome_id="broken_road",
-        tier=1,
-        tags=["starter_rift", "broken_caravan"],
-        difficulty="mid",
-    )
-    hash_context = MonsterHashContext(
-        source="rift",
-        context_key="starter_rift:primary",
-        biome_id="broken_road",
-        tier=1,
-        tags=("starter_rift", "broken_caravan"),
-    )
-    rift_context_hash = compute_monster_context_hash(hash_context)
+    service = EncounterMonsterService(repo, factory=FakeClanFactory(repo))  # type: ignore[arg-type]
+    expected = {"rift:starter_rift": {("goblin_tribe", "identity")}}
 
-    clan = await service.ensure_clan_for_hash_context(
-        context,
-        "goblin_tribe",
-        hash_context=hash_context,
-    )
-
-    assert clan.context_hash == rift_context_hash
-    assert clan.unique_hash == compute_unique_clan_hash("goblin_tribe", rift_context_hash)
-    assert compute_context_hash(context.tier, context.biome_id, normalize_tags(context.tags)) != rift_context_hash
+    assert await service.prune_generated_clans_for_zone_contexts(expected) == 3
+    assert repo.prune_requests == [expected]

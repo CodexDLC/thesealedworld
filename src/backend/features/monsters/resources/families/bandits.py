@@ -12,11 +12,6 @@ BANDITS_FAMILY: MonsterFamily = {
     "archetype": "humanoid",
     "organization_type": "gang",  # TSP Base: 50
     "default_tags": ["human", "outlaw", "survivor", "marauder"],
-    "family_modifiers": [
-        {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01},
-        {"target": "anti_dodge_chance", "value": 0.04, "per_tier": 0.01},
-        {"target": "control_resistance", "value": 0.04, "per_tier": 0.01},
-    ],
     "loot_profile": {
         "salvage_type": "humanoid_gear",
         "loot_mode": "equipment",

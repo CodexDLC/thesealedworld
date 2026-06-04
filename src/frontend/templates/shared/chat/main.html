@@ -981,13 +981,8 @@
                     </template>
                     <template x-for="(m, idx) in _visibleMessagesForTab('system')" :key="m.id">
                         <div>
-                            <template x-if="_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)">
-                                <div class="combat-log-separator">
-                                    <span x-text="_combatLogSeparator(m).label"></span>
-                                </div>
-                            </template>
-                            <div class="msg" :class="_isCombatLog(m) ? 'combat-log' : 'sys'">
-                                <span class="tag-m" x-text="_isCombatLog(m) ? 'БОЙ' : 'CORE'"></span>
+                            <div class="msg sys">
+                                <span class="tag-m">CORE</span>
                                 <span class="chat-message-view">
                                     <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">
                                     <template x-for="(part, partIdx) in _messageParts(m)" :key="partIdx">

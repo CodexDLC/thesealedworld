@@ -17,6 +17,8 @@ class CombatLogActorContextDTO(BaseModel):
     team: str | None = None
     actor_type: str | None = None
     taxonomy: str = "humanoid"
+    role: str | None = None
+    combatant_key: str | None = None
     hp: int | None = None
     max_hp: int | None = None
     en: int | None = None
@@ -38,6 +40,8 @@ class CombatLogActorContextDTO(BaseModel):
             team=actor.meta.team,
             actor_type=actor.meta.type,
             taxonomy=actor.meta.archetype or "humanoid",
+            role=actor.meta.role,
+            combatant_key=actor.meta.combatant_key,
             hp=actor.meta.hp,
             max_hp=actor.meta.max_hp,
             en=actor.meta.en,

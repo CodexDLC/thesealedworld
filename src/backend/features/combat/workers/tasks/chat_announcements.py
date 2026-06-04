@@ -138,7 +138,7 @@ async def _publish_announcement(
     try:
         await redis.xadd(
             settings.game_stream_name,
-            encode_stream_payload({"type": "chat.combat_log_message", **payload}),
+            encode_stream_payload({"type": "chat.combat_message", **payload}),
             maxlen=settings.game_stream_maxlen,
             approximate=True,
         )

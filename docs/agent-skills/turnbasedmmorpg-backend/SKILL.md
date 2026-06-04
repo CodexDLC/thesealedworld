@@ -19,6 +19,7 @@ For service split, chat absorption, backend Alembic, game schema, site/game boun
 - `docs/ru/management/deployment-contract.md`
 
 For Redis Streams events, also use `turnbasedmmorpg-redis-streams`.
+For PostgreSQL/MongoDB storage boundary work, also use `turnbasedmmorpg-hybrid-persistence`.
 
 ## Core Rules
 
@@ -41,6 +42,7 @@ For Redis Streams events, also use `turnbasedmmorpg-redis-streams`.
   - `game:actor:snapshot:*` is an on-demand temporary projection for combat, inventory, builds, or future feature sessions.
 - `core` exposes infrastructure primitives, not game domain behavior.
 - `infrastructure` exposes domain-grouped low-level persistence/cache/session managers, schemas, models, repositories, and adapters. Feature code works with those modules through feature integrations unless the file is itself dependency wiring.
+- Hybrid PostgreSQL/MongoDB persistence must follow `turnbasedmmorpg-hybrid-persistence`: PostgreSQL owns truth, indexes, relationships, and Mongo references; MongoDB owns heavy flexible documents.
 - `temp/` is donor code, not target architecture.
 
 ## Feature Vocabulary

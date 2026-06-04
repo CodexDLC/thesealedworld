@@ -194,7 +194,13 @@ class ColdMissingInstanceStore:
     async def save_instance(self, runtime: RiftZoneRuntimeDTO) -> None:
         self.saved.append(runtime)
 
+    async def get_instance(self, rift_instance_id: str) -> RiftZoneRuntimeDTO | None:
+        _ = rift_instance_id
+        return self.saved[-1] if self.saved else None
+
     async def require_instance(self, rift_instance_id: str) -> RiftZoneRuntimeDTO:
+        if self.saved:
+            return self.saved[-1]
         raise RiftInstanceNotFoundError(f"Rift instance not found: {rift_instance_id}")
 
 
@@ -207,27 +213,44 @@ class ColdMissingRunSessionStore:
         return payload
 
     async def require_session(self, rift_session_id: str) -> dict:
+        for session in self.created:
+            if session.get("rift_session_id") == rift_session_id:
+                return session
         raise RiftRunSessionNotFoundError(f"Rift run session not found: {rift_session_id}")
 
 
-class ColdRestoreRepository:
-    def __init__(self, records: dict[str, object]) -> None:
-        self.records = records
+class ColdPresenceStore:
+    def __init__(self) -> None:
+        self.entered: list[tuple[str, str, str]] = []
 
-    async def get(self, key: str) -> object | None:
-        return self.records.get(key)
-
-
-class ColdRestoreInstanceMapper:
-    def to_runtime(self, state: object) -> RiftZoneRuntimeDTO:
-        assert isinstance(state, RiftZoneRuntimeDTO)
-        return state
+    async def rebuild_node_presence_from_sessions(self, rift_instance_id: str, sessions: dict[str, dict]) -> None:
+        for session in sessions.values():
+            self.entered.append((rift_instance_id, session["current_node_id"], session["participant_ref"]))
 
 
-class ColdRestoreRunMapper:
-    def to_session_payload(self, state: object) -> dict:
-        assert isinstance(state, dict)
-        return dict(state)
+class ColdMembership:
+    rift_instance_id = "rift-instance-1"
+    rift_session_id = "rift-run-1"
+    participant_ref = "char:7"
+    status = "active"
+
+
+class ColdMembershipRepository:
+    def __init__(self, membership: object | None) -> None:
+        self.membership = membership
+
+    async def get_by_session(self, rift_session_id: str) -> object | None:
+        _ = rift_session_id
+        return self.membership
+
+
+class ColdSnapshotRepository:
+    def __init__(self, snapshot: dict | None) -> None:
+        self.snapshot = snapshot
+
+    async def get_snapshot(self, rift_instance_id: str) -> dict | None:
+        _ = rift_instance_id
+        return self.snapshot
 
 
 @pytest.mark.asyncio
@@ -267,11 +290,16 @@ async def test_player_service_cold_restores_screen_from_db_backups_when_redis_ru
     runtime = RiftRuntimeIntegration(
         instance_store=instance_store,  # type: ignore[arg-type]
         session_store=session_store,  # type: ignore[arg-type]
-        presence_store=FakeRuntimeIntegration(),  # type: ignore[arg-type]
-        instance_state_repository=ColdRestoreRepository({"rift-instance-1": instance}),  # type: ignore[arg-type]
-        run_state_repository=ColdRestoreRepository({"rift-run-1": run_session}),  # type: ignore[arg-type]
-        instance_state_mapper=ColdRestoreInstanceMapper(),  # type: ignore[arg-type]
-        run_state_mapper=ColdRestoreRunMapper(),  # type: ignore[arg-type]
+        presence_store=ColdPresenceStore(),  # type: ignore[arg-type]
+        membership_repository=ColdMembershipRepository(ColdMembership()),  # type: ignore[arg-type]
+        snapshot_repository=ColdSnapshotRepository(
+            {
+                "rift_instance_id": "rift-instance-1",
+                "instance": instance.model_dump(mode="json"),
+                "sessions": {"rift-run-1": run_session},
+                "presence": {},
+            }
+        ),  # type: ignore[arg-type]
     )
     service = RiftPlayerService(runtime=runtime, character_sessions=FakeCharacterSessions())
 
@@ -290,11 +318,9 @@ async def test_player_service_keeps_missing_rift_not_found_when_redis_and_db_bac
     runtime = RiftRuntimeIntegration(
         instance_store=instance_store,  # type: ignore[arg-type]
         session_store=session_store,  # type: ignore[arg-type]
-        presence_store=FakeRuntimeIntegration(),  # type: ignore[arg-type]
-        instance_state_repository=ColdRestoreRepository({}),  # type: ignore[arg-type]
-        run_state_repository=ColdRestoreRepository({}),  # type: ignore[arg-type]
-        instance_state_mapper=ColdRestoreInstanceMapper(),  # type: ignore[arg-type]
-        run_state_mapper=ColdRestoreRunMapper(),  # type: ignore[arg-type]
+        presence_store=ColdPresenceStore(),  # type: ignore[arg-type]
+        membership_repository=ColdMembershipRepository(ColdMembership()),  # type: ignore[arg-type]
+        snapshot_repository=ColdSnapshotRepository(None),  # type: ignore[arg-type]
     )
     service = RiftPlayerService(runtime=runtime, character_sessions=FakeCharacterSessions())
 

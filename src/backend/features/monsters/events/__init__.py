@@ -81,13 +81,13 @@ async def on_group_prepare_requested(payload: dict[str, Any]) -> None:
                 arq=getattr(_app.state, "generation_ai_arq", None),
                 auto_schedule=False,
             )
-            service = MonsterGroupService(
+            service = MonsterGroupService(  # type: ignore
                 repository=monster_repository,
                 location_context=MonsterLocationContextIntegration(_app.state.world_locations),
                 actor_commitments=MonsterActorCommitmentIntegration(_app.state.actor_commitments),
                 group_cache=MonsterGroupCacheManager(_app.state.redis),
-                factory=ClanFactory(
-                    MonsterClanGenerationBuilder(
+                factory=ClanFactory(  # type: ignore
+                    MonsterClanGenerationBuilder(  # type: ignore
                         repository=monster_repository,
                         item_generation=item_generation,
                         generation_ai=generation_ai,

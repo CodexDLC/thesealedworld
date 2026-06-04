@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from types import SimpleNamespace
 from typing import Any
 
@@ -62,15 +63,13 @@ from src.backend.features.combat.runtime.engine.trigger_activation import activa
 from src.backend.features.combat.runtime.processors import AiProcessor, CombatCollector, CombatExecutor
 from src.backend.features.combat.runtime.processors.chaos_service import ANCHOR_FORCE_TEAM, ChaosService
 from src.backend.features.combat.runtime.support import CombatResultSupportTask, CombatResultSupportTaskDTO
+from src.backend.features.combat.workers.tasks import executor_task
 from src.backend.features.combat.workers.tasks.chaos_task import chaos_check_task
 from src.backend.features.combat.workers.tasks.chat_announcements import (
     publish_combat_final_announcement,
     publish_combat_start_announcement,
 )
-from src.backend.features.combat.workers.tasks.executor_task import (
-    _enqueue_result_support_tasks,
-    _publish_combat_logs_to_chat,
-)
+from src.backend.features.combat.workers.tasks.executor_task import _enqueue_result_support_tasks
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
@@ -4123,19 +4122,12 @@ async def test_result_support_payload_is_enqueued_as_second_task() -> None:
 
 
 @pytest.mark.unit
-async def test_chat_publish_failure_does_not_block_committed_combat_path() -> None:
-    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
-    ctx.pending_logs.append(
-        {
-            "id": "1:1:0",
-            "global_turn": 1,
-            "wave": 1,
-            "text": "A1 атакует A2.",
-            "template": {"text": "A1 атакует A2."},
-        }
-    )
-
-    await _publish_combat_logs_to_chat({"redis_client_internal": FailingChatRedis()}, ctx)
+async def test_executor_no_longer_publishes_exchange_logs_to_chat() -> None:
+    assert not hasattr(executor_task, "_publish_combat_logs_to_chat")
+    assert not hasattr(executor_task, "_combat_log_chat_payload")
+    source = inspect.getsource(executor_task)
+    assert "chat.combat_log_message" not in source
+    assert "CombatChatPublished" not in source
 
 
 @pytest.mark.unit
@@ -4148,7 +4140,8 @@ async def test_start_announcement_publishes_once_from_collector_context() -> Non
 
     assert len(redis.xadds) == 1
     encoded = str(redis.xadds[0])
-    assert "chat.combat_log_message" in encoded
+    assert "chat.combat_message" in encoded
+    assert "chat.combat_log_message" not in encoded
     assert "БОЙ НАЧАЛСЯ" in encoded
     assert "Бой начался: Команда 1: Hero[42/100] против Команда 2: Wolf[0/60]." in encoded
 
@@ -4172,6 +4165,8 @@ async def test_final_announcement_uses_finalization_snapshot() -> None:
 
     assert len(redis.xadds) == 1
     encoded = str(redis.xadds[0])
+    assert "chat.combat_message" in encoded
+    assert "chat.combat_log_message" not in encoded
     assert "БОЙ ЗАВЕРШЕН" in encoded
     assert "Бой завершен на ходу 12. Победила Команда 1: Hero[42/100]." in encoded
     assert "Участники: Команда 1: Hero[42/100]; Команда 2: Wolf[0/60]." in encoded

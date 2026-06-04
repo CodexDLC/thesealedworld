@@ -44,31 +44,11 @@ class GeneratedMonsterViewService:
         )
 
     async def _refresh_stale_clans(self, clans: list[GeneratedClan]) -> list[GeneratedClan]:
-        refresh = getattr(self.repository, "refresh_clan_gear_scores", None)
-        if refresh is None:
-            for clan in clans:
-                self.gear_score_service.refresh_stale_monster_scores(clan.members)
-                self.gear_score_service.apply_clan_summary(clan)
-            return clans
-
-        refreshed_clans: list[GeneratedClan] = []
-        for clan in clans:
-            if not self._needs_gear_score_refresh(clan):
-                refreshed_clans.append(clan)
-                continue
-            refreshed_members = await refresh(clan.id, gear_score_service=self.gear_score_service, persist=True)
-            clan.members = list(refreshed_members)
-            for member in clan.members:
-                member.clan = clan
-            self.gear_score_service.apply_clan_summary(clan)
-            refreshed_clans.append(clan)
-        return refreshed_clans
+        return clans
 
     def _needs_gear_score_refresh(self, clan: GeneratedClan) -> bool:
-        raw_summary = (clan.raw_tags or {}).get("gear_score_summary")
-        if not isinstance(raw_summary, dict) or raw_summary.get("version") != self.gear_score_service.VERSION:
-            return True
-        return any(self.gear_score_service.needs_recalculation(member) for member in clan.members)
+        del clan
+        return False
 
     def _clan_payload(self, clan: GeneratedClan, *, role: str | None, include_members: bool) -> dict[str, Any]:
         members = [member for member in clan.members if role is None or member.role == role]
@@ -76,14 +56,16 @@ class GeneratedMonsterViewService:
         return {
             "clan_id": str(clan.id),
             "family_id": clan.family_id,
-            "tier": clan.tier,
             "zone_id": clan.zone_id,
             "context_hash": clan.context_hash,
-            "unique_hash": clan.unique_hash,
-            "raw_tags": dict(clan.raw_tags or {}),
-            "flavor_content": dict(clan.flavor_content or {}),
-            "name_ru": clan.name_ru,
+            "identity_hash": clan.identity_hash,
+            "context_identity": dict(clan.context_identity or {}),
+            "selected_traits": list(clan.selected_traits or []),
+            "title": clan.title,
             "description": clan.description,
+            "encounter_texts": dict(clan.encounter_texts or {}),
+            "generation_version": clan.generation_version,
+            "resource_version": clan.resource_version,
             "metadata_": dict(clan.metadata_ or {}),
             "context": dict(clan.context or {}),
             "source_context": dict(clan.source_context or {}),
@@ -93,7 +75,7 @@ class GeneratedMonsterViewService:
             "schema_version": clan.schema_version,
             "created_at": clan.created_at,
             "updated_at": clan.updated_at,
-            "visual": _visual((clan.flavor_content or {}).get("visual")),
+            "visual": _visual((clan.metadata_ or {}).get("visual")),
             "gear_score_summary": summary,
             "members": [self._member_payload(member) for member in self._sort_members(members)]
             if include_members
@@ -101,29 +83,22 @@ class GeneratedMonsterViewService:
         }
 
     def _summary(self, clan: GeneratedClan, members: list[GeneratedMonster], *, role: str | None) -> dict[str, Any]:
-        raw_summary = (clan.raw_tags or {}).get("gear_score_summary")
-        if isinstance(raw_summary, dict) and role is None:
-            return dict(raw_summary)
+        del clan, role
         return self.gear_score_service.build_clan_summary(members)
 
     @staticmethod
     def _member_payload(member: GeneratedMonster) -> dict[str, Any]:
-        balance = _balance(member)
         return {
-            "monster_id": str(member.id),
-            "variant_key": member.variant_key,
+            "member_id": str(member.id),
+            "clan_id": str(member.clan_id),
+            "variant_id": member.variant_id,
+            "member_hash": member.member_hash,
             "role": member.role,
-            "member_tier": member.member_tier,
-            "name_ru": member.name_ru,
-            "description": member.description or "",
-            "text_content": dict(member.text_content or {}),
-            "scaled_attributes": dict(member.scaled_attributes or {}),
-            "scaled_skills": dict(member.scaled_skills or {}),
-            "items": dict(member.items or {}),
-            "vitals": dict(member.vitals or {}),
-            "ai_profile": dict(member.ai_profile or {}),
-            "generation_meta": dict(member.generation_meta or {}),
-            "combat_actor_snapshot": dict(member.combat_actor_snapshot or {}),
+            "title": member.title,
+            "short_description": member.short_description or "",
+            "min_tier": member.min_tier,
+            "max_tier": member.max_tier,
+            "mongo_actor_key": member.mongo_actor_key,
             "metadata_": dict(member.metadata_ or {}),
             "context": dict(member.context or {}),
             "source_context": dict(member.source_context or {}),
@@ -133,10 +108,7 @@ class GeneratedMonsterViewService:
             "schema_version": member.schema_version,
             "created_at": member.created_at,
             "updated_at": member.updated_at,
-            "threat_rating": member.threat_rating,
-            "gear_score": _optional_int(balance.get("gear_score")),
-            "visual": _visual((member.generation_meta or {}).get("visual")),
-            "equipment_summary": _equipment_summary(member.items),
+            "visual": _visual((member.metadata_ or {}).get("visual")),
         }
 
     @staticmethod
@@ -147,15 +119,14 @@ class GeneratedMonsterViewService:
                 _optional_int(_balance(member).get("gear_score")) is None,
                 _optional_int(_balance(member).get("gear_score")) or 0,
                 member.role,
-                member.variant_key,
+                member.variant_id,
             ),
         )
 
 
 def _balance(member: GeneratedMonster) -> dict[str, Any]:
-    generation_meta = member.generation_meta if isinstance(member.generation_meta, dict) else {}
-    balance = generation_meta.get("balance")
-    return dict(balance) if isinstance(balance, dict) else {}
+    gear_score = member.active_snapshot.get("gear_score")
+    return {"gear_score": gear_score} if gear_score is not None else {}
 
 
 def _visual(value: Any) -> dict[str, Any]:
@@ -165,45 +136,13 @@ def _visual(value: Any) -> dict[str, Any]:
         "source": str(visual.get("source") or ""),
         "image_url": str(visual.get("image_url") or ""),
         "generated_image_url": str(visual.get("generated_image_url") or ""),
-        "fallback_image_url": str(visual.get("fallback_image_url") or ""),
+        "placeholder_image_url": str(visual.get("placeholder_image_url") or ""),
         "storage_key": str(visual.get("storage_key") or ""),
         "storage_backend": str(visual.get("storage_backend") or ""),
         "asset_hash": str(visual.get("asset_hash") or ""),
         "content_type": str(visual.get("content_type") or ""),
         "size_bytes": _optional_int(visual.get("size_bytes")),
         "pending_task_id": str(visual.get("pending_task_id")) if visual.get("pending_task_id") else None,
-    }
-
-
-def _equipment_summary(items: dict[str, Any]) -> dict[str, list[str]]:
-    if not isinstance(items, dict):
-        return {"equipment": [], "weapons": [], "armor": [], "affixes": []}
-    layout = dict(items.get("layout") or {})
-    equipment_layout = dict(layout.get("equipment") or {})
-    by_id = dict(items.get("by_id") or {})
-    equipment: list[str] = []
-    weapons: list[str] = []
-    armor: list[str] = []
-    affixes: list[str] = []
-
-    for slot, item_id in sorted(equipment_layout.items()):
-        item = dict(by_id.get(item_id) or {})
-        label = str(item.get("name_ru") or item.get("name") or item.get("base_id") or item_id)
-        row = f"{slot}: {label}"
-        equipment.append(row)
-        kind = str(item.get("kind") or item.get("item_kind") or "")
-        if kind in {"weapon", "main_hand", "off_hand"} or slot in {"main_hand", "off_hand"}:
-            weapons.append(row)
-        if kind in {"armor", "body"} or slot == "body":
-            armor.append(row)
-        for affix in item.get("affixes") or item.get("bonus_ids") or []:
-            affixes.append(str(affix))
-
-    return {
-        "equipment": equipment,
-        "weapons": weapons,
-        "armor": armor,
-        "affixes": sorted(set(affixes)),
     }
 
 

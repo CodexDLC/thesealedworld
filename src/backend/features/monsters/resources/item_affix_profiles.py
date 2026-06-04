@@ -77,6 +77,7 @@ _HUMANOID_SHIELD_POOL: tuple[str, ...] = (
     "evasion_bonus",
     "control_resistance_bonus",
     "hp_bonus",
+    "heat_resistance_bonus",
 )
 
 MONSTER_AFFIX_POOLS: dict[str, dict[MonsterItemAffixKind, tuple[str, ...]]] = {

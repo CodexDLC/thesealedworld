@@ -78,6 +78,32 @@ async def test_world_population_builds_unique_unsafe_contexts() -> None:
     ]
 
 
+async def test_world_population_identity_dedupes_tier_only_differences() -> None:
+    service = FakeEncounterService()
+    population = WorldMonsterPopulationService(service)  # type: ignore[arg-type]
+
+    result = await population.ensure_population_for_nodes(
+        [
+            FakeNode(
+                zone_id="L1_0_0",
+                zone=FakeZone(id="L1_0_0", biome_id="lava_field", tier=1, flags={}),
+                flags={"threat_tier": 1},
+                content={"environment_tags": ["ash"]},
+            ),
+            FakeNode(
+                zone_id="L1_0_1",
+                zone=FakeZone(id="L1_0_1", biome_id="lava_field", tier=5, flags={}),
+                flags={"threat_tier": 5},
+                content={"environment_tags": ["ash"]},
+            ),
+        ]
+    )
+
+    assert result.contexts == 1
+    assert result.clans == 3
+    assert {context.tier for context, _family_id in service.calls} == {1}
+
+
 class D4EncounterService:
     def __init__(self) -> None:
         self.calls: list[tuple[MonsterGenerationContext, str]] = []

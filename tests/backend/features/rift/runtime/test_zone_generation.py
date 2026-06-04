@@ -4,15 +4,11 @@ from collections import deque
 
 import pytest
 
-from src.backend.features.monsters.runtime.hashing import (
-    MonsterHashContext,
-    compute_monster_context_hash,
-    compute_rift_context_hash,
-)
 from src.backend.features.rift.dto import RiftZoneRuntimeDTO
 from src.backend.features.rift.dto.runtime import RiftActionRequestDTO, coord_key
 from src.backend.features.rift.resources import RiftResourceLoader
 from src.backend.features.rift.runtime.generation import (
+    build_population_context,
     build_zone_chain_runtime,
     build_zone_runtime,
     rebuild_zone_state,
@@ -95,15 +91,20 @@ def test_node_pool_has_no_coordinates_before_zone_instance_placement() -> None:
     assert setting["heart"]["tier"] == 1
     assert setting["heart"]["value_by_tier"]["1"] == 100
     assert setting["heart"]["value_by_tier"]["2"] == 1000
-    assert setting["population_generation"]["strategy"] == "rift_static_hash"
+    assert setting["population_generation"]["strategy"] == "habitat_clan_pool_v1"
     assert setting["population_generation"]["tier"] == 1
-    assert setting["population_generation"]["selection_profile_id"] == "starter_broken_road_goblins"
-    assert setting["population_generation"]["selection_tags"] == ["humanoid", "goblin", "scavenger", "roadside_camp"]
-    assert [slot["slot_id"] for slot in setting["population_generation"]["family_slots"]] == [
-        "primary",
-        "secondary",
+    assert setting["population_generation"]["habitat"] == {
+        "biome": "broken_road",
+        "keys": ["road_tract", "scavenger_camp"],
+    }
+    assert [entry["family_id"] for entry in setting["population_generation"]["clan_pool_policy"]["primary"]] == [
+        "goblin_tribe"
+    ]
+    assert [entry["family_id"] for entry in setting["population_generation"]["clan_pool_policy"]["secondary"]] == [
+        "rat_swarm"
     ]
     assert "family_ids" not in setting["population_generation"]
+    assert "family_slots" not in setting["population_generation"]
     assert "transition_combat_rules" not in setting
     assert "ordinary_node_combat_rules" not in setting
     assert DEFAULT_TRANSITION_OPENING_CONTEXT["status"] == "contract_placeholder"
@@ -185,46 +186,38 @@ def test_starter_rift_reserves_start_and_heart_content_nodes() -> None:
 
 
 @pytest.mark.unit
-def test_zone_runtime_builds_rift_population_context_with_rift_hash() -> None:
+def test_zone_runtime_builds_rift_population_context_with_habitat_clan_pool() -> None:
     runtime = _runtime(seed="population-context-check", void_cells=5)
     population = runtime.population_context
-    expected_hash = compute_rift_context_hash(
-        setting_key="starter_rift",
-        biome_id="broken_road",
-        tier=1,
-        tags=[
-            "starter_rift",
-            "tier_1_rift",
-            "broken_caravan",
-            "roadside_camp",
-            "goblin_scavengers",
-            "rift_scavenger_beasts",
-        ],
-    )
 
-    assert population["source"] == "rift_static"
+    assert population["source"] == "rift_habitat_clan_pool"
     assert population["setting_key"] == "starter_rift"
     assert population["biome_id"] == "broken_road"
     assert population["tier"] == 1
-    assert population["selection_profile_id"] == "starter_broken_road_goblins"
-    assert population["selection_tags"] == ["goblin", "humanoid", "roadside_camp", "scavenger"]
-    assert [slot["slot_id"] for slot in population["family_slots"]] == ["primary", "secondary"]
-    assert population["family_slots"][0]["selection_tags"] == ["camp_guard", "goblin", "humanoid", "roadside_camp"]
-    assert population["family_slots"][0]["prototype_family_key"] == "goblin_tribe"
-    assert population["family_slots"][0]["family_id"] == "goblin_tribe"
-    assert population["family_slots"][1]["selection_tags"] == ["beast", "broken_caravan", "rat", "scavenger"]
-    assert population["family_slots"][1]["prototype_family_key"] == "rat_swarm"
-    assert population["family_bindings"]["secondary"]["family_id"] == "rat_swarm"
-    assert population["family_slots"][0]["context_hash"] != population["family_slots"][1]["context_hash"]
-    assert population["family_bindings"]["primary"]["family_id"] == "goblin_tribe"
-    assert "clan_id" not in population["family_bindings"]["primary"]
-    assert "unique_hash" not in population["family_bindings"]["primary"]
-    assert population["family_bindings"]["primary"]["context_hash"] == population["family_slots"][0]["context_hash"]
-    primary_hash_context = MonsterHashContext(**population["family_bindings"]["primary"]["hash_context"])
-    assert compute_monster_context_hash(primary_hash_context) == population["family_slots"][0]["context_hash"]
+    assert population["habitat"] == {"biome": "broken_road", "keys": ["road_tract", "scavenger_camp"]}
+    assert population["hash_strategy"] == "habitat_clan_pool_v1"
+    assert [entry["family_id"] for entry in population["clan_pool_policy"]["primary"]] == ["goblin_tribe"]
+    assert [entry["family_id"] for entry in population["clan_pool_policy"]["secondary"]] == ["rat_swarm"]
     assert "family_ids" not in population
-    assert population["context_hash"] == expected_hash
-    assert "broken_caravan" in population["tags"]
+    assert "family_slots" not in population
+    assert "context_hash" not in population
+    assert "unique_hash" not in population
+
+
+def test_rift_population_identity_context_ignores_population_tier() -> None:
+    resources = RiftResourceLoader()
+    setting = resources.load_setting("starter_rift")
+    low_tier = build_population_context(setting)
+    setting["population_generation"] = {**setting["population_generation"], "tier": 5}
+    high_tier = build_population_context(setting)
+
+    assert low_tier["tier"] == 1
+    assert high_tier["tier"] == 5
+    assert low_tier["habitat"] == high_tier["habitat"]
+    assert low_tier["clan_pool_policy"] == high_tier["clan_pool_policy"]
+    assert low_tier["hash_strategy"] == high_tier["hash_strategy"] == "habitat_clan_pool_v1"
+    assert "context_hash" not in high_tier
+    assert "family_slots" not in high_tier
 
 
 @pytest.mark.unit

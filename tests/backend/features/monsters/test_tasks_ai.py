@@ -30,14 +30,16 @@ def _clan_orm() -> GeneratedClanORM:
     return GeneratedClanORM(
         id=uuid.uuid4(),
         family_id="rat_swarm",
-        tier=1,
-        zone_id="D4_0_0",
+        identity_hash="unique",
+        context_identity={"season_id": "season-1", "tags": ["d4_rift_rat_king"], "zone_id": "D4_0_0", "tier": 1},
         context_hash="context",
-        unique_hash="unique",
-        raw_tags={"season_id": "season-1"},
-        flavor_content={"visual": visual},
-        name_ru="Рой Черного Камня",
+        selected_traits=[],
+        title="Рой Черного Камня",
         description="Крысы держатся у влажных плит.",
+        encounter_texts={},
+        generation_version=2,
+        resource_version="1",
+        metadata_={"flavor_content": {"visual": visual}},
     )
 
 
@@ -52,19 +54,15 @@ def _member_orm(clan: GeneratedClanORM) -> GeneratedMonsterORM:
     member = GeneratedMonsterORM(
         id=uuid.uuid4(),
         clan_id=clan.id,
-        variant_key="runner",
+        variant_id="runner",
+        member_hash="runner",
         role="minion",
-        member_tier=1,
-        threat_rating=10,
-        name_ru="Каменная крыса",
-        description="Мокрая крыса с темной шерстью.",
-        text_content={},
-        scaled_attributes={},
-        scaled_skills={},
-        items={},
-        vitals={},
-        ai_profile={},
-        generation_meta={"visual": visual},
+        title="Каменная крыса",
+        short_description="Мокрая крыса с темной шерстью.",
+        min_tier=1,
+        max_tier=1,
+        mongo_actor_key=f"actor:{clan.id}:runner",
+        metadata_={"visual": visual},
     )
     member.clan = clan
     return member
@@ -78,9 +76,10 @@ def test_monster_clan_image_spec_uses_visual_contract() -> None:
     assert spec.task_type == MONSTER_CLAN_IMAGE_TASK
     assert spec.output_kind == "image"
     assert spec.entity_id == str(clan.id)
-    assert spec.asset_hash == clan.flavor_content["visual"]["asset_hash"]
+    flavor_content = clan.metadata_["flavor_content"]
+    assert spec.asset_hash == flavor_content["visual"]["asset_hash"]
     assert spec.storage_prefix == "monsters/generated/clans"
-    assert spec.input_payload["visual"]["storage_key"] == clan.flavor_content["visual"]["storage_key"]
+    assert spec.input_payload["visual"]["storage_key"] == flavor_content["visual"]["storage_key"]
 
 
 def test_monster_clan_flavor_payload_includes_loot_culture_contract() -> None:
@@ -132,6 +131,12 @@ async def test_monster_clan_flavor_handler_applies_structured_json_and_returns_i
             output_payload={
                 "name_ru": "Стая Черного Камня",
                 "description": "Крысы держатся у влажных плит.",
+                "encounter_texts": {
+                    "patrol": "Крысы бегут вдоль влажных плит.",
+                    "ambush": "Из щелей разом вылетает черный рой.",
+                    "lair": "У гнезда крысы смыкаются плотной массой.",
+                    "random_meeting": "На мокром камне показываются крысиные силуэты.",
+                },
                 "loot_culture": {
                     "craft_style": "собирают снаряжение из сырого мусора",
                     "craft_skill_hint": "тащат в гнездо все, что можно грызть и привязать",
@@ -143,21 +148,20 @@ async def test_monster_clan_flavor_handler_applies_structured_json_and_returns_i
                     {
                         "variant_key": "runner",
                         "name": "Каменная крыса",
-                        "appearance": "Мокрая крыса с темной шерстью.",
-                        "detected": "Она замирает у плиты.",
-                        "ambush": "Она бросается из темноты.",
-                        "idle": "Она шевелит усами.",
-                        "encounter": "Она замечает путника.",
-                        "behavior": "Ищет слабое место.",
+                        "short_description": "Мокрая крыса с темной шерстью.",
+                        "visual_hint": "темная мокрая шерсть, каменная пыль на лапах",
                     }
                 ],
             }
         ),
     )
 
-    assert clan.name_ru == "Стая Черного Камня"
-    assert clan.flavor_content["loot_culture"]["craft_style"] == "собирают снаряжение из сырого мусора"
-    assert member.name_ru == "Каменная крыса"
+    assert clan.title == "Стая Черного Камня"
+    assert clan.metadata_["flavor_content"]["loot_culture"]["craft_style"] == "собирают снаряжение из сырого мусора"
+    assert clan.encounter_texts["patrol"] == "Крысы бегут вдоль влажных плит."
+    assert member.title == "Каменная крыса"
+    assert member.short_description == "Мокрая крыса с темной шерстью."
+    assert not hasattr(member, "text_content")
     assert followups[0].task_type == MONSTER_CLAN_IMAGE_TASK
     assert followups[1].task_type == MONSTER_MEMBER_IMAGE_TASK
     session.flush.assert_awaited_once()
@@ -174,7 +178,7 @@ async def test_monster_clan_image_handler_builds_provider_request_from_visual_pa
 
     assert request["kind"] == "image"
     assert request["content_type"] == "image/webp"
-    assert request["storage_key"] == clan.flavor_content["visual"]["storage_key"]
+    assert request["storage_key"] == clan.metadata_["flavor_content"]["visual"]["storage_key"]
     assert "Рой Черного Камня" in request["prompt"]
     assert "No visible text" in request["prompt"]
     assert "no letters, no words, no numbers" in request["prompt"]
@@ -201,7 +205,7 @@ async def test_monster_clan_image_handler_applies_generated_asset_to_clan_visual
         ),
     )
 
-    visual = clan.flavor_content["visual"]
+    visual = clan.metadata_["flavor_content"]["visual"]
     assert visual["status"] == "generated"
     assert visual["source"] == "ai_generated"
     assert visual["image_url"] == "/static/generated-assets/monsters/generated/clans/hash.webp"
@@ -221,9 +225,9 @@ def test_monster_member_image_spec_uses_generation_meta_visual_contract() -> Non
     assert spec.task_type == MONSTER_MEMBER_IMAGE_TASK
     assert spec.output_kind == "image"
     assert spec.entity_id == str(member.id)
-    assert spec.asset_hash == member.generation_meta["visual"]["asset_hash"]
+    assert spec.asset_hash == member.metadata_["visual"]["asset_hash"]
     assert spec.storage_prefix == "monsters/generated/members"
-    assert spec.input_payload["visual"]["storage_key"] == member.generation_meta["visual"]["storage_key"]
+    assert spec.input_payload["visual"]["storage_key"] == member.metadata_["visual"]["storage_key"]
 
 
 @pytest.mark.asyncio
@@ -238,7 +242,7 @@ async def test_monster_member_image_handler_builds_provider_request_from_visual_
 
     assert request["kind"] == "image"
     assert request["content_type"] == "image/webp"
-    assert request["storage_key"] == member.generation_meta["visual"]["storage_key"]
+    assert request["storage_key"] == member.metadata_["visual"]["storage_key"]
     assert "Каменная крыса" in request["prompt"]
     assert "monster_member_template" in request["prompt"]
     assert "exactly one individual" in request["prompt"]
@@ -269,7 +273,7 @@ async def test_monster_member_image_handler_applies_generated_asset_to_member_vi
         ),
     )
 
-    visual = member.generation_meta["visual"]
+    visual = member.metadata_["visual"]
     assert visual["status"] == "generated"
     assert visual["source"] == "ai_generated"
     assert visual["image_url"] == "/static/generated-assets/monsters/generated/members/hash.png"

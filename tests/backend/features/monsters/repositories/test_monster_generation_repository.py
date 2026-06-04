@@ -5,44 +5,152 @@ import pytest
 
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
 from src.backend.features.monsters.repositories import MonsterGenerationRepository
-from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
+from src.backend.features.monsters.repositories.monster_generation_repository import _to_generated_monster
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
+from src.backend.infrastructure.monsters.actor_documents import (
+    GENERATED_MONSTER_ACTOR_KIND,
+    MissingGeneratedMonsterActorDocument,
+    MissingGeneratedMonsterTierSnapshot,
+)
+
+
+class FakeActorRepository:
+    def __init__(self) -> None:
+        self.documents: dict[str, dict] = {}
+
+    async def ensure_indexes(self) -> None:
+        return None
+
+    async def upsert_actor_document(self, document: dict) -> str:
+        key = str(document["mongo_actor_key"])
+        self.documents[key] = dict(document)
+        return str(document.get("_id") or key)
+
+    async def fetch_actor_documents_by_keys(self, actor_keys) -> dict[str, dict]:
+        return {str(key): self.documents[str(key)] for key in actor_keys if str(key) in self.documents}
+
+    async def require_tier_snapshot(self, mongo_actor_key: str, effective_tier: int) -> dict:
+        document = self.documents.get(str(mongo_actor_key))
+        if document is None:
+            raise MissingGeneratedMonsterActorDocument(str(mongo_actor_key))
+        snapshot = dict(document.get("tier_snapshots") or {}).get(str(effective_tier))
+        if snapshot is None:
+            raise MissingGeneratedMonsterTierSnapshot(str(effective_tier))
+        return dict(snapshot)
 
 
 @pytest.mark.unit
-async def test_create_clan_with_members_persists_clan_and_members() -> None:
+def test_generated_monster_pg_schema_is_replacement_only_light_contract() -> None:
+    clan_columns = set(GeneratedClanORM.__table__.columns.keys())
+    member_columns = set(GeneratedMonsterORM.__table__.columns.keys())
+
+    assert {
+        "tier",
+        "unique_hash",
+        "raw_tags",
+        "flavor_content",
+        "name_ru",
+    }.isdisjoint(clan_columns)
+    assert {
+        "variant_key",
+        "member_tier",
+        "threat_rating",
+        "text_content",
+        "scaled_attributes",
+        "scaled_skills",
+        "items",
+        "vitals",
+        "ai_profile",
+        "combat_actor_snapshot",
+        "generation_meta",
+    }.isdisjoint(member_columns)
+    assert {
+        "identity_hash",
+        "context_identity",
+        "selected_traits",
+        "title",
+        "encounter_texts",
+    } <= clan_columns
+    assert {"variant_id", "member_hash", "min_tier", "max_tier", "mongo_actor_key"} <= member_columns
+
+
+@pytest.mark.unit
+def test_generated_monster_conversion_requires_actor_document() -> None:
+    member = GeneratedMonsterORM(
+        id=uuid.uuid4(),
+        clan_id=uuid.uuid4(),
+        variant_id="runner",
+        member_hash="hash",
+        role="minion",
+        title="Runner",
+        short_description="Runner",
+        min_tier=0,
+        max_tier=2,
+        mongo_actor_key="actor:runner",
+    )
+
+    with pytest.raises(TypeError):
+        _to_generated_monster(member)  # type: ignore[call-arg]
+
+
+@pytest.mark.unit
+async def test_create_clan_with_members_persists_light_rows_and_actor_document() -> None:
     session = MagicMock()
     session.flush = AsyncMock()
-    session.refresh = AsyncMock()
     repo = MonsterGenerationRepository(session)
+    repo.actor_repo = FakeActorRepository()
+    clan_id = uuid.uuid4()
+    member_id = uuid.uuid4()
+    actor_key = f"actor:{clan_id}:wolf:member-hash"
+    actor_document = {
+        "_id": actor_key,
+        "document_kind": GENERATED_MONSTER_ACTOR_KIND,
+        "schema_version": 1,
+        "clan_id": str(clan_id),
+        "family_id": "wolf_pack",
+        "variant_id": "wolf",
+        "member_id": str(member_id),
+        "member_hash": "member-hash",
+        "mongo_actor_key": actor_key,
+        "base_projection": {"role": "minion"},
+        "tier_snapshots": {
+            "1": {
+                "effective_tier": 1,
+                "attributes": {"strength": 10},
+                "skills": {"skill_unarmed": 0.1},
+                "loadout": {},
+                "items": {},
+                "affixes": [],
+                "gear_score": 10,
+                "combat_snapshot_input": {"skills": {"skill_unarmed": 0.1}},
+            }
+        },
+    }
     clan = GeneratedClan(
-        id=uuid.uuid4(),
+        id=clan_id,
         family_id="wolf_pack",
-        tier=1,
-        zone_id="zone-a",
+        identity_hash="identity",
+        context_identity={"zone_id": "zone-a", "tier": 1},
         context_hash="context",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={},
-        name_ru="Wolves",
+        selected_traits=[],
+        title="Wolves",
         description="Existing wolves",
+        encounter_texts={"detected": "Wolves circle."},
+        generation_version=1,
+        resource_version="1",
     )
     member = GeneratedMonster(
-        id=uuid.uuid4(),
+        id=member_id,
         clan_id=clan.id,
-        variant_key="wolf",
+        variant_id="wolf",
+        member_hash="member-hash",
         role="minion",
-        member_tier=0,
-        threat_rating=20,
-        name_ru="Wolf",
-        description="Wolf",
-        text_content={"name_ru": "Wolf"},
-        scaled_attributes={"strength": 10},
-        scaled_skills={"skill_unarmed": 0.10},
-        items={},
-        vitals={"hp": {"current": 10, "max": 10}},
-        ai_profile={},
-        generation_meta={"schema_version": 2},
+        title="Wolf",
+        short_description="Wolf",
+        min_tier=0,
+        max_tier=2,
+        mongo_actor_key=actor_key,
+        actor_document=actor_document,
     )
 
     result = await repo.create_clan_with_members(clan, [member])
@@ -50,97 +158,50 @@ async def test_create_clan_with_members_persists_clan_and_members() -> None:
     persisted_clan = session.add.call_args.args[0]
     persisted_members = session.add_all.call_args.args[0]
     assert isinstance(result, GeneratedClan)
-    assert result.id == clan.id
-    assert result.members[0].id == member.id
-    assert result.members[0].clan is result
-    assert result.members[0].scaled_skills == {"skill_unarmed": 0.10}
+    assert result.identity_hash == "identity"
+    assert result.members[0].variant_id == "wolf"
+    assert result.members[0].actor_document["tier_snapshots"]["1"]["gear_score"] == 10
     assert isinstance(persisted_clan, GeneratedClanORM)
     assert isinstance(persisted_members[0], GeneratedMonsterORM)
-    assert persisted_clan.id == clan.id
-    assert persisted_members[0].id == member.id
-    assert persisted_members[0].scaled_skills == {"skill_unarmed": 0.10}
-    session.add.assert_called_once()
-    session.add_all.assert_called_once()
+    assert persisted_clan.identity_hash == "identity"
+    assert persisted_members[0].mongo_actor_key == actor_key
+    assert repo.actor_repo.documents[actor_key]["tier_snapshots"]["1"]["gear_score"] == 10
     session.flush.assert_awaited_once()
 
 
 @pytest.mark.unit
-async def test_update_clan_flavor_updates_clan_and_member_text() -> None:
+async def test_require_member_actor_snapshot_fails_without_snapshot() -> None:
     session = MagicMock()
-    session.flush = AsyncMock()
-    clan_id = uuid.uuid4()
-    member_id = uuid.uuid4()
-    clan_orm = GeneratedClanORM(
-        id=clan_id,
-        family_id="wolf_pack",
-        tier=1,
-        zone_id="zone-a",
-        context_hash="context",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={"name": "Wolf Pack T1"},
-        name_ru="Wolf Pack T1",
-        description="Old",
-    )
-    member_orm = GeneratedMonsterORM(
-        id=member_id,
-        clan_id=clan_id,
-        variant_key="runner",
+    member = GeneratedMonsterORM(
+        id=uuid.uuid4(),
+        clan_id=uuid.uuid4(),
+        variant_id="runner",
+        member_hash="hash",
         role="minion",
-        member_tier=0,
-        threat_rating=20,
-        name_ru="Runner T1",
-        description="Old runner",
-        text_content={"name_ru": "Runner T1"},
-        scaled_attributes={"strength": 10},
-        scaled_skills={},
-        items={},
-        vitals={},
-        ai_profile={},
-        generation_meta={},
+        title="Runner",
+        short_description="Runner",
+        min_tier=0,
+        max_tier=2,
+        mongo_actor_key="actor:runner",
     )
-    clan_orm.members.append(member_orm)
-    session.scalar = AsyncMock(return_value=clan_orm)
+    session.scalar = AsyncMock(return_value=member)
     repo = MonsterGenerationRepository(session)
+    repo.actor_repo = FakeActorRepository()
+    repo.actor_repo.documents["actor:runner"] = {
+        "document_kind": GENERATED_MONSTER_ACTOR_KIND,
+        "schema_version": 1,
+        "clan_id": str(member.clan_id),
+        "family_id": "wolf_pack",
+        "variant_id": "runner",
+        "member_id": str(member.id),
+        "member_hash": "hash",
+        "mongo_actor_key": "actor:runner",
+        "base_projection": {},
+        "tier_snapshots": {},
+    }
 
-    updated = GeneratedClan(
-        id=clan_id,
-        family_id="wolf_pack",
-        tier=1,
-        zone_id="zone-a",
-        context_hash="context",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={"name_ru": "Ashen Wolves", "variants_flavor": {}},
-        name_ru="Ashen Wolves",
-        description="New",
-        members=[
-            GeneratedMonster(
-                id=member_id,
-                clan_id=clan_id,
-                variant_key="runner",
-                role="minion",
-                member_tier=0,
-                threat_rating=20,
-                name_ru="Runner",
-                description="New runner",
-                text_content={"name_ru": "Runner"},
-                scaled_attributes={"strength": 10},
-                scaled_skills={},
-                items={},
-                vitals={},
-                ai_profile={},
-            )
-        ],
-    )
-
-    result = await repo.update_clan_flavor(updated)
-
-    assert result.name_ru == "Ashen Wolves"
-    assert result.members[0].name_ru == "Runner"
-    assert clan_orm.flavor_content == {"name_ru": "Ashen Wolves", "variants_flavor": {}}
-    assert member_orm.description == "New runner"
-    session.flush.assert_awaited_once()
+    with pytest.raises(MissingGeneratedMonsterTierSnapshot):
+        await repo.require_member_actor_snapshot(member.id, 1)
 
 
 @pytest.mark.unit
@@ -159,70 +220,3 @@ async def test_delete_generated_clans_outside_zone_contexts_deletes_stale_rift_s
 
     assert deleted == 3
     assert session.execute.await_count == 2
-
-
-@pytest.mark.unit
-async def test_refresh_clan_gear_scores_updates_stale_member_balance_and_summary() -> None:
-    session = MagicMock()
-    session.flush = AsyncMock()
-    session.refresh = AsyncMock()
-    clan_id = uuid.uuid4()
-    member_orm = GeneratedMonsterORM(
-        id=uuid.uuid4(),
-        clan_id=clan_id,
-        variant_key="runner",
-        role="minion",
-        member_tier=0,
-        threat_rating=20,
-        name_ru="Runner T1",
-        description="Old runner",
-        text_content={"name_ru": "Runner T1"},
-        scaled_attributes={
-            "strength": 6,
-            "agility": 6,
-            "endurance": 6,
-            "intellect": 1,
-            "memory": 1,
-            "mental": 2,
-            "perception": 3,
-            "projection": 1,
-            "prediction": 2,
-        },
-        scaled_skills={"skill_unarmed": 0.2},
-        items={},
-        vitals={"hp": {"current": 20, "max": 20}, "energy": {"current": 10, "max": 10}},
-        ai_profile={},
-        generation_meta={
-            "balance": {
-                "gear_score": 999,
-                "gear_score_version": MonsterGearScoreService.VERSION - 1,
-                "organization_type": "pack",
-            },
-            "meta": {"archetype": "beast", "tags": ["wolf"]},
-        },
-    )
-    clan_orm = GeneratedClanORM(
-        id=clan_id,
-        family_id="wolf_pack",
-        tier=1,
-        zone_id="zone-a",
-        context_hash="context",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={},
-        name_ru="Wolf Pack T1",
-        description="Old",
-    )
-    clan_orm.members.append(member_orm)
-    session.scalar = AsyncMock(return_value=clan_orm)
-    repo = MonsterGenerationRepository(session)
-
-    members = await repo.refresh_clan_gear_scores(clan_id)
-
-    assert members[0].generation_meta["balance"]["gear_score"] != 999
-    assert members[0].generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
-    assert clan_orm.raw_tags["gear_score_summary"]["version"] == MonsterGearScoreService.VERSION
-    session.flush.assert_awaited_once()
-    assert session.refresh.await_count == 2
-    session.refresh.assert_any_await(clan_orm, attribute_names=["raw_tags", "updated_at"])
-    session.refresh.assert_any_await(member_orm, attribute_names=["generation_meta", "threat_rating", "updated_at"])

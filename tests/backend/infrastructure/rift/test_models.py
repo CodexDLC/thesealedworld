@@ -4,10 +4,8 @@ import pytest
 
 from src.backend.core.database import Base
 from src.backend.infrastructure.rift import (
-    RiftInstanceState,
+    RiftMembership,
     RiftNodePoolRecord,
-    RiftPortalKey,
-    RiftRunState,
     RiftSetting,
 )
 
@@ -16,87 +14,53 @@ from src.backend.infrastructure.rift import (
 def test_rift_persistence_models_register_expected_tables() -> None:
     assert RiftSetting.__tablename__ == "rift_settings"
     assert RiftNodePoolRecord.__tablename__ == "rift_node_pool_records"
-    assert RiftInstanceState.__tablename__ == "rift_instance_states"
-    assert RiftRunState.__tablename__ == "rift_run_states"
-    assert RiftPortalKey.__tablename__ == "rift_portal_keys"
+    assert RiftMembership.__tablename__ == "rift_memberships"
     assert {
         "rift_settings",
         "rift_node_pool_records",
-        "rift_instance_states",
-        "rift_run_states",
-        "rift_portal_keys",
+        "rift_memberships",
     } <= set(Base.metadata.tables)
 
 
 @pytest.mark.unit
-def test_rift_instance_state_splits_runtime_into_top_level_json_blocks() -> None:
-    table = RiftInstanceState.__table__
+def test_rift_static_tables_keep_mongo_document_refs_not_heavy_json_payloads() -> None:
+    setting_table = RiftSetting.__table__
+    node_table = RiftNodePoolRecord.__table__
 
-    assert table.primary_key.columns.keys() == ["rift_instance_id"]
-    assert "state_json" not in table.c
-    assert {
-        "zones_json",
-        "graph_json",
-        "nodes_state_json",
-        "objectives_json",
-        "runtime_flags_json",
-        "state_meta_json",
-    } <= set(table.c.keys())
-    assert "setting_key" in table.c
-    assert "status" in table.c
-    assert "scale_preset_key" in table.c
-    assert "assembly_preset_key" in table.c
+    assert "mongo_setting_doc_id" in setting_table.c
+    assert "mongo_status" in setting_table.c
+    assert "profile_json" not in setting_table.c
+    assert "generation_rules_json" not in setting_table.c
+    assert "text_vocabulary_json" not in setting_table.c
+
+    assert "mongo_node_doc_id" in node_table.c
+    assert "mongo_status" in node_table.c
+    assert "approach_view_json" not in node_table.c
+    assert "transition_text_json" not in node_table.c
+    assert "generation_json" not in node_table.c
 
 
 @pytest.mark.unit
-def test_rift_portal_key_persists_portal_lifecycle_and_runtime_refs() -> None:
-    table = RiftPortalKey.__table__
+def test_rift_membership_is_index_and_mongo_snapshot_pointer_not_runtime_backup() -> None:
+    table = RiftMembership.__table__
 
-    assert table.primary_key.columns.keys() == ["portal_id"]
+    assert table.primary_key.columns.keys() == ["id"]
     assert {
-        "portal_key",
+        "rift_instance_id",
+        "rift_session_id",
+        "participant_ref",
+        "setting_key",
         "status",
+        "mongo_snapshot_id",
+        "snapshot_version",
         "source",
         "source_ref",
-        "rift_key",
-        "entry_mode",
-        "owner_id",
-        "participant_scope",
-        "rift_session_id",
-        "rift_instance_id",
-        "service_id",
-        "source_location_id",
-        "exit_target_state",
-        "exit_location_id",
-        "expires_at",
-        "closed_at",
-        "archived_at",
-        "entry_context_json",
-        "exit_policy_json",
-        "runtime_refs_json",
-        "state_json",
-    } <= set(table.c.keys())
-    assert "status" in table.c
-
-
-@pytest.mark.unit
-def test_rift_run_state_keeps_position_and_critical_restore_refs() -> None:
-    table = RiftRunState.__table__
-
-    assert table.primary_key.columns.keys() == ["rift_run_id"]
-    assert "active_travel" not in table.c
-    assert {
-        "rift_instance_id",
-        "participant_scope",
-        "participant_ref",
-        "status",
-        "current_zone_key",
         "current_node_id",
-        "previous_node_id",
-        "heading",
-        "visited_node_ids",
-        "discovered_node_ids",
         "active_encounter_id",
-        "entry_context_json",
-        "run_state_json",
+        "completed_at",
     } <= set(table.c.keys())
+    assert "zones_json" not in table.c
+    assert "graph_json" not in table.c
+    assert "nodes_state_json" not in table.c
+    assert "run_state_json" not in table.c
+    assert "entry_context_json" not in table.c

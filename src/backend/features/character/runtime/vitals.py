@@ -195,7 +195,7 @@ class CharacterVitalsCalculator:
         # implicit bonuses → base layer (numeric values)
         for key, value in CharacterVitalsCalculator._equipped_item_implicit_vital_bonuses(items).items():
             modifiers.setdefault(key, {"base": 0.0, "source": {}, "temp": {}})
-            modifiers[key]["base"] = round(float(modifiers[key].get("base", 0.0) or 0.0) + value, 4)
+            modifiers[key]["base"] = round(float(modifiers[key].get("base", 0.0) or 0.0) + value, 4)  # type: ignore
         # compiled affix bonuses → source layer (command strings)
         CharacterVitalsCalculator._apply_equipped_item_compiled_bonuses(modifiers, items)
         return modifiers

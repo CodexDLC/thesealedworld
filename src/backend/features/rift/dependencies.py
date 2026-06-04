@@ -6,6 +6,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.database.session import get_db
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.combat.integrations import CombatSessionIntegration, CombatSystemIntegrator
 from src.backend.features.combat.orchestrators import CombatCreationOrchestrator
 from src.backend.features.combat.services.lifecycle_service import CombatLifecycleService
@@ -31,13 +32,11 @@ from src.backend.infrastructure.rift.managers import (
     RiftInstanceStore,
     RiftPortalStore,
     RiftPresenceStore,
+    RiftRestoreLock,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
-)
+from src.backend.infrastructure.rift.repositories import RiftMembershipRepository
+from src.backend.infrastructure.rift.repositories.snapshots import RiftRuntimeSnapshotRepository
 
 
 def _build_rift_runtime_integration(
@@ -50,9 +49,11 @@ def _build_rift_runtime_integration(
         session_store=RiftRunSessionStore(redis),
         presence_store=RiftPresenceStore(redis),
         portal_store=RiftPortalStore(redis),
-        instance_state_repository=RiftInstanceStateRepository(db_session) if db_session is not None else None,
-        run_state_repository=RiftRunStateRepository(db_session) if db_session is not None else None,
-        portal_key_repository=RiftPortalKeyRepository(db_session) if db_session is not None else None,
+        membership_repository=RiftMembershipRepository(db_session) if db_session is not None else None,
+        snapshot_repository=RiftRuntimeSnapshotRepository(get_mongo_provider().database())
+        if db_session is not None
+        else None,
+        restore_lock=RiftRestoreLock(redis),
     )
 
 
@@ -120,13 +121,13 @@ def _rift_encounter_service(
         arq=getattr(request.app.state, "generation_ai_arq", None),
         auto_schedule=False,
     )
-    monster_groups = MonsterGroupService(
+    monster_groups = MonsterGroupService(  # type: ignore
         repository=monster_repository,
         location_context=MonsterLocationContextIntegration(request.app.state.world_locations),
         actor_commitments=MonsterActorCommitmentIntegration(request.app.state.actor_commitments),
         group_cache=MonsterGroupCacheManager(request.app.state.redis),
-        factory=ClanFactory(
-            MonsterClanGenerationBuilder(
+        factory=ClanFactory(  # type: ignore
+            MonsterClanGenerationBuilder(  # type: ignore
                 repository=monster_repository,
                 item_generation=item_generation,
                 generation_ai=generation_ai,

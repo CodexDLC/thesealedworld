@@ -303,10 +303,10 @@ class FamilyPressureSimulator:
         actor = ActorSnapshot(
             meta=ActorMetaDTO(
                 id=actor_id,
-                name=str(meta.get("name") or monster.name_ru or actor_id),
+                name=str(meta.get("name") or monster.name_ru or actor_id),  # type: ignore
                 type="monster",
                 team=team,
-                template_id=str(monster.variant_key),
+                template_id=str(monster.variant_key),  # type: ignore
                 is_ai=True,
                 archetype=str(meta.get("archetype") or "unknown"),
                 ai_archetype=str(meta.get("ai_archetype") or "balanced"),
@@ -374,7 +374,7 @@ def select_members_for_composition(
     by_role = {
         role: sorted(
             [member for member in members if member.role == role],
-            key=lambda member: (monster_gear_score(member), member.variant_key, str(member.id)),
+            key=lambda member: (monster_gear_score(member), member.variant_key, str(member.id)),  # type: ignore
         )
         for role in ROLE_ORDER
     }
@@ -404,7 +404,7 @@ def _composition_report_from_trials(
     deaths = [index + 1 for index, trial in enumerate(trials) if trial.player_hp <= 0]
     return FamilyPressureCompositionReport(
         composition=composition,
-        member_variants=[member.variant_key for member in selected_members],
+        member_variants=[member.variant_key for member in selected_members],  # type: ignore
         member_roles=[member.role for member in selected_members],
         member_gear_scores=member_scores,
         raw_gear_score=raw_score,
@@ -422,7 +422,7 @@ def _composition_report_from_trials(
 
 
 def monster_gear_score(monster: GeneratedMonster) -> int:
-    balance = dict((monster.generation_meta or {}).get("balance") or {})
+    balance = dict((monster.generation_meta or {}).get("balance") or {})  # type: ignore
     try:
         return int(balance["gear_score"])
     except (KeyError, TypeError, ValueError):

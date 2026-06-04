@@ -49,6 +49,15 @@ async def bootstrap_data():
     print("✅ Data loaded!")
 
 
+async def ensure_mongo_indexes():
+    """Create MongoDB indexes for hybrid persistence collections."""
+    from src.backend.infrastructure.mongo.bootstrap import ensure_all_mongo_indexes
+
+    print("🍃 Ensuring MongoDB indexes...")
+    await ensure_all_mongo_indexes()
+    print("✅ MongoDB indexes ensured!")
+
+
 def rebuild_generated_monsters(args: list[str]):
     """Rebuild generated monster mechanics from current resource code."""
     import asyncio
@@ -72,6 +81,10 @@ if __name__ == "__main__":
         import asyncio
 
         asyncio.run(bootstrap_data())
+    elif "ensure-mongo-indexes" in args:
+        import asyncio
+
+        asyncio.run(ensure_mongo_indexes())
     elif "rebuild-monsters" in args:
         command_index = args.index("rebuild-monsters")
         rebuild_generated_monsters(args[command_index + 1 :])
@@ -80,6 +93,10 @@ if __name__ == "__main__":
         import asyncio
 
         run_migrations()
+        asyncio.run(ensure_mongo_indexes())
         asyncio.run(bootstrap_data())
     else:
-        print("Unknown command. Available: runserver, upgrade, migrate, bootstrap, rebuild-monsters, prepare")
+        print(
+            "Unknown command. Available: runserver, upgrade, migrate, bootstrap, "
+            "ensure-mongo-indexes, rebuild-monsters, prepare"
+        )

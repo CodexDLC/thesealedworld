@@ -577,6 +577,8 @@ class CombatSessionIntegration:
             team=team,
             template_id=meta_dict.get("template_id"),
             is_ai=meta_dict.get("is_ai", False),
+            role=meta_dict.get("role"),
+            combatant_key=meta_dict.get("combatant_key"),
             archetype=meta_dict.get("archetype", "humanoid"),
             ai_archetype=meta_dict.get("ai_archetype", "balanced"),
             # State fields (from r_state dict)

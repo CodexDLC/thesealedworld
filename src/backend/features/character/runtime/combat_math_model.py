@@ -223,7 +223,6 @@ class CharacterCombatMathModelBuilder:
                         tags=tags,
                     )
 
-
         if not has_main_hand_weapon:
             self._apply_unarmed_base(modifiers, attributes)
 
@@ -290,7 +289,6 @@ class CharacterCombatMathModelBuilder:
         if key in DUAL_WIELD_PENALTY_FIELDS:
             return round(numeric * dual_quality["penalty"], 4)
         return value
-
 
     @staticmethod
     def _apply_armor_dodge_cap_rules(

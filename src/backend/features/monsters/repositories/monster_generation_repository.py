@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger as log
 from sqlalchemy import delete, func, select, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.attributes import flag_modified
 
-from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster
-from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
-from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, Monster
+from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, HabitatClanPoolEntryDTO
+from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, HabitatClanPoolEntryORM, Monster
+from src.backend.infrastructure.monsters.actor_documents import (  # type: ignore
+    GeneratedMonsterActorRepository,
+    MissingGeneratedMonsterActorDocument,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,19 +23,22 @@ if TYPE_CHECKING:
 
 
 class MonsterGenerationRepository:
-    """Persistence adapter for generated monster ownership."""
+    """Replacement-only persistence adapter for generated monster clans."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.actor_repo = GeneratedMonsterActorRepository()
 
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
+    async def get_clan_by_identity_hash(self, identity_hash: str) -> GeneratedClan | None:
         stmt = (
             select(GeneratedClanORM)
-            .where(GeneratedClanORM.unique_hash == unique_hash)
+            .where(GeneratedClanORM.identity_hash == identity_hash)
             .options(selectinload(GeneratedClanORM.members))
         )
         clan = await self.session.scalar(stmt)
-        return _to_generated_clan(clan) if clan is not None else None
+        if clan is None:
+            return None
+        return await self._to_generated_clan_with_actors(clan)
 
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
         stmt = (
@@ -40,7 +47,7 @@ class MonsterGenerationRepository:
             .options(selectinload(GeneratedClanORM.members))
         )
         result = await self.session.scalars(stmt)
-        return [_to_generated_clan(clan) for clan in result.all()]
+        return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
 
     async def get_generated_clan(self, clan_id: uuid.UUID | str) -> GeneratedClan | None:
         stmt = (
@@ -49,26 +56,90 @@ class MonsterGenerationRepository:
             .options(selectinload(GeneratedClanORM.members))
         )
         clan = await self.session.scalar(stmt)
-        return _to_generated_clan(clan) if clan is not None else None
+        if clan is None:
+            return None
+        return await self._to_generated_clan_with_actors(clan)
+
+    async def list_habitat_clan_pool_entries(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+        enabled_only: bool = True,
+    ) -> list[HabitatClanPoolEntryDTO]:
+        stmt = (
+            select(HabitatClanPoolEntryORM)
+            .where(
+                HabitatClanPoolEntryORM.scope_type == str(scope_type),
+                HabitatClanPoolEntryORM.scope_id == str(scope_id),
+            )
+            .order_by(
+                HabitatClanPoolEntryORM.pool_tier,
+                HabitatClanPoolEntryORM.family_id,
+                HabitatClanPoolEntryORM.clan_identity_hash,
+            )
+        )
+        if enabled_only:
+            stmt = stmt.where(HabitatClanPoolEntryORM.enabled.is_(True))
+        result = await self.session.scalars(stmt)
+        return [_to_pool_entry(row) for row in result.all()]
+
+    async def upsert_habitat_clan_pool_entry(self, entry: HabitatClanPoolEntryDTO) -> HabitatClanPoolEntryDTO:
+        values = {
+            "scope_type": entry.scope_type,
+            "scope_id": entry.scope_id,
+            "clan_identity_hash": entry.clan_identity_hash,
+            "family_id": entry.family_id,
+            "pool_tier": entry.pool_tier,
+            "weight": entry.weight,
+            "enabled": entry.enabled,
+            "habitat": entry.habitat.model_dump(mode="json"),
+            "policy_version": entry.policy_version,
+        }
+        stmt = pg_insert(HabitatClanPoolEntryORM).values(**values)
+        await self.session.execute(
+            stmt.on_conflict_do_update(
+                constraint="uq_habitat_clan_pool_scope_clan",
+                set_={
+                    "family_id": stmt.excluded.family_id,
+                    "pool_tier": stmt.excluded.pool_tier,
+                    "weight": stmt.excluded.weight,
+                    "enabled": stmt.excluded.enabled,
+                    "habitat": stmt.excluded.habitat,
+                    "policy_version": stmt.excluded.policy_version,
+                },
+            )
+        )
+        await self.session.flush()
+        loaded = await self.session.scalar(
+            select(HabitatClanPoolEntryORM).where(
+                HabitatClanPoolEntryORM.scope_type == entry.scope_type,
+                HabitatClanPoolEntryORM.scope_id == entry.scope_id,
+                HabitatClanPoolEntryORM.clan_identity_hash == entry.clan_identity_hash,
+            )
+        )
+        if loaded is None:
+            raise RuntimeError("Failed to upsert habitat clan pool entry")
+        return _to_pool_entry(loaded)
 
     async def get_clans_by_zone(self, zone_id: str) -> list[GeneratedClan]:
         stmt = (
             select(GeneratedClanORM)
-            .where(GeneratedClanORM.zone_id == zone_id)
+            .where(GeneratedClanORM.context_identity["zone_id"].as_string() == str(zone_id))
             .options(selectinload(GeneratedClanORM.members))
         )
         result = await self.session.scalars(stmt)
-        return [_to_generated_clan(clan) for clan in result.all()]
+        return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
 
     async def list_generated_clans(self, limit: int = 100) -> list[GeneratedClan]:
         stmt = (
             select(GeneratedClanORM)
             .options(selectinload(GeneratedClanORM.members))
-            .order_by(GeneratedClanORM.zone_id, GeneratedClanORM.tier, GeneratedClanORM.family_id)
+            .order_by(GeneratedClanORM.family_id, GeneratedClanORM.identity_hash)
             .limit(limit)
         )
         result = await self.session.scalars(stmt)
-        return [_to_generated_clan(clan) for clan in result.all()]
+        return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
 
     async def count_generated_clans(
         self,
@@ -91,25 +162,35 @@ class MonsterGenerationRepository:
         stmt = (
             select(GeneratedClanORM)
             .options(selectinload(GeneratedClanORM.members))
-            .order_by(GeneratedClanORM.family_id, GeneratedClanORM.tier, GeneratedClanORM.id)
+            .order_by(GeneratedClanORM.family_id, GeneratedClanORM.identity_hash, GeneratedClanORM.id)
             .limit(limit)
             .offset(offset)
         )
         stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
         result = await self.session.scalars(stmt)
-        return [_to_generated_clan(clan) for clan in result.all()]
+        return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         stmt = (
             select(Monster)
             .where(Monster.clan_id == uuid.UUID(str(clan_id)))
             .options(selectinload(Monster.clan))
-            .order_by(Monster.threat_rating, Monster.role)
+            .order_by(Monster.role, Monster.variant_id)
         )
         result = await self.session.scalars(stmt)
-        return [_to_generated_monster(monster) for monster in result.all()]
+        members = list(result.all())
+        return await self._to_generated_members_with_actors(members)
 
-    async def delete_generated_clans_outside_zone_contexts(self, expected: dict[str, set[tuple[str, str]]]) -> int:
+    async def require_member_actor_snapshot(self, member_id: uuid.UUID | str, effective_tier: int) -> dict[str, Any]:
+        member = await self.session.scalar(select(Monster).where(Monster.id == uuid.UUID(str(member_id))))
+        if member is None:
+            raise ValueError(f"Generated clan member not found: {member_id}")
+        return await self.actor_repo.require_tier_snapshot(member.mongo_actor_key, effective_tier)
+
+    async def delete_generated_clans_outside_zone_contexts(
+        self,
+        expected: dict[str, set[tuple[str, str]]],
+    ) -> int:
         deleted = 0
         for zone_id, family_contexts in expected.items():
             normalized_contexts = {
@@ -121,50 +202,12 @@ class MonsterGenerationRepository:
                 continue
             result = await self.session.execute(
                 delete(GeneratedClanORM).where(
-                    GeneratedClanORM.zone_id == str(zone_id),
+                    GeneratedClanORM.context_identity["zone_id"].as_string() == str(zone_id),
                     tuple_(GeneratedClanORM.family_id, GeneratedClanORM.context_hash).not_in(normalized_contexts),
                 )
             )
             deleted += int(getattr(result, "rowcount", 0) or 0)
         return deleted
-
-    async def refresh_clan_gear_scores(
-        self,
-        clan_id: uuid.UUID | str,
-        *,
-        gear_score_service: MonsterGearScoreService | None = None,
-        persist: bool = False,
-    ) -> list[GeneratedMonster]:
-        service = gear_score_service or MonsterGearScoreService()
-        stmt = (
-            select(GeneratedClanORM)
-            .where(GeneratedClanORM.id == uuid.UUID(str(clan_id)))
-            .options(selectinload(GeneratedClanORM.members))
-        )
-        clan = await self.session.scalar(stmt)
-        if clan is None:
-            return []
-
-        members = list(clan.members)
-        changed_members: list[GeneratedMonsterORM] = []
-        for member in members:
-            if not service.needs_recalculation(member):  # type: ignore[arg-type]
-                continue
-            service.apply_monster_gear_score(member)  # type: ignore[arg-type]
-            flag_modified(member, "generation_meta")
-            changed_members.append(member)
-
-        service.apply_clan_summary(clan)  # type: ignore[arg-type]
-        flag_modified(clan, "raw_tags")
-        await self.session.flush()
-        await self.session.refresh(clan, attribute_names=["raw_tags", "updated_at"])
-        for member in changed_members:
-            await self.session.refresh(member, attribute_names=["generation_meta", "threat_rating", "updated_at"])
-        if persist:
-            await self.session.commit()
-
-        clan_snapshot = _to_generated_clan_without_members(clan)
-        return [_to_generated_monster(member, clan_snapshot) for member in members]
 
     async def create_clan_with_members(
         self,
@@ -176,11 +219,13 @@ class MonsterGenerationRepository:
         member_orms = [_to_monster_orm(member) for member in members]
         clan_orm.members.extend(member_orms)
         self.session.add(clan_orm)
-        self.session.add_all(member_orms)
+        if hasattr(self.session, "add_all"):
+            self.session.add_all(member_orms)
         await self.session.flush()
-        return _to_generated_clan(clan_orm)
+        await self.sync_actor_documents_for_clan(clan_orm, members=member_orms, source_members=list(members))
+        return await self._to_generated_clan_with_actors(clan_orm)
 
-    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
+    async def update_clan_narrative(self, clan: GeneratedClan) -> GeneratedClan:
         stmt = (
             select(GeneratedClanORM)
             .where(GeneratedClanORM.id == clan.id)
@@ -190,37 +235,78 @@ class MonsterGenerationRepository:
         if clan_orm is None:
             raise ValueError(f"Generated clan not found: {clan.id}")
 
-        clan_orm.flavor_content = dict(clan.flavor_content)
-        clan_orm.name_ru = clan.name_ru
+        clan_orm.title = clan.title
         clan_orm.description = clan.description
-
+        clan_orm.encounter_texts = dict(clan.encounter_texts)
+        clan_orm.selected_traits = list(clan.selected_traits)
         members_by_id = {member.id: member for member in clan.members}
         for member_orm in clan_orm.members:
             member = members_by_id.get(member_orm.id)
             if member is None:
                 continue
-            member_orm.name_ru = member.name_ru
-            member_orm.description = member.description
+            member_orm.title = member.title
+            member_orm.short_description = member.short_description
 
         await self.session.flush()
-        return _to_generated_clan(clan_orm)
+        await self.sync_actor_documents_for_clan(clan_orm, members=list(clan_orm.members), source_members=clan.members)
+        return await self._to_generated_clan_with_actors(clan_orm)
 
-    async def get_monsters_by_role_and_threat(
+    async def sync_actor_documents_for_clan(
         self,
-        role: str,
-        min_threat: int,
-        max_threat: int,
-        limit: int = 5,
-    ) -> list[GeneratedMonster]:
-        stmt = (
-            select(Monster)
-            .where(Monster.role == role, Monster.threat_rating >= min_threat, Monster.threat_rating <= max_threat)
-            .options(selectinload(Monster.clan))
-            .order_by(Monster.threat_rating)
-            .limit(limit)
+        clan: GeneratedClanORM,
+        *,
+        members: Sequence[GeneratedMonsterORM] | None = None,
+        source_members: Sequence[GeneratedMonster] | None = None,
+    ) -> None:
+        rows = list(members if members is not None else getattr(clan, "members", []) or [])
+        source_by_id = {member.id: member for member in source_members or []}
+        now = datetime.now(UTC)
+        try:
+            for row in rows:
+                source = source_by_id.get(row.id)
+                document = dict(source.actor_document) if source is not None else {}
+                if not document:
+                    raise MissingGeneratedMonsterActorDocument(
+                        f"Missing generated monster actor document for member={row.id}"
+                    )
+                row.mongo_document_id = await self.actor_repo.upsert_actor_document(document)
+                row.mongo_status = "synced"
+                row.mongo_stored_at = now
+            clan.mongo_status = "synced"
+            clan.mongo_stored_at = now
+        except Exception as exc:  # noqa: BLE001
+            clan.mongo_status = "error"
+            for row in rows:
+                row.mongo_status = "error"
+            log.warning("GeneratedMonsterActorSyncFailed", clan_id=str(clan.id), error=str(exc))
+            raise
+
+    async def _to_generated_clan_with_actors(self, clan: GeneratedClanORM) -> GeneratedClan:
+        generated_clan = _to_generated_clan(clan)
+        generated_clan.members.extend(
+            await self._to_generated_members_with_actors(list(clan.members), clan=generated_clan)
         )
-        result = await self.session.scalars(stmt)
-        return [_to_generated_monster(monster) for monster in result.all()]
+        return generated_clan
+
+    async def _to_generated_members_with_actors(
+        self,
+        members: list[GeneratedMonsterORM],
+        *,
+        clan: GeneratedClan | None = None,
+    ) -> list[GeneratedMonster]:
+        if not members:
+            return []
+        documents = await self.actor_repo.fetch_actor_documents_by_keys([member.mongo_actor_key for member in members])
+        result: list[GeneratedMonster] = []
+        for member in members:
+            document = documents.get(member.mongo_actor_key)
+            if document is None:
+                raise MissingGeneratedMonsterActorDocument(
+                    f"Missing generated monster actor document: {member.mongo_actor_key}"
+                )
+            generated = _to_generated_monster(member, actor_document=document, clan=clan)
+            result.append(generated)
+        return result
 
     @staticmethod
     def _filter_clans(stmt, *, family_id: str | None, clan_id: uuid.UUID | str | None):
@@ -232,17 +318,18 @@ class MonsterGenerationRepository:
 
 
 def _to_generated_clan(clan: GeneratedClanORM) -> GeneratedClan:
-    generated = GeneratedClan(
+    return GeneratedClan(
         id=clan.id,
         family_id=clan.family_id,
-        tier=clan.tier,
-        zone_id=clan.zone_id,
+        identity_hash=clan.identity_hash,
+        context_identity=dict(clan.context_identity or {}),
         context_hash=clan.context_hash,
-        unique_hash=clan.unique_hash,
-        raw_tags=dict(clan.raw_tags or {}),
-        flavor_content=dict(clan.flavor_content or {}),
-        name_ru=clan.name_ru or "",
-        description=clan.description or "",
+        selected_traits=list(clan.selected_traits or []),
+        title=clan.title,
+        description=clan.description,
+        encounter_texts=dict(clan.encounter_texts or {}),
+        generation_version=int(clan.generation_version or 1),
+        resource_version=str(clan.resource_version or "1"),
         metadata_=dict(clan.metadata_ or {}),
         context=dict(clan.context or {}),
         source_context=dict(clan.source_context or {}),
@@ -253,33 +340,29 @@ def _to_generated_clan(clan: GeneratedClanORM) -> GeneratedClan:
         created_at=clan.created_at,
         updated_at=clan.updated_at,
     )
-    generated.members.extend(_to_generated_monster(member, generated) for member in clan.members)
-    return generated
 
 
-def _to_generated_monster(monster: GeneratedMonsterORM, clan: GeneratedClan | None = None) -> GeneratedMonster:
-    generated_clan = clan
-    if generated_clan is None:
-        monster_clan = getattr(monster, "clan", None)
-        if monster_clan is not None:
-            generated_clan = _to_generated_clan_without_members(monster_clan)
+def _to_generated_monster(
+    monster: GeneratedMonsterORM,
+    *,
+    actor_document: dict[str, Any],
+    clan: GeneratedClan | None = None,
+) -> GeneratedMonster:
+    snapshots = actor_document.get("tier_snapshots") if isinstance(actor_document, dict) else {}
+    active_snapshot = _first_tier_snapshot(snapshots)
     return GeneratedMonster(
         id=monster.id,
         clan_id=monster.clan_id,
-        variant_key=monster.variant_key,
+        variant_id=monster.variant_id,
+        member_hash=monster.member_hash,
         role=monster.role,
-        member_tier=int(getattr(monster, "member_tier", 0) or 0),
-        threat_rating=monster.threat_rating,
-        name_ru=monster.name_ru,
-        description=monster.description or "",
-        text_content=dict(getattr(monster, "text_content", None) or {}),
-        scaled_attributes=dict(monster.scaled_attributes or {}),
-        scaled_skills=dict(monster.scaled_skills or {}),
-        items=dict(monster.items or {}),
-        vitals=dict(monster.vitals or {}),
-        ai_profile=dict(monster.ai_profile or {}),
-        generation_meta=dict(monster.generation_meta or {}),
-        combat_actor_snapshot=dict(monster.combat_actor_snapshot or {}),
+        title=monster.title,
+        short_description=monster.short_description,
+        min_tier=int(monster.min_tier),
+        max_tier=int(monster.max_tier),
+        mongo_actor_key=monster.mongo_actor_key,
+        actor_document=dict(actor_document),
+        active_snapshot=active_snapshot,
         metadata_=dict(monster.metadata_ or {}),
         context=dict(monster.context or {}),
         source_context=dict(monster.source_context or {}),
@@ -289,31 +372,7 @@ def _to_generated_monster(monster: GeneratedMonsterORM, clan: GeneratedClan | No
         schema_version=int(monster.schema_version or 1),
         created_at=monster.created_at,
         updated_at=monster.updated_at,
-        clan=generated_clan,
-    )
-
-
-def _to_generated_clan_without_members(clan: GeneratedClanORM) -> GeneratedClan:
-    return GeneratedClan(
-        id=clan.id,
-        family_id=clan.family_id,
-        tier=clan.tier,
-        zone_id=clan.zone_id,
-        context_hash=clan.context_hash,
-        unique_hash=clan.unique_hash,
-        raw_tags=dict(clan.raw_tags or {}),
-        flavor_content=dict(clan.flavor_content or {}),
-        name_ru=clan.name_ru or "",
-        description=clan.description or "",
-        metadata_=dict(clan.metadata_ or {}),
-        context=dict(clan.context or {}),
-        source_context=dict(clan.source_context or {}),
-        lifecycle_status=str(clan.lifecycle_status or "active"),
-        archived_at=clan.archived_at,
-        expires_at=clan.expires_at,
-        schema_version=int(clan.schema_version or 1),
-        created_at=clan.created_at,
-        updated_at=clan.updated_at,
+        clan=clan,
     )
 
 
@@ -321,14 +380,15 @@ def _to_clan_orm(clan: GeneratedClan) -> GeneratedClanORM:
     return GeneratedClanORM(
         id=clan.id,
         family_id=clan.family_id,
-        tier=clan.tier,
-        zone_id=clan.zone_id,
+        identity_hash=clan.identity_hash,
+        context_identity=dict(clan.context_identity),
         context_hash=clan.context_hash,
-        unique_hash=clan.unique_hash,
-        raw_tags=dict(clan.raw_tags),
-        flavor_content=dict(clan.flavor_content),
-        name_ru=clan.name_ru,
+        selected_traits=list(clan.selected_traits),
+        title=clan.title,
         description=clan.description,
+        encounter_texts=dict(clan.encounter_texts),
+        generation_version=clan.generation_version,
+        resource_version=str(clan.resource_version),
     )
 
 
@@ -336,26 +396,52 @@ def _to_monster_orm(monster: GeneratedMonster) -> GeneratedMonsterORM:
     return GeneratedMonsterORM(
         id=monster.id,
         clan_id=monster.clan_id,
-        variant_key=monster.variant_key,
+        variant_id=monster.variant_id,
+        member_hash=monster.member_hash,
         role=monster.role,
-        member_tier=monster.member_tier,
-        threat_rating=monster.threat_rating,
-        name_ru=monster.name_ru,
-        description=monster.description,
-        text_content=dict(monster.text_content),
-        scaled_attributes=dict(monster.scaled_attributes),
-        scaled_skills=dict(monster.scaled_skills),
-        items=dict(monster.items),
-        vitals=dict(monster.vitals),
-        ai_profile=dict(monster.ai_profile),
-        generation_meta=dict(monster.generation_meta),
-        combat_actor_snapshot=dict(monster.combat_actor_snapshot),
+        title=monster.title,
+        short_description=monster.short_description,
+        min_tier=monster.min_tier,
+        max_tier=monster.max_tier,
+        mongo_actor_key=monster.mongo_actor_key,
     )
 
 
-def _copy_json_collection(value: dict[str, Any] | list[Any] | None) -> dict[str, Any] | list[Any]:
-    if isinstance(value, dict):
-        return dict(value)
-    if isinstance(value, list):
-        return list(value)
-    return {}
+def _to_pool_entry(row: HabitatClanPoolEntryORM) -> HabitatClanPoolEntryDTO:
+    return HabitatClanPoolEntryDTO.model_validate(
+        {
+            "scope_type": row.scope_type,
+            "scope_id": row.scope_id,
+            "clan_identity_hash": row.clan_identity_hash,
+            "family_id": row.family_id,
+            "pool_tier": row.pool_tier,
+            "weight": row.weight,
+            "enabled": row.enabled,
+            "habitat": dict(row.habitat or {}),
+            "policy_version": row.policy_version,
+        }
+    )
+
+
+def _first_tier_snapshot(snapshots: Any) -> dict[str, Any]:
+    if not isinstance(snapshots, dict) or not snapshots:
+        return {}
+    first_key = sorted(snapshots, key=_tier_sort_value)[0]
+    snapshot = snapshots.get(first_key)
+    return dict(snapshot) if isinstance(snapshot, dict) else {}
+
+
+def _tier_sort_value(key: Any) -> int:
+    raw = str(key).strip()
+    if raw.startswith("tier_"):
+        raw = raw.removeprefix("tier_")
+    return int(raw)
+
+
+__all__ = [
+    "MonsterGenerationRepository",
+    "_to_generated_clan",
+    "_to_generated_monster",
+    "_to_clan_orm",
+    "_to_monster_orm",
+]

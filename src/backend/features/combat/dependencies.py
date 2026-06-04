@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: TC002
 
 from src.backend.core.arq import ArqService
 from src.backend.core.database import get_db
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.combat.integrations import CombatSessionIntegration, CombatSystemIntegrator
 from src.backend.features.combat.integrations.analytics_dashboard import CombatAnalyticsDashboardIntegration
 from src.backend.features.combat.orchestrators import CombatRuntimeOrchestrator
@@ -14,6 +15,7 @@ from src.backend.features.combat.services.analytics_dashboard_service import Com
 from src.backend.features.combat.services.session_service import CombatSessionService
 from src.backend.features.rift.integrations import RiftRuntimeIntegration
 from src.backend.infrastructure.combat.repositories import CombatAnalyticsRepository
+from src.backend.infrastructure.mongo import CombatDocumentRepository
 from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
 
 
@@ -52,7 +54,10 @@ def get_combat_analytics_dashboard_service(
     db_session: Annotated[AsyncSession, Depends(get_db)],
 ) -> CombatAnalyticsDashboardService:
     return CombatAnalyticsDashboardService(
-        CombatAnalyticsDashboardIntegration(CombatAnalyticsRepository(db_session)),
+        CombatAnalyticsDashboardIntegration(
+            CombatAnalyticsRepository(db_session),
+            CombatDocumentRepository(get_mongo_provider().database()),  # type: ignore
+        ),
     )
 
 

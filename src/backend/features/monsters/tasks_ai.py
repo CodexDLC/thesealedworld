@@ -5,7 +5,6 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.attributes import flag_modified
 
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO, AIGenerationTaskSpecDTO
 from src.backend.features.monsters.dto.ai import MonsterClanFlavorDTO
@@ -13,8 +12,6 @@ from src.backend.features.monsters.prompts import build_monster_clan_flavor_prom
 from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.resources.visuals import (
     DEFAULT_IMAGE_MODEL,
-    build_clan_visual,
-    build_member_visual,
     build_monster_visual_prompt,
 )
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
@@ -58,58 +55,23 @@ class MonsterClanFlavorTaskHandler:
         clan = await self.session.scalar(stmt)
         if clan is None:
             raise ValueError(f"Generated clan not found: {clan_id}")
-
         family = get_family_config(clan.family_id)
         if family is None:
             raise ValueError(f"Unknown monster family: {clan.family_id}")
 
-        flavor_payload = generated.model_dump_with_variant_mapping()
-        context_tags = list((clan.raw_tags or {}).get("tags") or [])
-        member_roster = [
-            {
-                "variant_key": variant.variant_key,
-                "role": family.variants[variant.variant_key].role if variant.variant_key in family.variants else "",
-                "name": variant.name,
-                "appearance": variant.appearance,
-            }
-            for variant in generated.variants_flavor
-        ]
-        flavor_payload["visual"] = build_clan_visual(
-            family.id,
-            clan_name=generated.name_ru,
-            description=generated.description,
-            context_tags=context_tags,
-            member_roster=member_roster,
-        )
-        clan.flavor_content = flavor_payload
-        clan.name_ru = generated.name_ru
+        clan.title = generated.name_ru
         clan.description = generated.description
-        flag_modified(clan, "flavor_content")
+        clan.encounter_texts = generated.encounter_texts.model_dump(mode="json")
 
         for member in clan.members:
-            variant = family.variants.get(member.variant_key)
+            variant = family.variants.get(member.variant_id)
             if variant is None:
                 continue
-            variant_flavor = generated.variants_by_key.get(member.variant_key)
+            variant_flavor = generated.variants_by_key.get(member.variant_id)
             if variant_flavor is None:
                 continue
-            from src.backend.features.monsters.runtime.generation_fields import build_text_payload
-
-            text_content = build_text_payload(variant, variant_flavor.model_dump(mode="json"))
-            member.name_ru = text_content.name_ru
-            member.description = text_content.appearance_ru
-            member.text_content = text_content.model_dump(mode="json")
-            generation_meta = dict(member.generation_meta or {})
-            generation_meta["visual"] = build_member_visual(
-                family.id,
-                variant_key=member.variant_key,
-                role=member.role,
-                member_name=text_content.name_ru or member.variant_key,
-                appearance=text_content.appearance_ru or variant.narrative_hint,
-            )
-            member.generation_meta = generation_meta
-            flag_modified(member, "text_content")
-            flag_modified(member, "generation_meta")
+            member.title = variant_flavor.name
+            member.short_description = variant_flavor.short_description
 
         await self.session.flush()
         return [
@@ -149,9 +111,8 @@ class MonsterClanImageTaskHandler:
         clan = await self.session.scalar(select(GeneratedClanORM).where(GeneratedClanORM.id == clan_id))
         if clan is None:
             raise ValueError(f"Generated clan not found: {clan_id}")
-
-        flavor_content = dict(clan.flavor_content or {})
-        visual = dict(flavor_content.get("visual") or {})
+        metadata = dict(clan.metadata_ or {})
+        visual = dict(metadata.get("visual") or {})
         visual.update(
             {
                 "status": "generated",
@@ -165,9 +126,8 @@ class MonsterClanImageTaskHandler:
                 "size_bytes": result.size_bytes,
             }
         )
-        flavor_content["visual"] = visual
-        clan.flavor_content = flavor_content
-        flag_modified(clan, "flavor_content")
+        metadata["visual"] = visual
+        clan.metadata_ = metadata
         await self.session.flush()
 
 
@@ -202,9 +162,8 @@ class MonsterMemberImageTaskHandler:
         member = await self.session.scalar(select(GeneratedMonsterORM).where(GeneratedMonsterORM.id == member_id))
         if member is None:
             raise ValueError(f"Generated monster member not found: {member_id}")
-
-        generation_meta = dict(member.generation_meta or {})
-        visual = dict(generation_meta.get("visual") or {})
+        metadata = dict(member.metadata_ or {})
+        visual = dict(metadata.get("visual") or {})
         visual.update(
             {
                 "status": "generated",
@@ -218,18 +177,20 @@ class MonsterMemberImageTaskHandler:
                 "size_bytes": result.size_bytes,
             }
         )
-        generation_meta["visual"] = visual
-        member.generation_meta = generation_meta
-        flag_modified(member, "generation_meta")
+        metadata["visual"] = visual
+        member.metadata_ = metadata
         await self.session.flush()
 
 
 def build_monster_clan_flavor_task_spec(clan: GeneratedClan) -> AIGenerationTaskSpecDTO:
+    context_identity = dict(clan.context_identity or {})
+    tier = int(context_identity.get("tier") or 0)
     payload = build_monster_clan_flavor_payload(
         family_id=clan.family_id,
-        tier=clan.tier,
-        raw_tags=clan.raw_tags,
-        variant_ids=sorted({member.variant_key for member in clan.members}),
+        tier=tier,
+        context_identity=context_identity,
+        selected_traits=list(clan.selected_traits or []),
+        variant_ids=sorted({member.variant_id for member in clan.members}),
     )
     return AIGenerationTaskSpecDTO(
         task_type=MONSTER_CLAN_FLAVOR_TASK,
@@ -237,21 +198,21 @@ def build_monster_clan_flavor_task_spec(clan: GeneratedClan) -> AIGenerationTask
         entity_id=str(clan.id),
         output_kind="json",
         input_payload=payload,
-        season_id=str((clan.raw_tags or {}).get("season_id") or ""),
-        asset_hash=clan.unique_hash,
+        season_id=str(context_identity.get("season_id") or ""),
+        asset_hash=clan.identity_hash,
         priority=50,
         max_attempts=8,
         metadata={
             "family_id": clan.family_id,
             "zone_id": clan.zone_id,
-            "unique_hash": clan.unique_hash,
+            "identity_hash": clan.identity_hash,
         },
     )
 
 
 def build_monster_clan_image_task_spec_from_orm(clan: GeneratedClanORM) -> AIGenerationTaskSpecDTO:
-    visual = dict((clan.flavor_content or {}).get("visual") or {})
-    asset_hash = str(visual.get("asset_hash") or clan.unique_hash)
+    visual = dict((clan.metadata_ or {}).get("visual") or {})
+    asset_hash = str(visual.get("asset_hash") or clan.identity_hash)
     return AIGenerationTaskSpecDTO(
         task_type=MONSTER_CLAN_IMAGE_TASK,
         entity_type="monster_clan",
@@ -260,19 +221,19 @@ def build_monster_clan_image_task_spec_from_orm(clan: GeneratedClanORM) -> AIGen
         input_payload={
             "clan_id": str(clan.id),
             "family_id": clan.family_id,
-            "name_ru": clan.name_ru,
+            "name_ru": clan.title,
             "description": clan.description,
             "visual": visual,
         },
-        season_id=str((clan.raw_tags or {}).get("season_id") or ""),
+        season_id=str((clan.context_identity or {}).get("season_id") or ""),
         asset_hash=asset_hash,
         storage_prefix="monsters/generated/clans",
         priority=70,
         max_attempts=3,
         metadata={
             "family_id": clan.family_id,
-            "zone_id": clan.zone_id,
-            "unique_hash": clan.unique_hash,
+            "zone_id": (clan.context_identity or {}).get("zone_id"),
+            "identity_hash": clan.identity_hash,
             "visual_asset_hash": asset_hash,
         },
     )
@@ -283,11 +244,15 @@ def build_monster_member_image_task_spec_from_orm(
     *,
     clan: GeneratedClanORM | None = None,
 ) -> AIGenerationTaskSpecDTO:
-    generation_meta = dict(member.generation_meta or {})
-    visual = dict(generation_meta.get("visual") or {})
+    metadata = dict(member.metadata_ or {})
+    visual = dict(metadata.get("visual") or {})
     asset_hash = str(visual.get("asset_hash") or member.id)
     family_id = clan.family_id if clan is not None else getattr(member.clan, "family_id", None)
-    raw_tags = dict(clan.raw_tags or {}) if clan is not None else dict(getattr(member.clan, "raw_tags", None) or {})
+    context_identity = (
+        dict(clan.context_identity or {})
+        if clan is not None
+        else dict(getattr(member.clan, "context_identity", None) or {})
+    )
     return AIGenerationTaskSpecDTO(
         task_type=MONSTER_MEMBER_IMAGE_TASK,
         entity_type="monster_member",
@@ -297,13 +262,13 @@ def build_monster_member_image_task_spec_from_orm(
             "member_id": str(member.id),
             "clan_id": str(member.clan_id),
             "family_id": family_id,
-            "variant_key": member.variant_key,
+            "variant_id": member.variant_id,
             "role": member.role,
-            "name_ru": member.name_ru,
-            "description": member.description,
+            "name_ru": member.title,
+            "description": member.short_description,
             "visual": visual,
         },
-        season_id=str(raw_tags.get("season_id") or ""),
+        season_id=str(context_identity.get("season_id") or ""),
         asset_hash=asset_hash,
         storage_prefix="monsters/generated/members",
         priority=80,
@@ -311,7 +276,7 @@ def build_monster_member_image_task_spec_from_orm(
         metadata={
             "family_id": family_id,
             "clan_id": str(member.clan_id),
-            "variant_key": member.variant_key,
+            "variant_id": member.variant_id,
             "visual_asset_hash": asset_hash,
         },
     )
@@ -321,15 +286,18 @@ def build_monster_clan_flavor_payload(
     *,
     family_id: str,
     tier: int,
-    raw_tags: dict[str, Any],
+    context_identity: dict[str, Any] | None = None,
+    selected_traits: list[dict[str, Any]] | None = None,
     variant_ids: list[str],
 ) -> dict[str, Any]:
     family = get_family_config(family_id)
     if family is None:
         raise ValueError(f"Unknown monster family: {family_id}")
 
-    context_meta = dict(raw_tags.get("context_meta") or {})
-    normalized_tags = list(raw_tags.get("tags") or [])
+    context_identity = dict(context_identity or {})
+    selected_traits = list(selected_traits or context_identity.get("selected_traits") or [])
+    context_meta = dict(context_identity.get("context_meta") or {})
+    normalized_tags = list(context_identity.get("tags") or [])
     units_with_roles = {
         variant_id: f"[{family.variants[variant_id].role.title()}] {family.variants[variant_id].narrative_hint}"
         for variant_id in variant_ids
@@ -341,17 +309,19 @@ def build_monster_clan_flavor_payload(
         "organization": family.organization_type,
         "family_tags": family.default_tags,
         "context_tags": normalized_tags,
-        "biome_id": raw_tags.get("biome_id") or "wasteland",
-        "difficulty": raw_tags.get("difficulty") or "mid",
+        "biome_id": context_identity.get("biome_id") or "wasteland",
+        "difficulty": context_identity.get("difficulty") or "mid",
         "tier": tier,
         "rift_profile": context_meta.get("rift_profile"),
+        "selected_traits": selected_traits,
         "text_contract": {
-            "clan": ["name_ru", "description", "loot_culture"],
-            "member": ["name", "appearance", "detected", "ambush", "idle", "encounter", "behavior"],
+            "clan": ["name_ru", "description", "encounter_texts", "loot_culture"],
+            "member": ["variant_id", "name", "short_description", "visual_hint"],
             "encounter_states": {
-                "detected": "player noticed the monster first",
-                "ambush": "monster noticed or attacked first",
-                "idle": "monster is observed before combat starts",
+                "patrol": "moving or travel patrol contact",
+                "ambush": "surprise or monster-initiated attack",
+                "lair": "guarded node, boss, heart guard, or lair-like position",
+                "random_meeting": "ordinary random node meeting",
             },
         },
         "units_to_name": units_with_roles,

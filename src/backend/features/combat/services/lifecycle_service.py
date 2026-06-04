@@ -191,6 +191,7 @@ class CombatLifecycleService:
             ),
         )
         known_feints = loadout.get("known_feints") or loadout.get("feints") or []
+        combatant_key = self._combatant_key(meta=meta, source=source, loadout=loadout, actor_type=actor_type)
 
         return {
             "meta": {
@@ -214,6 +215,7 @@ class CombatLifecycleService:
                     or final_id
                 ),
                 "is_ai": not self._is_player_actor_id(final_id),
+                "combatant_key": combatant_key,
                 "hp": hp,
                 "max_hp": max_hp,
                 "en": energy,
@@ -242,6 +244,124 @@ class CombatLifecycleService:
             "explanation": {},
             "source": source,
         }
+
+    @staticmethod
+    def _combatant_key(
+        *,
+        meta: dict[str, Any],
+        source: dict[str, Any],
+        loadout: dict[str, Any],
+        actor_type: str,
+    ) -> str:
+        kind = CombatLifecycleService._combatant_kind(actor_type)
+        explicit = (
+            meta.get("combatant_key")
+            or source.get("combatant_key")
+            or meta.get("analytics_key")
+            or source.get("analytics_key")
+        )
+        key = CombatLifecycleService._normalize_combatant_body(explicit)
+        if not key:
+            starting_imprint = (
+                source.get("starting_imprint") if isinstance(source.get("starting_imprint"), dict) else {}
+            )
+            title = meta.get("imprint_title") or source.get("imprint_title") or starting_imprint.get("imprint_title")  # type: ignore
+            key = CombatLifecycleService._key_from_title(title)
+        if not key:
+            key = CombatLifecycleService._key_from_loadout(loadout)
+        if not key:
+            return ""
+        if str(key).startswith(f"{kind} "):
+            return str(key)
+        return f"{kind} {key}"
+
+    @staticmethod
+    def _combatant_kind(actor_type: Any) -> str:
+        value = str(actor_type or "").strip().lower()
+        if value == "monster":
+            return "monster"
+        if value == "shadow":
+            return "shadow"
+        return "player"
+
+    @staticmethod
+    def _normalize_combatant_body(value: Any) -> str:
+        if isinstance(value, (list, tuple)):
+            cleaned = "/".join(str(item).strip() for item in value if str(item).strip())
+        elif isinstance(value, set):
+            cleaned = "/".join(str(item).strip() for item in sorted(value) if str(item).strip())
+        else:
+            cleaned = str(value or "").strip()
+        if not cleaned:
+            return ""
+        for prefix in ("player ", "monster ", "shadow "):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix) :].strip()
+        if cleaned.startswith("[") and cleaned.endswith("]"):
+            return cleaned
+        return f"[{cleaned}]"
+
+    @staticmethod
+    def _key_from_title(value: Any) -> str:
+        raw = str(value or "")
+        start = raw.rfind("[")
+        end = raw.rfind("]")
+        if start >= 0 and end > start:
+            return raw[start : end + 1]
+        return ""
+
+    @staticmethod
+    def _key_from_loadout(loadout: dict[str, Any]) -> str:
+        layout = loadout.get("layout") if isinstance(loadout.get("layout"), dict) else {}
+        equipment_refs = loadout.get("equipment_refs") if isinstance(loadout.get("equipment_refs"), dict) else {}
+        surfaces = loadout.get("combat_surfaces") if isinstance(loadout.get("combat_surfaces"), dict) else {}
+        codes: list[str] = []
+        for slot in ("main_hand", "off_hand"):
+            source = equipment_refs.get(slot) if isinstance(equipment_refs.get(slot), dict) else {}  # type: ignore
+            surface = surfaces.get(slot) if isinstance(surfaces.get(slot), dict) else {}  # type: ignore
+            skill_key = source.get("skill_key") or surface.get("skill_key") or layout.get(slot)  # type: ignore
+            CombatLifecycleService._append_code(codes, CombatLifecycleService._SKILL_CODES.get(str(skill_key or "")))
+        CombatLifecycleService._append_code(
+            codes,
+            CombatLifecycleService._SKILL_CODES.get(str(layout.get("tactical_style") or "")),  # type: ignore
+        )
+        armor_ref = equipment_refs.get("body") or equipment_refs.get("chest_armor") or {}  # type: ignore
+        armor_skill = armor_ref.get("skill_key") if isinstance(armor_ref, dict) else None
+        armor_class = armor_ref.get("armor_class") if isinstance(armor_ref, dict) else None
+        CombatLifecycleService._append_code(
+            codes,
+            CombatLifecycleService._SKILL_CODES.get(str(armor_skill or ""))
+            or CombatLifecycleService._ARMOR_CODES.get(str(armor_class or "")),
+        )
+        return f"[{'/'.join(codes)}]" if codes else ""
+
+    @staticmethod
+    def _append_code(values: list[str], code: str | None) -> None:
+        if code and code not in values:
+            values.append(code)
+
+    _SKILL_CODES = {
+        "skill_swords": "МЕ",
+        "skill_macing": "БУ",
+        "skill_fencing": "ФЕ",
+        "skill_polearms": "ДК",
+        "skill_archery": "ЛК",
+        "skill_shield_mastery": "ЩТ",
+        "skill_two_handed": "ДВ",
+        "skill_dual_wield": "ДУ",
+        "skill_ranged_combat": "ДБ",
+        "skill_light_armor": "ЛБ",
+        "skill_medium_armor": "СБ",
+        "skill_heavy_armor": "ТБ",
+    }
+    _ARMOR_CODES = {
+        "light": "ЛБ",
+        "light_armor": "ЛБ",
+        "medium": "СБ",
+        "medium_armor": "СБ",
+        "heavy": "ТБ",
+        "heavy_armor": "ТБ",
+    }
 
     @staticmethod
     def _actor_tags(meta: dict[str, Any], source: dict[str, Any], *, is_shadow: bool) -> list[str]:

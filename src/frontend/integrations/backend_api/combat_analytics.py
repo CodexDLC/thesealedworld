@@ -10,6 +10,7 @@ class CombatAnalyticsApi(BaseApiClient):
         date_to: str | None = None,
         metric_key: str | None = None,
         aggregate_version: int | None = None,
+        dimensions: dict | None = None,
     ) -> dict:
         params: dict = {"bucket_grain": bucket_grain}
         if date_from:
@@ -20,6 +21,8 @@ class CombatAnalyticsApi(BaseApiClient):
             params["metric_key"] = metric_key
         if aggregate_version is not None:
             params["aggregate_version"] = aggregate_version
+        if dimensions:
+            params.update({key: value for key, value in dimensions.items() if value not in (None, "")})
         raw = await self._request("GET", "/api/game/combat/analytics/rollups", params=params)
         return raw if isinstance(raw, dict) else {"rows": []}
 
@@ -45,11 +48,14 @@ class CombatAnalyticsApi(BaseApiClient):
         offset: int = 0,
         date_from: str | None = None,
         date_to: str | None = None,
+        dimensions: dict | None = None,
     ) -> dict:
         params: dict = {"limit": limit, "offset": offset}
         if date_from:
             params["date_from"] = date_from
         if date_to:
             params["date_to"] = date_to
+        if dimensions:
+            params.update({key: value for key, value in dimensions.items() if value not in (None, "")})
         raw = await self._request("GET", "/api/game/combat/analytics/drilldown", params=params)
         return raw if isinstance(raw, dict) else {"rows": [], "limit": limit, "offset": offset}

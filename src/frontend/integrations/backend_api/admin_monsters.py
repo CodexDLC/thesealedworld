@@ -118,6 +118,7 @@ class AdminGeneratedMonsterClan:
     created_at: str
     updated_at: str
     visual: AdminMonsterVisual
+    selected_traits: list[dict[str, Any]] = field(default_factory=list)
     members: list[AdminGeneratedMonsterMember] = field(default_factory=list)
 
     @classmethod
@@ -143,6 +144,7 @@ class AdminGeneratedMonsterClan:
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
             visual=AdminMonsterVisual.from_dict(data.get("visual")),
+            selected_traits=[dict(item) for item in data.get("selected_traits") or [] if isinstance(item, dict)],
             members=[AdminGeneratedMonsterMember.from_dict(row) for row in data.get("members") or []],
         )
 

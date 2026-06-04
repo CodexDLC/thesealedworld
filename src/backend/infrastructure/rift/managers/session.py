@@ -143,6 +143,24 @@ class RiftRunSessionStore:
             if cursor == 0:
                 return result[:limit]
 
+    async def list_by_instance(self, rift_instance_id: str, *, limit: int = 1000) -> list[dict[str, Any]]:
+        client = self._redis_client()
+        cursor = 0
+        result: list[dict[str, Any]] = []
+        while True:
+            cursor, keys = await client.scan(cursor=cursor, match=f"{self.KEY_PREFIX}*", count=min(limit, 100))
+            for key in keys:
+                session_id = self._session_id_from_key(str(key))
+                if session_id is None:
+                    continue
+                session = await self.get_session(session_id)
+                if isinstance(session, dict) and str(session.get("rift_instance_id") or "") == str(rift_instance_id):
+                    result.append(session)
+                if len(result) >= limit:
+                    return result[:limit]
+            if cursor == 0:
+                return result[:limit]
+
     async def delete_session(self, rift_session_id: str) -> None:
         await self.redis.string.delete(self.build_session_key(rift_session_id))
 

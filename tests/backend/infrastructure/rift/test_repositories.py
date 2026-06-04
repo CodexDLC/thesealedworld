@@ -4,105 +4,94 @@ from typing import Any
 
 import pytest
 
-from src.backend.infrastructure.rift import RiftInstanceState, RiftPortalKey, RiftRunState
-from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
+from src.backend.infrastructure.rift import RiftMembership
+from src.backend.infrastructure.rift.repositories import RiftMembershipRepository
+from src.backend.infrastructure.rift.repositories.snapshots import (
+    RIFT_RUNTIME_SNAPSHOT_DOCUMENT_KIND,
+    RIFT_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
+    RiftRuntimeSnapshotRepository,
+    UnsupportedRiftSnapshotSchemaError,
 )
 
 
 @pytest.mark.unit
-async def test_instance_state_repository_upserts_and_reads_by_primary_key() -> None:
+async def test_membership_repository_upserts_and_reads_active_participant_index() -> None:
     session = _FakeAsyncSession()
-    repository = RiftInstanceStateRepository(session)  # type: ignore[arg-type]
-    state = RiftInstanceState(
+    repository = RiftMembershipRepository(session)  # type: ignore[arg-type]
+    membership = RiftMembership(
         rift_instance_id="rift-1",
+        rift_session_id="run-1",
+        participant_ref="char:1",
         setting_key="starter_rift",
-        zones_json={},
-        graph_json={},
-        nodes_state_json={},
-        objectives_json={},
-        runtime_flags_json={},
-        state_meta_json={},
+        status="active",
+        mongo_snapshot_id="snapshot-1",
+        snapshot_version=3,
+        source="scenario",
+        source_ref="awakening",
+        current_node_id="z01:0_0",
+        active_encounter_id="combat-1",
     )
 
-    merged = await repository.upsert(state)
-    loaded = await repository.get("rift-1")
+    merged = await repository.upsert(membership)
+    loaded = await repository.get_by_session("run-1")
+    active = await repository.get_active_for_participant("char:1")
+    by_instance = await repository.list_by_instance("rift-1")
+    await repository.update_snapshot_refs(
+        rift_instance_id="rift-1",
+        mongo_snapshot_id="snapshot-2",
+        snapshot_version=4,
+        participant_summaries={
+            "run-1": {"current_node_id": "z01:0_1", "active_encounter_id": None},
+        },
+    )
 
-    assert merged is state
-    assert loaded is state
+    assert merged is membership
+    assert loaded is membership
+    assert active is membership
+    assert by_instance == [membership]
+    assert membership.mongo_snapshot_id == "snapshot-2"
+    assert membership.snapshot_version == 4
+    assert membership.current_node_id == "z01:0_1"
+    assert membership.active_encounter_id is None
     assert session.flushed is True
 
 
 @pytest.mark.unit
-async def test_run_state_repository_upserts_and_lists_by_instance() -> None:
-    session = _FakeAsyncSession()
-    repository = RiftRunStateRepository(session)  # type: ignore[arg-type]
-    state = RiftRunState(
-        rift_run_id="run-1",
+async def test_runtime_snapshot_repository_writes_one_document_per_rift_instance() -> None:
+    database = _FakeMongoDatabase()
+    repository = RiftRuntimeSnapshotRepository(database)
+
+    document_id = await repository.upsert_snapshot(
         rift_instance_id="rift-1",
-        participant_scope="solo",
-        participant_ref="char:1",
-        current_zone_key="z01",
-        current_node_id="z01:0_0",
-        visited_node_ids=["z01:0_0"],
-        discovered_node_ids=["z01:0_0"],
-        entry_context_json={},
-        run_state_json={},
+        snapshot_version=2,
+        instance={"rift_instance_id": "rift-1", "nodes": {}},
+        sessions={"run-1": {"participant_ref": "char:1", "current_node_id": "z01:0_0"}},
+        presence={"nodes": {"z01:0_0": ["char:1"]}},
     )
+    loaded = await repository.get_snapshot("rift-1")
 
-    await repository.upsert(state)
-    loaded = await repository.get("run-1")
-    listed = await repository.list_by_instance("rift-1")
-
-    assert loaded is state
-    assert listed == [state]
+    assert document_id == "rift-runtime-snapshot:rift-1"
+    assert loaded is not None
+    assert loaded["document_kind"] == RIFT_RUNTIME_SNAPSHOT_DOCUMENT_KIND
+    assert loaded["schema_version"] == RIFT_RUNTIME_SNAPSHOT_SCHEMA_VERSION
+    assert loaded["rift_instance_id"] == "rift-1"
+    assert loaded["snapshot_version"] == 2
+    assert loaded["sessions"]["run-1"]["current_node_id"] == "z01:0_0"
 
 
 @pytest.mark.unit
-async def test_portal_key_repository_upserts_payload_and_marks_status() -> None:
-    session = _FakeAsyncSession()
-    repository = RiftPortalKeyRepository(session)  # type: ignore[arg-type]
+async def test_runtime_snapshot_repository_rejects_unknown_schema_version() -> None:
+    database = _FakeMongoDatabase()
+    database["rift_runtime_snapshots"].documents["rift-runtime-snapshot:rift-1"] = {
+        "_id": "rift-runtime-snapshot:rift-1",
+        "document_kind": RIFT_RUNTIME_SNAPSHOT_DOCUMENT_KIND,
+        "schema_version": 99,
+        "rift_instance_id": "rift-1",
+    }
+    repository = RiftRuntimeSnapshotRepository(database)
 
-    portal = await repository.upsert_from_payload(
-        {
-            "portal_id": "portal-1",
-            "portal_key": "starter:7",
-            "source": "scenario",
-            "source_ref": "awakening_rift:knockout",
-            "rift_key": "starter_rift",
-            "entry_reason": "knockout",
-            "entry_mode": "prepared_activation",
-            "owner_type": "character",
-            "owner_id": "char:7",
-            "participant_scope": "solo",
-            "rift_session_id": "rift:run:1",
-            "rift_instance_id": "rift-1",
-            "exit_policy": {"target_state": "exploration", "location_id": "52_48"},
-            "entry_context": {"combat_power": {"player_gear_score": 300}},
-        }
-    )
-    loaded = await repository.get("portal-1")
-    by_session = await repository.get_by_rift_session("rift:run:1")
-    marked = await repository.mark_status(
-        "portal-1",
-        status="completed",
-        reason="heart_closed",
-        details={"close_rift_on_exit": True},
-    )
-
-    assert loaded is portal
-    assert by_session is portal
-    assert marked is portal
-    assert portal.portal_key == "starter:7"
-    assert portal.exit_target_state == "exploration"
-    assert portal.exit_location_id == "52_48"
-    assert portal.entry_context_json["combat_power"]["player_gear_score"] == 300
-    assert portal.status == "completed"
-    assert portal.closed_at is not None
-    assert portal.state_json["status_reason"] == "heart_closed"
-    assert portal.state_json["details"]["close_rift_on_exit"] is True
+    with pytest.raises(UnsupportedRiftSnapshotSchemaError, match="schema_version=99"):
+        await repository.get_snapshot("rift-1")
 
 
 class _FakeAsyncSession:
@@ -111,23 +100,28 @@ class _FakeAsyncSession:
         self.flushed = False
 
     async def merge(self, obj: Any) -> Any:
-        primary_key = (
-            getattr(obj, "portal_id", None)
-            or getattr(obj, "rift_run_id", None)
-            or getattr(obj, "rift_instance_id", None)
-        )
-        self.objects[(type(obj), primary_key)] = obj
+        primary_key = getattr(obj, "id", None) or getattr(obj, "rift_session_id", None)
+        if getattr(obj, "id", None) is None:
+            obj.id = len(self.objects) + 1
+        self.objects[(type(obj), str(primary_key or obj.id))] = obj
         return obj
 
     async def flush(self) -> None:
         self.flushed = True
 
     async def get(self, model: type[Any], primary_key: str) -> Any | None:
-        return self.objects.get((model, primary_key))
+        return self.objects.get((model, str(primary_key)))
 
     async def execute(self, statement: Any) -> _FakeResult:
-        _ = statement
-        return _FakeResult([obj for (model, _), obj in self.objects.items() if model in {RiftRunState, RiftPortalKey}])
+        text = str(statement)
+        values = [obj for (model, _), obj in self.objects.items() if model is RiftMembership]
+        if "rift_session_id" in text:
+            values = [obj for obj in values if obj.rift_session_id == "run-1"]
+        elif "participant_ref" in text:
+            values = [obj for obj in values if obj.participant_ref == "char:1" and obj.status == "active"]
+        elif "rift_instance_id" in text:
+            values = [obj for obj in values if obj.rift_instance_id == "rift-1"]
+        return _FakeResult(values)
 
 
 class _FakeResult:
@@ -147,3 +141,34 @@ class _FakeScalars:
 
     def first(self) -> Any | None:
         return self.values[0] if self.values else None
+
+
+class _FakeMongoDatabase(dict[str, Any]):
+    def __missing__(self, key: str) -> Any:
+        collection = _FakeMongoCollection()
+        self[key] = collection
+        return collection
+
+
+class _FakeMongoCollection:
+    def __init__(self) -> None:
+        self.documents: dict[str, dict[str, Any]] = {}
+        self.indexes: list[Any] = []
+
+    async def create_index(self, *args: Any, **kwargs: Any) -> None:
+        self.indexes.append((args, kwargs))
+
+    async def update_one(self, filter_query: dict[str, Any], update: dict[str, Any], *, upsert: bool = False) -> None:
+        _ = upsert
+        doc_id = str(update.get("$setOnInsert", {}).get("_id") or filter_query["rift_instance_id"])
+        current = dict(self.documents.get(doc_id) or update.get("$setOnInsert") or {})
+        current.update(update.get("$set") or {})
+        current.setdefault("_id", doc_id)
+        self.documents[doc_id] = current
+
+    async def find_one(self, filter_query: dict[str, Any], projection: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        _ = projection
+        for document in self.documents.values():
+            if all(document.get(key) == value for key, value in filter_query.items()):
+                return dict(document)
+        return None

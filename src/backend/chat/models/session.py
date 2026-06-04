@@ -1,50 +1,39 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.backend.core.database import Base, SchemaVersionMixin
 
-
-class ChatSession(Base, SchemaVersionMixin):
-    """DM session between two players — openable as a separate chat window."""
-
-    __tablename__ = "chat_sessions"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    participant_a_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    participant_b_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    metadata_: Mapped[dict[str, object]] = mapped_column("metadata", JSONB, default=dict, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
-    last_message_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
-
-    messages: Mapped[list["ChatSessionMessage"]] = relationship(back_populates="session")
-
-    __table_args__ = (
-        Index("ix_chat_sessions_participants", "participant_a_id", "participant_b_id", unique=True),
-        {"schema": "chat"},
-    )
+if TYPE_CHECKING:
+    from src.backend.chat.models.message import ChatThread
 
 
-class ChatSessionMessage(Base, SchemaVersionMixin):
-    """Individual DM message within a session."""
+class ChatThreadMember(Base, SchemaVersionMixin):
+    """Membership and read-state row for a chat thread."""
 
-    __tablename__ = "chat_session_messages"
+    __tablename__ = "chat_thread_members"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    session_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("chat.chat_sessions.id", ondelete="CASCADE"),
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    thread_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chat.chat_threads.id", ondelete="CASCADE"),
         nullable=False,
     )
-    sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    content: Mapped[str] = mapped_column(nullable=False)
-    metadata_: Mapped[dict[str, object]] = mapped_column("metadata", JSONB, default=dict, nullable=False)
-    read_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(nullable=False)
-    archived_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    character_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    role: Mapped[str] = mapped_column(String(32), default="member", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    last_read_message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    last_read_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    session: Mapped["ChatSession"] = relationship(back_populates="messages")
+    thread: Mapped["ChatThread"] = relationship(back_populates="members")
 
-    __table_args__ = (Index("ix_chat_session_messages_session", "session_id", "created_at"), {"schema": "chat"})
+    __table_args__ = (
+        UniqueConstraint("thread_id", "character_id", name="uq_chat_thread_members_thread_character"),
+        Index("ix_chat_thread_members_character", "character_id", "status"),
+        Index("ix_chat_thread_members_thread", "thread_id"),
+        {"schema": "chat"},
+    )

@@ -1,29 +1,21 @@
 """Rift infrastructure package."""
 
 from src.backend.infrastructure.rift.models import (
-    RiftInstanceState,
+    RiftMembership,
     RiftNodePoolRecord,
-    RiftPortalKey,
-    RiftRunState,
     RiftSetting,
 )
 from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
+    RiftMembershipRepository,
     RiftNodePoolRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
     RiftSettingRepository,
 )
 
 __all__ = [
-    "RiftInstanceState",
-    "RiftInstanceStateRepository",
+    "RiftMembership",
+    "RiftMembershipRepository",
     "RiftNodePoolRecord",
     "RiftNodePoolRepository",
-    "RiftPortalKey",
-    "RiftPortalKeyRepository",
-    "RiftRunState",
-    "RiftRunStateRepository",
     "RiftSetting",
     "RiftSettingRepository",
 ]

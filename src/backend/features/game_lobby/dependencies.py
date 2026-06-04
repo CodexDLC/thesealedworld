@@ -4,6 +4,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.database import get_db
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.character.repositories import (
     CharacterAttributesRepository,
     CharacterProgressionRepository,
@@ -24,13 +25,11 @@ from src.backend.infrastructure.rift.managers import (
     RiftInstanceStore,
     RiftPortalStore,
     RiftPresenceStore,
+    RiftRestoreLock,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
-)
+from src.backend.infrastructure.rift.repositories import RiftMembershipRepository
+from src.backend.infrastructure.rift.repositories.snapshots import RiftRuntimeSnapshotRepository
 
 
 def get_character_sessions(request: Request) -> CharacterSessionManager:
@@ -66,9 +65,9 @@ def get_game_lobby_integration(
             session_store=RiftRunSessionStore(request.app.state.redis),
             presence_store=RiftPresenceStore(request.app.state.redis),
             portal_store=RiftPortalStore(request.app.state.redis),
-            instance_state_repository=RiftInstanceStateRepository(db_session),
-            run_state_repository=RiftRunStateRepository(db_session),
-            portal_key_repository=RiftPortalKeyRepository(db_session),
+            membership_repository=RiftMembershipRepository(db_session),
+            snapshot_repository=RiftRuntimeSnapshotRepository(get_mongo_provider().database()),
+            restore_lock=RiftRestoreLock(request.app.state.redis),
         ),
     )
 

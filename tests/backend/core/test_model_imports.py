@@ -4,9 +4,12 @@ from src.backend.core.database import Base, model_imports
 def test_backend_metadata_includes_chat_schema_models() -> None:
     _ = model_imports
 
-    assert "chat.chat_messages" in Base.metadata.tables
-    assert "chat.chat_sessions" in Base.metadata.tables
-    assert "chat.chat_session_messages" in Base.metadata.tables
+    assert "chat.chat_threads" in Base.metadata.tables
+    assert "chat.chat_thread_members" in Base.metadata.tables
+    assert "chat.chat_message_index" in Base.metadata.tables
+    assert "chat.chat_messages" not in Base.metadata.tables
+    assert "chat.chat_sessions" not in Base.metadata.tables
+    assert "chat.chat_session_messages" not in Base.metadata.tables
 
 
 def test_backend_metadata_includes_item_generated_templates() -> None:

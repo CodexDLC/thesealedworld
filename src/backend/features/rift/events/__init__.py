@@ -6,19 +6,18 @@ from codex_core.common.log_context import clear_log_context, set_log_context
 
 from src.backend.core.bus import GameStreamRouter
 from src.backend.core.database import get_session_context
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.rift.integrations import RiftRuntimeIntegration
 from src.backend.features.rift.services import RiftEntryService
 from src.backend.infrastructure.rift.managers import (
     RiftInstanceStore,
     RiftPortalStore,
     RiftPresenceStore,
+    RiftRestoreLock,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
-)
+from src.backend.infrastructure.rift.repositories import RiftMembershipRepository
+from src.backend.infrastructure.rift.repositories.snapshots import RiftRuntimeSnapshotRepository
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -57,9 +56,9 @@ def _entry_service(app: FastAPI, session: Any) -> RiftEntryService:
             session_store=RiftRunSessionStore(app.state.redis),
             presence_store=RiftPresenceStore(app.state.redis),
             portal_store=RiftPortalStore(app.state.redis),
-            instance_state_repository=RiftInstanceStateRepository(session),
-            run_state_repository=RiftRunStateRepository(session),
-            portal_key_repository=RiftPortalKeyRepository(session),
+            membership_repository=RiftMembershipRepository(session),
+            snapshot_repository=RiftRuntimeSnapshotRepository(get_mongo_provider().database()),
+            restore_lock=RiftRestoreLock(app.state.redis),
         ),
         character_sessions=app.state.character_sessions,
         rift_population_bindings=getattr(app.state, "rift_population_bindings", {}),

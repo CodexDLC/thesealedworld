@@ -3,8 +3,8 @@ Import all ORM models so Alembic sees the complete Base.metadata.
 Only ORM models are allowed here.
 """
 
-from src.backend.chat.models.message import ChatMessage
-from src.backend.chat.models.session import ChatSession, ChatSessionMessage
+from src.backend.chat.models.message import ChatMessageIndex, ChatThread
+from src.backend.chat.models.session import ChatThreadMember
 from src.backend.features.character.models import (
     Character,
     CharacterAttributes,
@@ -43,21 +43,19 @@ from src.backend.infrastructure.combat.models import (
     CombatFinalization,
 )
 from src.backend.infrastructure.inventory import InventoryItem, ResourceWallet
-from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM
+from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, HabitatClanPoolEntryORM
 from src.backend.infrastructure.rift import (
-    RiftInstanceState,
+    RiftMembership,
     RiftNodePoolRecord,
-    RiftPortalKey,
-    RiftRunState,
     RiftSetting,
 )
 from src.backend.infrastructure.scenario.models import CharacterQuestState, ScenarioMaster, ScenarioNode
 from src.backend.infrastructure.world.models import WorldGrid, WorldRegion, WorldZone
 
 __all__ = [
-    "ChatMessage",
-    "ChatSession",
-    "ChatSessionMessage",
+    "ChatThread",
+    "ChatThreadMember",
+    "ChatMessageIndex",
     "ItemInstance",
     "ItemGeneratedTemplate",
     "ItemOrigin",
@@ -80,11 +78,10 @@ __all__ = [
     "CharacterTavernRoom",
     "GeneratedClanORM",
     "GeneratedMonsterORM",
+    "HabitatClanPoolEntryORM",
     "RiftSetting",
     "RiftNodePoolRecord",
-    "RiftPortalKey",
-    "RiftInstanceState",
-    "RiftRunState",
+    "RiftMembership",
     "ScenarioMaster",
     "ScenarioNode",
     "CharacterQuestState",

@@ -24,8 +24,11 @@ ROLLUP_DIMENSION_KEYS = (
     "armor_tier",
     "feint_id",
     "trigger_id",
+    "source_combatant_key",
+    "target_combatant_key",
     "battle_type",
     "location_id",
+    "source_type",
 )
 INT_DIMENSION_KEYS = {"weapon_tier", "armor_tier"}
 VALID_BUCKET_GRAINS = {"day", "week", "month"}

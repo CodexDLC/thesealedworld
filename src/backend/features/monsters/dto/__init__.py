@@ -7,15 +7,19 @@ from .generated_view import (
     PaginationDTO,
 )
 from .generation import (
+    ClanPoolPolicyDTO,
+    ClanPoolPolicyEntryDTO,
     GeneratedClan,
     GeneratedMonster,
     GeneratedMonsterTemplateDTO,
+    HabitatClanPoolEntryDTO,
     MonsterAIProfileDTO,
     MonsterBalanceDTO,
     MonsterGenerationContext,
     MonsterGrantedAbilitiesDTO,
     MonsterGroupMemberPreview,
     MonsterGroupResult,
+    MonsterHabitatDTO,
     MonsterItemAffixPolicyDTO,
     MonsterItemBuildRequestDTO,
     MonsterItemsProjectionDTO,
@@ -35,6 +39,8 @@ from .resources import (
 )
 
 __all__ = [
+    "ClanPoolPolicyDTO",
+    "ClanPoolPolicyEntryDTO",
     "GearScoreSummaryDTO",
     "GeneratedClanViewDTO",
     "GeneratedClan",
@@ -42,10 +48,12 @@ __all__ = [
     "GeneratedMonstersResponseDTO",
     "GeneratedMonsterTemplateDTO",
     "GeneratedMonsterViewDTO",
+    "HabitatClanPoolEntryDTO",
     "MonsterAIProfileDTO",
     "MonsterClanFlavorDTO",
     "MonsterBalanceDTO",
     "MonsterGenerationContext",
+    "MonsterHabitatDTO",
     "MonsterGrantedAbilitiesDTO",
     "MonsterGroupMemberPreview",
     "MonsterGroupResult",

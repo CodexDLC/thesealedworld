@@ -1,10 +1,8 @@
 import contextlib
 import time
 
-from codex_platform.streams.codec import encode_stream_payload
 from loguru import logger as log
 
-from src.backend.config.settings import settings
 from src.backend.features.combat.dto.action import CombatActionDTO
 from src.backend.features.combat.dto.worker import CollectorSignalDTO, WorkerBatchJobDTO
 from src.backend.features.combat.runtime.engine.tunables import load_combat_tunables, use_tunables
@@ -129,7 +127,6 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
             # 5.1. АТОМАРНЫЙ Save (state + logs + actions + targets)
             await data_service.commit_session(battle_ctx, processed_ids)
             await _enqueue_result_support_tasks(ctx, battle_ctx)
-            await _publish_combat_logs_to_chat(ctx, battle_ctx)
             await _publish_combat_refresh_notices(ctx, battle_ctx)
 
             log.bind(
@@ -154,41 +151,6 @@ async def execute_batch_task(ctx: dict, job_data: dict) -> None:
         # Ловим любые ошибки, чтобы воркер не упал насмерть
         log.bind(session_id=session_id).exception("ExecutorCriticalError")
         raise  # Reraise нужен, чтобы ARQ увидел ошибку и (возможно) сделал retry
-
-
-async def _publish_combat_logs_to_chat(ctx: dict, battle_ctx) -> None:
-    """Publish committed combat log entries into the shared chat/game stream."""
-    if not battle_ctx.pending_logs:
-        return
-
-    redis = ctx.get("redis_client_internal")
-    if redis is None:
-        log.bind(reason="no_redis", session_id=battle_ctx.session_id).warning("CombatChatPublishSkipped")
-        return
-
-    recipients = _player_recipients(battle_ctx)
-    if not recipients:
-        log.bind(reason="no_recipients", session_id=battle_ctx.session_id).warning("CombatChatPublishSkipped")
-        return
-
-    published = 0
-    for entry in battle_ctx.pending_logs:
-        payload = _combat_log_chat_payload(battle_ctx.session_id, recipients, entry)
-        try:
-            await redis.xadd(
-                settings.game_stream_name,
-                encode_stream_payload({"type": "chat.combat_log_message", **payload}),
-                maxlen=settings.game_stream_maxlen,
-                approximate=True,
-            )
-            published += 1
-        except Exception:
-            log.bind(session_id=battle_ctx.session_id, seq=entry.get("id")).exception("CombatChatPublishFailed")
-            continue
-
-    log.bind(session_id=battle_ctx.session_id, message_count=published, recipients=recipients).info(
-        "CombatChatPublished"
-    )
 
 
 async def _enqueue_result_support_tasks(ctx: dict, battle_ctx) -> None:
@@ -227,34 +189,6 @@ def _player_recipients(battle_ctx) -> list[str]:
             continue
         recipients.append(value)
     return recipients
-
-
-def _combat_log_chat_payload(session_id: str, recipients: list[str], entry: dict) -> dict:
-    global_turn = entry.get("global_turn")
-    template = dict(entry.get("template") or {})
-    template.setdefault("text", entry.get("text", ""))
-    return {
-        "scope_id": session_id,
-        "recipients": recipients,
-        "content": entry.get("text", ""),
-        "template": template,
-        "variables": entry.get("variables") or {},
-        "result": entry.get("result") or {},
-        "presentation": {
-            **(entry.get("presentation") or {}),
-            "render": "combat_log",
-            "separator": {
-                "label": f"ХОД {global_turn}" if global_turn is not None else "ХОД",
-                "key": f"combat:{session_id}:turn:{global_turn}",
-            },
-        },
-        "meta": {
-            "combat_session_id": session_id,
-            "global_turn": global_turn,
-            "wave": entry.get("wave"),
-            "seq": entry.get("id"),
-        },
-    }
 
 
 async def _publish_combat_refresh_notices(ctx: dict, battle_ctx) -> None:

@@ -6,437 +6,87 @@ from src.backend.features.monsters.dto.generation import GeneratedClan, Generate
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
 
 
-def _make_clan(family_id: str = "bandit_gang") -> GeneratedClan:
+def _clan() -> GeneratedClan:
     return GeneratedClan(
         id=uuid.uuid4(),
-        family_id=family_id,
-        tier=2,
-        zone_id="zone-b",
-        context_hash="ctx",
-        unique_hash="uniq",
-        raw_tags={},
-        flavor_content={},
-        name_ru="Клан",
-        description="Клан",
+        family_id="rat_swarm",
+        identity_hash="identity",
+        context_identity={"tier": 1},
+        context_hash="context",
+        selected_traits=[
+            {
+                "key": "rot_adapted",
+                "modifiers": [{"target": "hp", "base": 4.0, "per_tier": 2.0}],
+            }
+        ],
+        title="Rat Swarm",
+        description="Rat Swarm",
+        encounter_texts={},
+        generation_version=2,
+        resource_version="1",
     )
 
 
-def _make_humanoid_monster(
-    clan: GeneratedClan,
-    *,
-    weapon_power: int = 10,
-    weapon_bonuses: dict | None = None,
-    weapon_affixes: list | None = None,
-) -> GeneratedMonster:
-    monster_id = uuid.uuid4()
+def _monster(active_snapshot: dict) -> GeneratedMonster:
+    clan = _clan()
     monster = GeneratedMonster(
-        id=monster_id,
+        id=uuid.uuid4(),
         clan_id=clan.id,
-        variant_key="bandit_thug",
+        variant_id="sewer_rat",
+        member_hash="sewer-rat",
         role="minion",
-        member_tier=2,
-        threat_rating=30,
-        name_ru="Головорез",
-        description="Головорез",
-        text_content={"name_ru": "Головорез"},
-        scaled_attributes={
-            "strength": 12,
-            "agility": 8,
-            "endurance": 10,
-            "intellect": 3,
-            "memory": 2,
-            "mental": 4,
-            "perception": 5,
-            "projection": 1,
-            "prediction": 2,
-        },
-        scaled_skills={"skill_swords": 0.35, "skill_light_armor": 0.10},
-        items={
-            "layout": {"equipment": {"main_hand": "axe-1"}, "belt": {}},
-            "by_id": {
-                "axe-1": {
-                    "item_id": "axe-1",
-                    "owner_key": "member-0",
-                    "base_id": "hand_axe",
-                    "item_type": "weapon",
-                    "slot": "main_hand",
-                    "combat": {
-                        "power": weapon_power,
-                        "damage_spread": 0.2,
-                        "implicit_bonuses": {},
-                        "bonuses": weapon_bonuses or {},
-                        "triggers": [],
-                        "tags": [],
-                        "related_skill": "skill_swords",
-                    },
-                    "generation": {
-                        "item_grade": "uncommon",
-                        "rarity_tier": 2,
-                        "affixes": weapon_affixes or [],
-                    },
-                }
-            },
-        },
-        vitals={
-            "hp": {"current": 40, "max": 40},
-            "energy": {"current": 15, "max": 15},
-            "stamina": {"current": 15, "max": 15},
-        },
-        ai_profile={"behavior": "melee_fighter"},
-        generation_meta={
-            "schema_version": 2,
-            "visual": {
-                "status": "fallback",
-                "image_url": "/static/images/monsters/families/bandit_gang.svg",
-                "fallback_image_url": "/static/images/monsters/families/bandit_gang.svg",
-                "storage_key": "monsters/generated/families/test.webp",
-            },
-            "meta": {
-                "archetype": "humanoid",
-                "family_id": clan.family_id,
-                "tags": ["monster", "bandit", "minion"],
-                "source": {"owner_key": "member-0"},
-            },
-            "source": {"owner_key": "member-0"},
-            "balance": {
-                "organization_type": "gang",
-                "organization_divisor": 3,
-            },
-        },
+        title="Sewer Rat",
+        short_description="Sewer Rat",
+        min_tier=1,
+        max_tier=3,
+        mongo_actor_key=f"actor:{clan.id}:sewer_rat:sewer-rat",
+        active_snapshot=active_snapshot,
+        actor_document={"tier_snapshots": {"tier_1": active_snapshot}},
     )
     monster.clan = clan
     return monster
 
 
-@pytest.mark.unit
-def test_monster_combat_actor_input_uses_generated_template_contract() -> None:
-    clan_id = uuid.uuid4()
-    monster_id = uuid.uuid4()
-    clan = GeneratedClan(
-        id=clan_id,
-        family_id="rat_swarm",
-        tier=1,
-        zone_id="zone-a",
-        context_hash="ctx",
-        unique_hash="uniq",
-        raw_tags={},
-        flavor_content={},
-        name_ru="Рой",
-        description="Рой",
-    )
-    template = {
-        "schema_version": 1,
-        "variant_key": "sewer_rat",
-        "role": "minion",
-        "member_tier": 1,
-        "text_content": {"name_ru": "Крыса с черными когтями"},
-        "meta": {
-            "archetype": "beast",
-            "family_id": "rat_swarm",
-            "tags": ["monster", "rat", "minion"],
-            "source": {"owner_key": "member-1"},
-        },
-        "scaled_attributes": {
-            "strength": 4,
-            "agility": 10,
-            "endurance": 5,
-            "intellect": 1,
-            "memory": 1,
-            "mental": 2,
-            "perception": 6,
-            "projection": 1,
-            "prediction": 2,
-        },
-        "scaled_skills": {
-            "skills": {
-                "skill_fencing": 0.25,
-                "skill_light_armor": 0.05,
-                "skill_scouting": 0.9,
-                "skill_adaptation": 0.8,
-            }
-        },
-        "items": {
-            "layout": {
-                "equipment": {"main_hand": "claws-1", "chest_armor": "hide-1", "amulet": "gland-1"},
-                "belt": {},
-            },
-            "by_id": {
-                "claws-1": {
-                    "item_id": "claws-1",
-                    "owner_key": "member-1",
-                    "base_id": "dagger",
-                    "item_type": "weapon",
-                    "slot": "main_hand",
-                    "combat": {
-                        "power": 7,
-                        "damage_spread": 0.2,
-                        "implicit_bonuses": {},
-                        "bonuses": {"main_hand_accuracy": "+0.02"},
-                        "triggers": ["crit.weapon_flat_armor_gap_crit"],
-                        "tags": ["natural_weapon"],
-                        "related_skill": "skill_fencing",
-                    },
-                    "generation": {
-                        "item_grade": "common",
-                        "affix_profile": "monster_equipment_4slot",
-                        "rarity_tier": 1,
-                        "affixes": [],
-                    },
-                },
-                "hide-1": {
-                    "item_id": "hide-1",
-                    "owner_key": "member-1",
-                    "base_id": "leather_armor",
-                    "item_type": "armor",
-                    "slot": "chest_armor",
-                    "combat": {
-                        "power": 3,
-                        "damage_spread": 0,
-                        "implicit_bonuses": {},
-                        "bonuses": {},
-                        "triggers": [],
-                        "tags": ["natural_armor"],
-                        "related_skill": "skill_light_armor",
-                    },
-                    "generation": {
-                        "item_grade": "common",
-                        "affix_profile": "monster_equipment_4slot",
-                        "rarity_tier": 1,
-                        "affixes": [],
-                    },
-                },
-                "gland-1": {
-                    "item_id": "gland-1",
-                    "owner_key": "member-1",
-                    "base_id": "amulet",
-                    "item_type": "accessory",
-                    "slot": "amulet",
-                    "combat": {
-                        "power": 2,
-                        "damage_spread": 0,
-                        "implicit_bonuses": {},
-                        "bonuses": {},
-                        "triggers": [],
-                        "tags": ["natural_jewelry"],
-                        "related_skill": None,
-                    },
-                    "generation": {
-                        "item_grade": "common",
-                        "affix_profile": "monster_equipment_4slot",
-                        "rarity_tier": 1,
-                        "affixes": [],
-                    },
-                },
-            },
-        },
-        "ai_profile": {"behavior": "swarm_chaff"},
-        "balance": {
-            "organization_type": "swarm",
-            "organization_divisor": 4,
-        },
-    }
-    monster = GeneratedMonster(
-        id=monster_id,
-        clan_id=clan_id,
-        variant_key="sewer_rat",
-        role="minion",
-        member_tier=1,
-        threat_rating=20,
-        name_ru="Крыса с черными когтями",
-        description="Крыса",
-        text_content=template["text_content"],
-        scaled_attributes=template["scaled_attributes"],
-        scaled_skills=template["scaled_skills"]["skills"],
-        items=template["items"],
-        vitals={
-            "hp": {"current": 20, "max": 20},
-            "energy": {"current": 10, "max": 10},
-            "stamina": {"current": 10, "max": 10},
-        },
-        ai_profile=template["ai_profile"],
-        generation_meta={
-            "schema_version": 2,
-            "visual": {
-                "status": "fallback",
-                "image_url": "/static/images/monsters/families/rat_swarm.svg",
-                "fallback_image_url": "/static/images/monsters/families/rat_swarm.svg",
-                "storage_key": "monsters/generated/families/test.webp",
-            },
-            "meta": template["meta"],
-            "source": template["meta"]["source"],
-            "balance": template["balance"],
-        },
-    )
-    monster.clan = clan
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    assert set(snapshot) == {"meta", "source", "status", "combat"}
-    assert snapshot["meta"]["actor_type"] == "monster"
-    assert snapshot["meta"]["actor_id"] == str(monster_id)
-    assert snapshot["meta"]["name"] == "Крыса с черными когтями"
-    assert snapshot["meta"]["avatar_url"] is None
-    assert snapshot["meta"]["ai_archetype"] == "balanced"
-    assert snapshot["source"]["monster_id"] == str(monster_id)
-    assert snapshot["source"]["family_id"] == "rat_swarm"
-    assert snapshot["source"]["visual"]["status"] == "fallback"
-    assert snapshot["status"]["hp"]["max"] > 0
-    combat = snapshot["combat"]
-    assert combat["math_model"]["attributes"]["strength"]["base"] == 4.0
-    assert combat["math_model"]["rules"] == {"attribute_profile": "monster:beast"}
-    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 7.0
-    assert combat["math_model"]["modifiers"]["armor"]["base"] == 3.0
-    assert combat["math_model"]["modifiers"]["magic_armor"]["base"] == 2.0
-    assert combat["math_model"]["modifiers"]["main_hand_accuracy"]["source"]["item:claws-1"] == 0.02
-    assert combat["skills"] == {"skill_fencing": 0.25, "skill_light_armor": 0.05}
-    assert combat["loadout"]["layout"]["main_hand"] == "skill_fencing"
-    assert combat["loadout"]["layout"]["main_hand_trigger"] == "crit.weapon_flat_armor_gap_crit"
-    assert combat["loadout"]["layout"]["body"] == "skill_light_armor"
-    assert combat["loadout"]["equipment_layout"]["amulet"] == "gland-1"
-    assert combat["loadout"]["combat_surfaces"]["main_hand"] == {
-        "slot": "main_hand",
-        "delivery": "natural",
-        "surface": "natural_weapon",
-        "tags": ["natural_weapon"],
-        "item_id": "claws-1",
-        "base_id": "dagger",
-        "skill_key": "skill_fencing",
-    }
-    assert combat["loadout"]["known_abilities"] == []
-
-
-@pytest.mark.unit
-def test_monster_combat_actor_input_uses_generated_member_portrait_when_ready() -> None:
-    clan = _make_clan()
-    monster = _make_humanoid_monster(clan)
-    monster.generation_meta["visual"] = {
-        "status": "generated",
-        "image_url": "/static/generated-assets/monsters/generated/members/bandit.webp",
-        "asset_hash": "generated-bandit-bytes",
-        "fallback_image_url": "/static/images/monsters/families/bandit_gang.svg",
+def test_monster_combat_actor_input_uses_prebuilt_tier_snapshot() -> None:
+    combat_input = {
+        "meta": {"actor_type": "monster", "actor_id": "m1", "snapshot_tier": 1},
+        "source": {"monster_id": "m1", "mongo_actor_key": "actor:m1"},
+        "status": {"hp": {"current": 20, "max": 20}},
+        "raw": {"modifiers": {"hp": {"base": 10, "source": {}, "temp": {}}}},
+        "skills": {"skill_unarmed": 0.2},
+        "loadout": {"layout": {"main_hand": "skill_unarmed"}},
     }
 
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    assert snapshot["meta"]["avatar_url"] == (
-        "/static/generated-assets/monsters/generated/members/bandit.webp?v=generated-bandit-bytes"
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(
+        _monster({"snapshot_tier": 1, "combat_snapshot_input": combat_input})
     )
 
+    assert snapshot["meta"] == combat_input["meta"]
+    assert snapshot["source"] == combat_input["source"]
+    assert snapshot["status"] == combat_input["status"]
+    assert snapshot["combat"]["math_model"] == combat_input["raw"]
+    assert snapshot["combat"]["skills"] == combat_input["skills"]
+    assert snapshot["combat"]["loadout"] == combat_input["loadout"]
 
-@pytest.mark.unit
-def test_monster_with_affixed_item_preserves_bonuses() -> None:
-    """Bug 1 regression: non-empty generation.affixes must NOT clear combat.bonuses."""
-    clan = _make_clan()
-    monster = _make_humanoid_monster(
-        clan,
-        weapon_power=10,
-        weapon_bonuses={"main_hand_accuracy": "+0.05"},
-        weapon_affixes=[{"affix_id": "accuracy_bonus", "tier": 1}],
+
+def test_monster_combat_actor_input_fails_without_prebuilt_snapshot() -> None:
+    with pytest.raises(ValueError, match="combat_snapshot_input"):
+        MonsterCombatActorInputBuilder().build_snapshot(_monster({"snapshot_tier": 1}))
+
+
+def test_monster_combat_actor_input_does_not_apply_clan_traits_at_runtime() -> None:
+    combat_input = {
+        "meta": {"actor_type": "monster", "actor_id": "m1", "snapshot_tier": 1},
+        "source": {"monster_id": "m1"},
+        "status": {},
+        "raw": {"modifiers": {"hp": {"base": 10, "source": {}, "temp": {}}}},
+        "skills": {},
+        "loadout": {},
+    }
+
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(
+        _monster({"snapshot_tier": 1, "combat_snapshot_input": combat_input})
     )
 
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    modifiers = snapshot["combat"]["math_model"]["modifiers"]
-    assert "main_hand_accuracy" in modifiers, "main_hand_accuracy modifier missing — bonus was wiped (Bug 1)"
-    sources = modifiers["main_hand_accuracy"].get("source", {})
-    assert any("axe-1" in k for k in sources), "item bonus source missing from main_hand_accuracy"
-
-
-@pytest.mark.unit
-def test_monster_combat_actor_input_assigns_ai_archetype_from_variant() -> None:
-    clan = _make_clan()
-    monster = _make_humanoid_monster(clan)
-    monster.variant_key = "bandit_thug"
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    assert snapshot["meta"]["ai_archetype"] == "berserker"
-
-
-@pytest.mark.unit
-def test_monster_family_accuracy_modifier_is_applied_when_configured() -> None:
-    clan = _make_clan()
-    monster = _make_humanoid_monster(clan)
-    monster.generation_meta["family_modifiers"] = [
-        {"target": "accuracy", "value": 0.05, "per_tier": 0.0, "effective_value": 0.05}
-    ]
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    modifiers = snapshot["combat"]["math_model"]["modifiers"]
-    assert modifiers["accuracy"]["source"]["family:bandit_gang"] == pytest.approx(0.05)
-    assert snapshot["combat"]["math_model"]["rules"] == {"attribute_profile": "monster:humanoid"}
-
-
-@pytest.mark.unit
-def test_monster_math_model_keeps_organization_as_metadata_without_combat_bonus() -> None:
-    clan = _make_clan("rat_swarm")
-    monster = _make_humanoid_monster(clan)
-    monster.role = "minion"
-    monster.generation_meta["meta"] = {
-        **monster.generation_meta["meta"],
-        "archetype": "beast",
-        "family_id": "rat_swarm",
-        "tags": ["monster", "rat", "small"],
-    }
-    monster.generation_meta["balance"] = {
-        **monster.generation_meta["balance"],
-        "organization_type": "swarm",
-    }
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    math_model = snapshot["combat"]["math_model"]
-    assert math_model["pipeline"] == {
-        "actor_kind": "monster",
-        "family_id": "rat_swarm",
-        "role": "minion",
-        "size_class": "small",
-        "organization_type": "swarm",
-        "pipeline_tags": ["monster:organization:swarm", "monster:size:small"],
-    }
-    assert math_model["rules"] == {"attribute_profile": "monster:beast"}
-    modifiers = math_model["modifiers"]
-    assert modifiers["evasion"]["source"]["monster_size:small"] == pytest.approx(0.05)
-    assert modifiers["damage_mult"]["source"]["monster_size:small"] == "*0.9"
-    for modifier in modifiers.values():
-        assert not any(str(source).startswith("monster_organization:") for source in modifier["source"])
-
-
-@pytest.mark.unit
-def test_humanoid_monster_has_nonzero_damage_potential() -> None:
-    """Humanoid monster with a melee weapon must produce main_hand_damage_base > 0."""
-    clan = _make_clan()
-    monster = _make_humanoid_monster(clan, weapon_power=10)
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    combat = snapshot["combat"]
-    assert combat["math_model"]["modifiers"]["main_hand_damage_base"]["base"] == 10.0
-    assert "main_hand" in combat["loadout"]["combat_surfaces"]
-    assert combat["loadout"]["combat_surfaces"]["main_hand"]["delivery"] == "weapon"
-
-
-@pytest.mark.unit
-def test_monster_source_exposes_clan_owner_family_loot_culture() -> None:
-    clan = _make_clan()
-    clan.flavor_content = {
-        "loot_culture": {
-            "craft_style": "грубая переделка найденных вещей",
-            "craft_skill_hint": "не кузнецы; используют лом, двери и ремни",
-            "salvage_sources": ["городские ворота"],
-            "tone_hints": ["уличная практичность"],
-            "equipment_origin_notes": ["щит может быть куском двери"],
-        }
-    }
-    clan.name_ru = "Банда Воротной Щепы"
-    clan.description = "Разбойники держат пролом у старых ворот."
-    monster = _make_humanoid_monster(clan)
-
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
-
-    owner_family = snapshot["source"]["owner_family"]
-    assert owner_family["clan_id"] == str(clan.id)
-    assert owner_family["family_resource_id"] == "bandit_gang"
-    assert owner_family["clan_name_ru"] == "Банда Воротной Щепы"
-    assert owner_family["loot_culture"]["salvage_sources"] == ["городские ворота"]
+    hp_sources = snapshot["combat"]["math_model"]["modifiers"]["hp"]["source"]
+    assert "clan_trait:rot_adapted" not in hp_sources

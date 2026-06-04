@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.world.models import WorldGrid
+    from src.backend.infrastructure.world.models import WorldGrid, WorldRegion
     from src.backend.infrastructure.world.repositories import WorldRepository
 
 
@@ -35,6 +35,9 @@ class WorldDataIntegration:
 
     async def get_active_nodes(self) -> list[WorldGrid]:
         return await self.repository.get_active_nodes()
+
+    async def get_active_regions(self) -> list[WorldRegion]:
+        return await self.repository.get_active_regions()
 
     async def get_active_nodes_by_zone_ids(self, zone_ids: list[str]) -> list[WorldGrid]:
         return await self.repository.get_active_nodes_by_zone_ids(zone_ids)

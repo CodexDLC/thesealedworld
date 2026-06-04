@@ -227,12 +227,13 @@
                     {% else %}
                         <tr><td>Навык</td><td>—</td><td>—</td><td>—</td></tr>
                     {% endfor %}
-                    {% for modifier in member.generation_meta.get("family_modifiers", []) %}
+                    {% for trait in clan.selected_traits %}
+                        {% for modifier in trait.get("modifiers", []) %}
                         {% set target = modifier.get("target") %}
-                        {% set effective = modifier.get("effective_value", 0)|float %}
+                        {% set effective = (modifier.get("base", 0)|float) + (modifier.get("per_tier", 0)|float * member.member_tier) %}
                         {% set per_tier = modifier.get("per_tier", 0)|float %}
                         <tr>
-                            <td>Семья</td>
+                            <td>{{ trait.get("label") or trait.get("key") }}</td>
                             <td>{{ modifier_labels.get(target, target|replace("_", " ")) }}</td>
                             <td>
                                 {% if effective|abs <= 1 %}
@@ -253,6 +254,7 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% endfor %}
                     {% endfor %}
                 </tbody>
             </table>

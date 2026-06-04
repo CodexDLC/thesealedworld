@@ -115,6 +115,7 @@ class CharacterGearScoreCalculator:
         except (TypeError, ValueError):
             return None
 
+    @staticmethod
     def _apply_combat_power_projection(
         calculated: dict[str, Any],
         *,

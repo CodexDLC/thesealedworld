@@ -6,11 +6,6 @@ from collections import deque
 from typing import Any, cast
 from uuid import uuid4
 
-from src.backend.features.monsters.runtime.hashing import (
-    MonsterHashContext,
-    compute_monster_context_hash,
-    normalized_monster_hash_tags,
-)
 from src.backend.features.rift.dto import (
     RiftPassageEdgeDTO,
     RiftPoolNodeDTO,
@@ -81,7 +76,7 @@ def build_zone_runtime(
         raw_anchor_rules=anchors.get("start"),
         width=grid["width"],
         height=grid["height"],
-        fallback=RiftCoordinateDTO(x=0, y=grid["height"] // 2),
+        default_coordinate=RiftCoordinateDTO(x=0, y=grid["height"] // 2),
         rng=rng,
     )
     finish_node_id = canvas_builder.select_node_from_anchor_rules(
@@ -89,7 +84,7 @@ def build_zone_runtime(
         raw_anchor_rules=anchors.get("finish"),
         width=grid["width"],
         height=grid["height"],
-        fallback=RiftCoordinateDTO(x=grid["width"] - 1, y=grid["height"] // 2),
+        default_coordinate=RiftCoordinateDTO(x=grid["width"] - 1, y=grid["height"] // 2),
         rng=rng,
     )
     requested_void_cells = canvas_builder.resolve_void_cells(
@@ -198,39 +193,17 @@ def build_population_context(setting: dict[str, Any]) -> dict[str, Any]:
     population = dict(setting.get("population_generation") or {})
     screen = dict(setting.get("screen") or {})
     setting_key = str(setting.get("setting_key") or "rift")
-    biome_id = str(population.get("biome_id") or "wasteland")
+    habitat = dict(population.get("habitat") or {})
+    biome_id = str(habitat.get("biome") or population.get("biome_id") or "wasteland")
     tier = max(1, int(population.get("tier") or population.get("threat_tier") or screen.get("tier") or 1))
-    tags = _string_list(population.get("context_tags") or population.get("normalized_tags"))
-    selection_tags = _string_list(population.get("selection_tags"))
-    family_slots = _family_slots(
-        population.get("family_slots"),
-        setting_key=setting_key,
-        biome_id=biome_id,
-        tier=tier,
-        rift_tags=tags,
-        population_selection_tags=selection_tags,
-    )
-    context_hash = compute_monster_context_hash(
-        MonsterHashContext(
-            source="rift",
-            context_key=setting_key,
-            biome_id=biome_id,
-            tier=tier,
-            tags=tuple(tags),
-        )
-    )
     return {
-        "source": "rift_static",
+        "source": "rift_habitat_clan_pool",
         "setting_key": setting_key,
         "biome_id": biome_id,
         "tier": tier,
-        "selection_profile_id": str(population.get("selection_profile_id") or ""),
-        "selection_tags": selection_tags,
-        "family_slots": family_slots,
-        "family_bindings": _family_bindings(family_slots),
-        "tags": tags,
-        "context_hash": context_hash,
-        "hash_strategy": "rift_context_v1",
+        "habitat": {"biome": biome_id, "keys": _string_list(habitat.get("keys"))},
+        "clan_pool_policy": dict(population.get("clan_pool_policy") or {}),
+        "hash_strategy": "habitat_clan_pool_v1",
     }
 
 
@@ -267,79 +240,6 @@ def _first_pool_node_id_with_roles(
     return None
 
 
-def _family_slots(
-    value: Any,
-    *,
-    setting_key: str,
-    biome_id: str,
-    tier: int,
-    rift_tags: list[str],
-    population_selection_tags: list[str],
-) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-    slots: list[dict[str, Any]] = []
-    for raw_slot in value:
-        if not isinstance(raw_slot, dict):
-            continue
-        slot_id = str(raw_slot.get("slot_id") or "").strip()
-        if not slot_id:
-            continue
-        selection_tags = _string_list(raw_slot.get("selection_tags"))
-        family_id = str(raw_slot.get("prototype_family_key") or "").strip()
-        slot_hash_tags = [
-            *rift_tags,
-            *population_selection_tags,
-            *selection_tags,
-            slot_id,
-            str(raw_slot.get("role") or ""),
-            str(raw_slot.get("family_profile_key") or ""),
-            str(raw_slot.get("archetype") or ""),
-            family_id,
-        ]
-        hash_context = MonsterHashContext(
-            source="rift",
-            context_key=f"{setting_key}:{slot_id}",
-            biome_id=biome_id,
-            tier=tier,
-            tags=tuple(slot_hash_tags),
-        )
-        context_hash = compute_monster_context_hash(hash_context)
-        slots.append(
-            {
-                "slot_id": slot_id,
-                "role": str(raw_slot.get("role") or "secondary"),
-                "family_profile_key": str(raw_slot.get("family_profile_key") or ""),
-                "archetype": str(raw_slot.get("archetype") or ""),
-                "selection_tags": selection_tags,
-                "prototype_family_key": family_id,
-                "family_id": family_id,
-                "context_hash": context_hash,
-                "hash_context": _hash_context_payload(hash_context),
-                "normalized_tags": normalized_monster_hash_tags(hash_context),
-            }
-        )
-    return slots
-
-
-def _family_bindings(family_slots: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    bindings: dict[str, dict[str, Any]] = {}
-    for slot in family_slots:
-        slot_id = str(slot.get("slot_id") or "").strip()
-        family_id = str(slot.get("family_id") or slot.get("prototype_family_key") or "").strip()
-        if not slot_id or not family_id:
-            continue
-        bindings[slot_id] = {
-            "slot_id": slot_id,
-            "family_id": family_id,
-            "context_hash": str(slot.get("context_hash") or ""),
-            "hash_context": dict(slot.get("hash_context") or {}),
-            "normalized_tags": list(slot.get("normalized_tags") or []),
-            "source": "rift_static",
-        }
-    return bindings
-
-
 def _string_list(value: Any) -> list[str]:
     if isinstance(value, dict):
         values = [str(key).strip() for key, enabled in value.items() if bool(enabled)]
@@ -348,16 +248,6 @@ def _string_list(value: Any) -> list[str]:
     else:
         values = []
     return sorted({item for item in values if item})
-
-
-def _hash_context_payload(context: MonsterHashContext) -> dict[str, Any]:
-    return {
-        "source": context.source,
-        "context_key": context.context_key,
-        "biome_id": context.biome_id,
-        "tier": context.tier,
-        "tags": list(context.tags),
-    }
 
 
 def rebuild_zone_state(
@@ -812,7 +702,7 @@ def _build_main_path(
     min_path_length = max(2, round(node_count * float(main_path_policy.get("min_length_ratio") or 0.35)))
     max_path_length = max(min_path_length, round(node_count * float(main_path_policy.get("max_length_ratio") or 0.8)))
     best_path: list[str] = []
-    fallback_path: list[str] = []
+    backup_path: list[str] = []
     for attempt in range(max(1, attempts)):
         rng = random.Random(f"{seed}:main-path:{attempt}")
         path = _randomized_dfs_path(
@@ -826,13 +716,13 @@ def _build_main_path(
         )
         if not path:
             continue
-        if not fallback_path or len(path) < len(fallback_path):
-            fallback_path = path
+        if not backup_path or len(path) < len(backup_path):
+            backup_path = path
         if min_path_length <= len(path) <= max_path_length and len(path) > len(best_path):
             best_path = path
     return (
         best_path
-        or fallback_path
+        or backup_path
         or _shortest_path(
             nodes=nodes,
             cells_by_coord=cells_by_coord,
@@ -1164,7 +1054,7 @@ def _select_node_from_anchor_rules(
     raw_anchor_rules: Any,
     width: int,
     height: int,
-    fallback: RiftCoordinateDTO,
+    default_coordinate: RiftCoordinateDTO,
     rng: random.Random,
 ) -> str:
     rules = raw_anchor_rules if isinstance(raw_anchor_rules, list) else [raw_anchor_rules]
@@ -1176,10 +1066,10 @@ def _select_node_from_anchor_rules(
             node_id = cells_by_coord.get(coord_key(candidate.x, candidate.y))
             if node_id:
                 return node_id
-    fallback_node_id = cells_by_coord.get(coord_key(fallback.x, fallback.y))
-    if fallback_node_id is None:
+    default_node_id = cells_by_coord.get(coord_key(default_coordinate.x, default_coordinate.y))
+    if default_node_id is None:
         raise ValueError("Rift canvas does not contain a usable start/finish coordinate")
-    return fallback_node_id
+    return default_node_id
 
 
 def _anchor_candidates(raw_rule: Any, *, width: int, height: int) -> list[RiftCoordinateDTO]:

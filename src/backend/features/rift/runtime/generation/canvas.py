@@ -38,7 +38,7 @@ class CanvasBuilder:
         raw_anchor_rules: Any,
         width: int,
         height: int,
-        fallback: RiftCoordinateDTO,
+        default_coordinate: RiftCoordinateDTO,
         rng: random.Random,
     ) -> str:
         rules = raw_anchor_rules if isinstance(raw_anchor_rules, list) else [raw_anchor_rules]
@@ -50,10 +50,10 @@ class CanvasBuilder:
                 node_id = cells_by_coord.get(coord_key(candidate.x, candidate.y))
                 if node_id:
                     return node_id
-        fallback_node_id = cells_by_coord.get(coord_key(fallback.x, fallback.y))
-        if fallback_node_id is None:
+        default_node_id = cells_by_coord.get(coord_key(default_coordinate.x, default_coordinate.y))
+        if default_node_id is None:
             raise ValueError("Rift canvas does not contain a usable start/finish coordinate")
-        return fallback_node_id
+        return default_node_id
 
     def resolve_void_cells(
         self,

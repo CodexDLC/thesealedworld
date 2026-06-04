@@ -6,7 +6,6 @@ from src.backend.features.monsters.resources import get_all_family_configs
 from src.backend.features.monsters.runtime.generation_fields import (
     ORGANIZATION_GS_DIVISORS,
     build_balance,
-    build_family_modifiers,
     build_generated_monster_template,
     build_granted_abilities,
     build_items,
@@ -149,7 +148,7 @@ def test_build_items_groups_runtime_projections_by_owner() -> None:
 
 
 @pytest.mark.unit
-def test_build_text_payload_maps_ai_encounter_fields() -> None:
+def test_build_text_payload_maps_minimal_member_fields() -> None:
     family = _family()
     variant = family.variants["sewer_rat"]
 
@@ -157,22 +156,21 @@ def test_build_text_payload_maps_ai_encounter_fields() -> None:
         variant,
         {
             "name": "Канализационная крыса",
-            "appearance": "Крыса с мокрой серой шерстью.",
-            "detected": "Она пятится к трубе, не отрывая взгляда.",
-            "ambush": "Она бросается из темной щели.",
-            "idle": "Она грызет обломок кожи у стены.",
+            "short_description": "Крыса с мокрой серой шерстью.",
+            "visual_hint": "мокрая серая шерсть, низкая стойка",
         },
     )
 
     assert text.name_ru == "Канализационная крыса"
     assert text.appearance_ru == "Крыса с мокрой серой шерстью."
-    assert text.detected_ru == "Она пятится к трубе, не отрывая взгляда."
-    assert text.ambush_ru == "Она бросается из темной щели."
-    assert text.idle_ru == "Она грызет обломок кожи у стены."
+    assert text.visual_hint == "мокрая серая шерсть, низкая стойка"
+    assert "detected_ru" not in text.model_dump(mode="json")
+    assert "ambush_ru" not in text.model_dump(mode="json")
+    assert "idle_ru" not in text.model_dump(mode="json")
 
 
 @pytest.mark.unit
-def test_build_text_payload_keeps_legacy_encounter_compatible() -> None:
+def test_build_text_payload_does_not_keep_legacy_encounter_prose() -> None:
     family = _family()
     variant = family.variants["sewer_rat"]
 
@@ -180,15 +178,18 @@ def test_build_text_payload_keeps_legacy_encounter_compatible() -> None:
         variant,
         {
             "name": "Крыса",
-            "appearance": "Тощая крыса.",
+            "short_description": "Тощая крыса.",
             "encounter": "Крыса выскакивает на свет.",
             "behavior": "Она жмется к стенам.",
         },
     )
 
-    assert text.detected_ru == "Крыса выскакивает на свет."
-    assert text.ambush_ru == "Крыса выскакивает на свет."
-    assert text.idle_ru == "Она жмется к стенам."
+    payload = text.model_dump(mode="json")
+    assert payload["appearance_ru"] == "Тощая крыса."
+    assert "encounter" not in payload
+    assert "detected_ru" not in payload
+    assert "ambush_ru" not in payload
+    assert "idle_ru" not in payload
 
 
 @pytest.mark.unit
@@ -271,24 +272,23 @@ def test_build_balance_uses_default_organization_gs_divisors(
 
 
 @pytest.mark.unit
-def test_all_monster_families_do_not_carry_global_accuracy_penalty() -> None:
-    offenders = []
+def test_all_monster_families_do_not_carry_static_family_modifiers() -> None:
+    offenders: list[str] = []
     for family in get_all_family_configs().values():
-        if any(entry.target == "accuracy" for entry in family.family_modifiers):
+        if hasattr(family, "family_modifiers"):
             offenders.append(family.id)
 
     assert offenders == []
 
 
 @pytest.mark.unit
-def test_build_family_modifiers_scales_active_family_modifiers_across_tiers() -> None:
+def test_generated_monster_template_does_not_include_family_modifiers() -> None:
     family = MonsterFamilyDTO.model_validate(
         {
             "id": "test_family",
             "archetype": "beast",
             "organization_type": "pack",
             "default_tags": [],
-            "family_modifiers": [{"target": "physical_resistance", "value": 0.03, "per_tier": 0.01}],
             "hierarchy": {"minions": ["test_var"], "veterans": [], "elites": [], "boss": []},
             "variants": {
                 "test_var": {
@@ -313,10 +313,11 @@ def test_build_family_modifiers_scales_active_family_modifiers_across_tiers() ->
             },
         }
     )
+    variant = family.variants["test_var"]
 
-    assert build_family_modifiers(family, member_tier=7) == [
-        {"target": "physical_resistance", "value": 0.03, "per_tier": 0.01, "effective_value": 0.10}
-    ]
+    template = build_generated_monster_template(family, variant, context_tier=7, owner_key="member-1")
+
+    assert "family_modifiers" not in template.model_dump(mode="json")
 
 
 @pytest.mark.unit

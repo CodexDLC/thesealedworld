@@ -41,6 +41,11 @@ class BackendSettings(BaseCommonSettings):
     )
     database_url: str = game_database_url
     database_echo: bool = False
+    mongo_url: str = "mongodb://127.0.0.1:27017"
+    mongo_database: str = "tbmmorpg_analytics"
+    mongo_server_selection_timeout_ms: int = 5_000
+    monster_migration_backfill_batch_size: int = 200
+    monster_mongo_write_retry_attempts: int = 3
     secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30

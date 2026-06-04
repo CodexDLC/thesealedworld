@@ -3,6 +3,7 @@ from typing import Any
 from loguru import logger as log
 
 from src.backend.core.database import get_session_context
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.combat.runtime.services.data_service import CombatDataService  # noqa: TC001
 from src.backend.features.combat.runtime.services.durability_policy import CombatDurabilityPolicy
 from src.backend.features.combat.runtime.services.experience_finalizer import CombatExperienceFinalizer
@@ -16,13 +17,11 @@ from src.backend.infrastructure.rift.managers import (
     RiftInstanceStore,
     RiftPortalStore,
     RiftPresenceStore,
+    RiftRestoreLock,
     RiftRunSessionStore,
 )
-from src.backend.infrastructure.rift.repositories import (
-    RiftInstanceStateRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
-)
+from src.backend.infrastructure.rift.repositories import RiftMembershipRepository
+from src.backend.infrastructure.rift.repositories.snapshots import RiftRuntimeSnapshotRepository
 from src.backend.realtime.integrations.notice_publisher import (
     PlayerNoticePublisher,
     RawStreamNoticeProducer,
@@ -200,9 +199,9 @@ async def _apply_rift_combat_result(ctx: dict, finalization: dict[str, Any]) -> 
             session_store=RiftRunSessionStore(redis_service),
             presence_store=RiftPresenceStore(redis_service),
             portal_store=RiftPortalStore(redis_service),
-            instance_state_repository=RiftInstanceStateRepository(db_session),
-            run_state_repository=RiftRunStateRepository(db_session),
-            portal_key_repository=RiftPortalKeyRepository(db_session),
+            membership_repository=RiftMembershipRepository(db_session),
+            snapshot_repository=RiftRuntimeSnapshotRepository(get_mongo_provider().database()),
+            restore_lock=RiftRestoreLock(redis_service),
         )
 
     try:

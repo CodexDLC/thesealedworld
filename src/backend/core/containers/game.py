@@ -5,6 +5,7 @@ from loguru import logger
 
 from src.backend.config.settings import settings
 from src.backend.core.database import get_manual_session_context, get_session_context
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.generation_ai.bootstrap import build_generation_ai_registry
 from src.backend.features.generation_ai.repositories import AIGenerationTaskRepository
 from src.backend.features.generation_ai.services import GenerationAIService
@@ -18,7 +19,10 @@ from src.backend.features.monsters.runtime import ClanFactory, MonsterClanGenera
 from src.backend.features.monsters.services import (
     AnchorProjectionBootstrapService,
     EncounterMonsterService,
-    WorldMonsterPopulationService,
+    HabitatClanPoolMaterializationService,
+)
+from src.backend.features.monsters.services.habitat_clan_pool_materialization_service import (
+    habitat_scope_config_from_population_profile,
 )
 from src.backend.features.rift.resources.loader import RiftResourceLoader
 from src.backend.features.rift.services import RiftCatalogBootstrapService, RiftPopulationBootstrapService
@@ -26,6 +30,7 @@ from src.backend.features.scenario.integrations import ScenarioImportIntegration
 from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 from src.backend.features.world.services import LLMWorldGenerator, WorldBootstrapService, WorldCacheService
 from src.backend.infrastructure.rift.repositories import RiftNodePoolRepository, RiftSettingRepository
+from src.backend.infrastructure.rift.repositories.catalog_documents import RiftCatalogDocumentRepository
 from src.backend.infrastructure.world.repositories import WorldRepository
 
 
@@ -63,10 +68,10 @@ class GameFeatureContainer:
                 generation_mode=settings.world_generation_mode,
             )
             loaded_count = await bootstrap.bootstrap()
-            encounter_service = EncounterMonsterService(
+            encounter_service = EncounterMonsterService(  # type: ignore
                 MonsterGenerationRepository(session),
-                factory=ClanFactory(
-                    MonsterClanGenerationBuilder(
+                factory=ClanFactory(  # type: ignore
+                    MonsterClanGenerationBuilder(  # type: ignore
                         repository=MonsterGenerationRepository(session),
                         item_generation=ItemGenerationService(
                             ItemPersistenceIntegration(ItemInstanceRepository(session)),
@@ -75,20 +80,41 @@ class GameFeatureContainer:
                     ),
                 ),
             )
-            monster_population = WorldMonsterPopulationService(encounter_service)
-            population_result = await monster_population.ensure_population_for_nodes(await data.get_active_nodes())
+            monster_factory = encounter_service.factory
+            habitat_materializer = HabitatClanPoolMaterializationService(  # type: ignore
+                repository=MonsterGenerationRepository(session),
+                factory=monster_factory,
+            )
+            active_regions = await data.get_active_regions()
+            population_result = await habitat_materializer.ensure_scope_pools(
+                [
+                    habitat_scope_config_from_population_profile(
+                        scope_type="region",
+                        scope_id=str(region.id),
+                        population_profile=dict(region.population_profile or {}),
+                        fallback_biome=str(region.biome_id or "wasteland"),
+                        tier=max(1, int(region.tier_min or 1)),
+                        source_meta={"region_archetype": str(region.region_archetype or "")},
+                    )
+                    for region in active_regions
+                    if isinstance(region.population_profile, dict)
+                    and region.population_profile.get("habitat")
+                    and region.population_profile.get("clan_pool_policy")
+                ]
+            )
             rift_loader = RiftResourceLoader()
             rift_catalog_result = await RiftCatalogBootstrapService(
                 loader=rift_loader,
                 setting_repository=RiftSettingRepository(session),
                 node_pool_repository=RiftNodePoolRepository(session),
+                catalog_document_repository=RiftCatalogDocumentRepository(get_mongo_provider().database()),
             ).sync_fixtures()
             rift_population_result = await RiftPopulationBootstrapService(
                 loader=rift_loader,
-                encounter_service=encounter_service,
+                materializer=habitat_materializer,
             ).ensure_static_population()
             app.state.world_cache_loaded_count = loaded_count
-            app.state.monster_population_contexts = population_result.contexts
+            app.state.monster_population_contexts = population_result.scopes
             app.state.monster_population_clans = population_result.clans
             app.state.rift_catalog_settings = rift_catalog_result.settings
             app.state.rift_catalog_nodes = rift_catalog_result.nodes
@@ -98,7 +124,7 @@ class GameFeatureContainer:
             app.state.rift_population_bindings = rift_population_result.bindings
             logger.bind(location_count=loaded_count).info("WorldBootstrapFinished")
             logger.bind(
-                context_count=population_result.contexts,
+                context_count=population_result.scopes,
                 clan_count=population_result.clans,
             ).info("MonsterPopulationBootstrapFinished")
             logger.bind(
@@ -117,7 +143,7 @@ class GameFeatureContainer:
     async def _bootstrap_anchor_projections(self, app: FastAPI) -> None:
         logger.info("AnchorProjectionsBootstrapStarted")
         item_generation = ItemGenerationService()
-        bootstrap = AnchorProjectionBootstrapService(
+        bootstrap = AnchorProjectionBootstrapService(  # type: ignore
             item_generation=item_generation,
             redis=app.state.redis,
         )

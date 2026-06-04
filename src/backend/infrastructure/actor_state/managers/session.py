@@ -544,7 +544,7 @@ class CharacterSessionManager:
                 vitals = CharacterSessionVitalsDTO.model_validate(document.get("vitals") or {})
                 if not CharacterVitalsCalculator._is_full(vitals):
                     try:
-                        char_ids.append(int(document.get("char_id")))
+                        char_ids.append(int(document.get("char_id")))  # type: ignore
                     except (TypeError, ValueError):
                         continue
                     if len(char_ids) >= limit:

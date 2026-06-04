@@ -128,7 +128,7 @@ class MonsterGroupAssembler:
         self._upgrade_group(selected, candidates, budget, rule)
         return sorted(
             selected,
-            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
+            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id),
         )
 
     def _start_role_target(
@@ -140,7 +140,7 @@ class MonsterGroupAssembler:
         max_units = int(rule["max_units"])
         if bool(self.config["global"]["fill_minion_slots_before_upgrades"]):
             return min(max_units, self._role_cap(rule, role))
-        unique_role_members = len({member.variant_key for member in candidates if member.role == role})
+        unique_role_members = len({member.variant_id for member in candidates if member.role == role})
         configured_start = int(rule["min_units"])
         return min(max(configured_start, unique_role_members), max_units, self._role_cap(rule, role))
 
@@ -239,7 +239,7 @@ class MonsterGroupAssembler:
     ) -> list[GeneratedMonster]:
         return sorted(
             candidates,
-            key=lambda member: (self._member_power(member), ROLE_ORDER.get(member.role, 9), member.variant_key),
+            key=lambda member: (self._member_power(member), ROLE_ORDER.get(member.role, 9), member.variant_id),
         )
 
     def _try_add(
@@ -291,8 +291,7 @@ class MonsterGroupAssembler:
         return round(total * self._action_economy_multiplier(len(members)), 2)
 
     def _member_power(self, member: GeneratedMonster) -> int:
-        balance = _balance(member)
-        raw_score = balance.get("gear_score")
+        raw_score = _assembly_score(member)
         if raw_score is None:
             return 0
         weight = float(self.config["role_weights"].get(member.role, 1.0))
@@ -302,7 +301,7 @@ class MonsterGroupAssembler:
         candidates = [member for member in members if self._member_power(member) > 0]
         return sorted(
             candidates,
-            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
+            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id),
         )
 
     def _filter_candidates_by_policy(
@@ -376,7 +375,7 @@ class MonsterGroupAssembler:
                 result.append(role_candidates[0])
         return sorted(
             result,
-            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key),
+            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id),
         )
 
     def _role_candidates(
@@ -392,7 +391,7 @@ class MonsterGroupAssembler:
             self._rng.shuffle(ordered)
             return ordered
         return sorted(
-            ordered, key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_key)
+            ordered, key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id)
         )
 
     @staticmethod
@@ -400,7 +399,7 @@ class MonsterGroupAssembler:
         for role in LOWER_ROLE_ORDER.get(target_role, ()):
             matching = [member for member in selected if member.role == role]
             if matching:
-                return sorted(matching, key=lambda member: (ROLE_ORDER.get(member.role, 9), member.variant_key))[0]
+                return sorted(matching, key=lambda member: (ROLE_ORDER.get(member.role, 9), member.variant_id))[0]
         return None
 
     @staticmethod
@@ -423,7 +422,7 @@ class MonsterGroupAssembler:
         for role in lower_roles:
             matching = [member for member in selected if member.role == role]
             if matching:
-                return sorted(matching, key=lambda member: (ROLE_ORDER.get(member.role, 9), member.variant_key))[0]
+                return sorted(matching, key=lambda member: (ROLE_ORDER.get(member.role, 9), member.variant_id))[0]
         return selected[0] if selected else None
 
     def _action_economy_multiplier(self, count: int) -> float:
@@ -445,9 +444,15 @@ class MonsterGroupAssembler:
         return min(float(global_config["budget_max"]), max(float(global_config["budget_min"]), budget))
 
 
-def _balance(member: GeneratedMonster) -> dict[str, Any]:
-    raw_balance = (member.generation_meta or {}).get("balance")
-    return dict(raw_balance) if isinstance(raw_balance, dict) else {}
+def _assembly_score(member: GeneratedMonster) -> int | None:
+    snapshot = member.active_snapshot if isinstance(member.active_snapshot, dict) else {}
+    raw_score = snapshot.get("assembly_cost")
+    if raw_score is None:
+        raw_score = snapshot.get("gear_score")
+    try:
+        return int(raw_score)  # type: ignore
+    except (TypeError, ValueError):
+        return None
 
 
 def _single_score(power: int, budget: float) -> tuple[int, float, int]:

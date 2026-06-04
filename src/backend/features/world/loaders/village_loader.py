@@ -7,7 +7,11 @@ from loguru import logger as log
 from src.backend.features.world.resources.static.d4_city_map import build_d4_city_map_node_metadata
 from src.backend.features.world.runtime.config import REGION_ROWS, REGION_SIZE, ZONE_SIZE
 from src.backend.features.world.runtime.geography import WorldGeographyService
-from src.backend.features.world.runtime.profiles import build_region_profile, build_zone_profile
+from src.backend.features.world.runtime.profiles import (
+    build_habitat_population_profile_payload,
+    build_region_profile,
+    build_zone_profile,
+)
 from src.backend.features.world.runtime.theme import WorldThemeService
 from src.backend.features.world.runtime.threat import ThreatService
 
@@ -50,7 +54,7 @@ class VillageLoader:
                 tier_min=region_profile.tier_band[0],
                 tier_max=region_profile.tier_band[1],
                 navigation_profile_id=region_profile.navigation_profile_id,
-                population_profile=region_profile.population_profile.model_dump(),
+                population_profile=build_habitat_population_profile_payload(region_profile),
                 anchor_influence=region_profile.anchor_influence,
                 is_locked_frontier=region_profile.is_locked_frontier,
             )
@@ -64,9 +68,6 @@ class VillageLoader:
                     continue
                 is_hub_zone = zx == 1 and zy == 1
                 zone = build_zone_profile(region_profile=region_profile, zone_id=zone_id, zx=zx, zy=zy)
-                zone_center_x = _d4_min_x() + zx * ZONE_SIZE + ZONE_SIZE // 2
-                zone_center_y = _d4_min_y() + zy * ZONE_SIZE + ZONE_SIZE // 2
-                influence = ThreatService.describe(zone_center_x, zone_center_y)
                 log.bind(zone_id=zone_id).info("WorldZoneCreating")
                 await self.data.upsert_zone(
                     zone_id,

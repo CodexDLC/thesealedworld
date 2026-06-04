@@ -142,9 +142,6 @@ def build_text_payload(
     data = _normalize_text_content(generated_text or {})
     data.setdefault("short_name_ru", variant.id)
     data.setdefault("appearance_ru", variant.narrative_hint)
-    data.setdefault("detected_ru", variant.narrative_hint)
-    data.setdefault("ambush_ru", variant.narrative_hint)
-    data.setdefault("idle_ru", variant.narrative_hint)
     data.setdefault("name_ru", data.get("short_name_ru", variant.id))
     return MonsterTextContentDTO.model_validate(data)
 
@@ -161,17 +158,6 @@ def build_meta(
         tags=list(dict.fromkeys([*family.default_tags, *variant.extra_tags, variant.role])),
         source=source or {},
     )
-
-
-def build_family_modifiers(family: MonsterFamilyDTO, member_tier: int) -> list[dict[str, Any]]:
-    result = []
-    for entry in family.family_modifiers:
-        target = entry.target
-        effective = round(entry.value + entry.per_tier * member_tier, 4)
-        result.append(
-            {"target": target, "value": entry.value, "per_tier": entry.per_tier, "effective_value": effective}
-        )
-    return result
 
 
 def _organization_gs_divisor(organization_type: str) -> float:
@@ -202,7 +188,6 @@ def build_generated_monster_template(
         granted_abilities=build_granted_abilities(family, variant, member_model),
         ai_profile=build_ai_profile(family, variant, member_model),
         balance=build_balance(family, variant, member_model),
-        family_modifiers=build_family_modifiers(family, member_tier),
     )
 
 
@@ -248,19 +233,11 @@ def _normalize_text_content(value: dict[str, Any]) -> dict[str, Any]:
         "name": "name_ru",
         "short_name": "short_name_ru",
         "appearance": "appearance_ru",
-        "detected": "detected_ru",
-        "ambush": "ambush_ru",
-        "idle": "idle_ru",
+        "short_description": "appearance_ru",
     }
     for source, target in key_map.items():
         if target not in data and data.get(source):
             data[target] = data[source]
-    if "detected_ru" not in data and data.get("encounter"):
-        data["detected_ru"] = data["encounter"]
-    if "ambush_ru" not in data and data.get("encounter"):
-        data["ambush_ru"] = data["encounter"]
-    if "idle_ru" not in data and data.get("behavior"):
-        data["idle_ru"] = data["behavior"]
     return data
 
 

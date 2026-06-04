@@ -79,6 +79,8 @@ class ActorMetaDTO(BaseModel):
     team: str
     template_id: str | None = None
     is_ai: bool = False
+    role: str | None = None
+    combatant_key: str | None = None
     archetype: str = "humanoid"  # "humanoid" | "beast" | "undead" | "construct" | "demon" | ...
     # AI behaviour template used by MonsterCombatBrain (combat/runtime/ai/archetypes.py).
     # Default "balanced" preserves prior behaviour for monsters that don't opt in.

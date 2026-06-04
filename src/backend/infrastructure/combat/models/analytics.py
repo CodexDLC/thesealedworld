@@ -29,6 +29,8 @@ class CombatExchangeFact(Base, SchemaVersionMixin):
     location_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     source_actor_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     target_actor_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source_combatant_key: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    target_combatant_key: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     action_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     feint_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     outcome: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
@@ -49,12 +51,8 @@ class CombatExchangeFact(Base, SchemaVersionMixin):
     phys_res_raw: Mapped[float | None] = mapped_column(Float, nullable=True)
     phys_res_effective: Mapped[float | None] = mapped_column(Float, nullable=True)
     physical_suppression: Mapped[float | None] = mapped_column(Float, nullable=True)
-    checks: Mapped[list[Any]] = mapped_column(JSONB, default=list, nullable=False)
-    damage_trace: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
-    trigger_attempts: Mapped[list[Any]] = mapped_column(JSONB, default=list, nullable=False)
-    mutations: Mapped[list[Any]] = mapped_column(JSONB, default=list, nullable=False)
-    equipment: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
-    tags: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    mongo_document_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    trace_status: Mapped[str] = mapped_column(String(32), default="mongo", nullable=False, index=True)
 
 
 class CombatBalanceRollup(Base, SchemaVersionMixin):

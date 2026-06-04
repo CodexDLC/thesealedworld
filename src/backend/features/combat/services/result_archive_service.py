@@ -150,7 +150,7 @@ class CombatResultArchiveService:
             row = await repo.get_by_combat_id(combat_id) if combat_id else await repo.get_latest_for_character(char_id)
             if row is None:
                 return None
-            return dict(row.finalization or {})
+            return dict(row.finalization or {})  # type: ignore
 
     @staticmethod
     def _outcome_for_actor(finalization: dict[str, Any], *, char_id: int) -> str:

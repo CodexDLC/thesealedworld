@@ -318,14 +318,9 @@ def _build_basic_exchange_template_recipes() -> tuple[CombatTextTemplateRecipeDT
                         entry.technical.hand,
                     )
                     is_bite = (entry.technical.weapon_class == "fangs") or (
-                        entry.technical.weapon_class == "default"
-                        and entry.technical.hand != "off"
+                        entry.technical.weapon_class == "default" and entry.technical.hand != "off"
                     )
-                    verb = (
-                        ("кусает" if outcome in {"hit", "crit"} else "пытается укусить")
-                        if is_bite
-                        else "бьёт"
-                    )
+                    verb = ("кусает" if outcome in {"hit", "crit"} else "пытается укусить") if is_bite else "бьёт"
                     pattern = (
                         f"{{approach}}, {verb} {{natural_weapon}} и {{contact}}; {{impact}}, {{result}}."
                         if outcome in {"hit", "crit"}

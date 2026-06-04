@@ -808,7 +808,12 @@ class CombatLogBuilder:
             return "/static/images/ui/combat-icons/target.svg"
         if effect_id == "ranged_position":
             return "/static/images/ui/combat-icons/ranged_position.svg"
-        if effect_id.startswith("prep_brace_guard") or "guard" in effect_id or "defense" in effect_id or "block" in effect_id:
+        if (
+            effect_id.startswith("prep_brace_guard")
+            or "guard" in effect_id
+            or "defense" in effect_id
+            or "block" in effect_id
+        ):
             return "/static/images/ui/combat-icons/shield.svg"
         if "dodge" in effect_id:
             return "/static/images/ui/combat-icons/token-dodge.svg"

@@ -196,25 +196,7 @@ class RiftEntryService:
             resources=self.resources,
             rift_key=rift_key or self.rift_key,
         ).build_runtime(request)
-        runtime = self._apply_population_bindings(runtime)
         return runtime.model_copy(update={"debug": False, "dev_character_snapshot": {}})
-
-    def _apply_population_bindings(self, runtime: RiftZoneRuntimeDTO) -> RiftZoneRuntimeDTO:
-        population_context = dict(runtime.population_context or {})
-        setting_key = str(
-            population_context.get("setting_key") or dict(runtime.setting or {}).get("setting_key") or self.rift_key
-        )
-        bindings = self.rift_population_bindings.get(setting_key)
-        if not bindings:
-            return runtime
-
-        merged = dict(population_context.get("family_bindings") or {})
-        for slot_id, binding in bindings.items():
-            if not isinstance(binding, Mapping):
-                continue
-            merged[str(slot_id)] = dict(binding)
-        population_context["family_bindings"] = merged
-        return runtime.model_copy(update={"population_context": population_context})
 
     async def _entry_power_context(self, char_id: int) -> dict[str, Any]:
         getter = getattr(self.character_sessions, "get_session", None)
@@ -246,6 +228,9 @@ class RiftEntryService:
             "participant_scope": "solo",
             "participant_ref": participant_ref,
             "rift_instance_id": runtime.rift_instance_id,
+            "setting_key": str(dict(runtime.setting or {}).get("setting_key") or "starter_rift"),
+            "source": _optional_str(entry_context.get("source_state")),
+            "source_ref": _optional_str(entry_context.get("source_ref")),
             "zone_instance_id": runtime.zone_instance_id,
             "current_zone_key": runtime.current_zone_key,
             "current_node_id": runtime.current_node_id,

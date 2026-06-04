@@ -621,7 +621,7 @@ class MechanicsService:
                 result.effect_facts.append(
                     CombatEffectFactDTO(
                         actor_id=actor.char_id,
-                        owner=owner,
+                        owner=owner,  # type: ignore
                         effect_id=effect.effect_id,
                         action="expire",
                         source_effect_id=effect.effect_id,

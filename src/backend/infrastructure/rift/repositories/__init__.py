@@ -1,17 +1,13 @@
 """Rift repository package."""
 
 from src.backend.infrastructure.rift.repositories.state import (
-    RiftInstanceStateRepository,
+    RiftMembershipRepository,
     RiftNodePoolRepository,
-    RiftPortalKeyRepository,
-    RiftRunStateRepository,
     RiftSettingRepository,
 )
 
 __all__ = [
-    "RiftInstanceStateRepository",
+    "RiftMembershipRepository",
     "RiftNodePoolRepository",
-    "RiftPortalKeyRepository",
-    "RiftRunStateRepository",
     "RiftSettingRepository",
 ]

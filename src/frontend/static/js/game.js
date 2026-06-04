@@ -1250,7 +1250,7 @@ window.gameShell = function(initial = {}) {
             if (hudWindow.width !== null) parts.push(`width: ${hudWindow.width}px`);
             if (hudWindow.height !== null) {
                 if (name === 'chat' && this.chatStep === 0) {
-                    
+
                 } else {
                     parts.push(`height: ${hudWindow.height}px`);
                 }

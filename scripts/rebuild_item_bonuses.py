@@ -62,7 +62,9 @@ def _repair_bonuses(mechanics: dict[str, Any], *, force: bool) -> tuple[bool, di
     return True, updated
 
 
-async def rebuild_item_bonuses(*, item_id: str | None = None, force: bool = False, dry_run: bool = False) -> RebuildReport:
+async def rebuild_item_bonuses(
+    *, item_id: str | None = None, force: bool = False, dry_run: bool = False
+) -> RebuildReport:
     report = RebuildReport(dry_run=dry_run)
 
     async with get_manual_session_context() as session:
@@ -95,7 +97,9 @@ async def rebuild_item_bonuses(*, item_id: str | None = None, force: bool = Fals
             await session.execute(
                 select(ItemInstance).where(ItemInstance.id == item_id_str).execution_options(populate_existing=True)
             )
-            await session.execute(ItemInstance.__table__.update().where(ItemInstance.id == item_id_str).values(mechanics=updated))
+            await session.execute(
+                ItemInstance.__table__.update().where(ItemInstance.id == item_id_str).values(mechanics=updated)
+            )
 
         if dry_run:
             await session.rollback()

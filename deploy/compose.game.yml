@@ -26,11 +26,13 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     entrypoint:
       - sh
       - -c
-      - python src/backend/manage.py upgrade && python src/backend/manage.py rebuild-monsters --apply
+      - python src/backend/manage.py upgrade && python src/backend/manage.py ensure-mongo-indexes && python src/backend/manage.py rebuild-monsters --apply
     networks:
       - tbmmorpg-network
 
@@ -46,6 +48,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     entrypoint:
       - uvicorn
@@ -85,6 +89,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       STREAM_CONSUMER_GROUP: ${CHAT_STREAM_CONSUMER_GROUP:-chat}
       WORKER_NAME: ${CHAT_WORKER_NAME:-chat_worker_1}
       DEBUG: "False"
@@ -110,6 +116,27 @@ services:
     networks:
       - tbmmorpg-network
 
+  chat-archive-worker:
+    image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
+      DEBUG: "False"
+    command: ["arq", "src.backend.chat.workers.archive.ChatArchiveWorkerSettings"]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    networks:
+      - tbmmorpg-network
+
   combat-worker:
     image: ${DOCKER_IMAGE_WORKER:?DOCKER_IMAGE_WORKER is required}
     restart: unless-stopped
@@ -121,6 +148,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     command: ["arq", "src.backend.features.combat.workers.arq.CombatArqSettings"]
     depends_on:
@@ -142,6 +171,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     command: ["arq", "src.backend.features.combat.workers.ai_simulation_arq.CombatAiSimulationArqSettings"]
     depends_on:
@@ -161,6 +192,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     command: ["arq", "src.backend.features.system.workers.arq.SystemArqSettings"]
     depends_on:
@@ -180,6 +213,8 @@ services:
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
+      MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       DEBUG: "False"
     command: ["arq", "src.backend.features.generation_ai.workers.arq.GenerationAIArqSettings"]
     volumes:

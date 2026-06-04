@@ -293,53 +293,53 @@
     ]
   },
   "population_generation": {
-    "status": "runtime_context",
-    "strategy": "rift_static_hash",
-    "biome_id": "broken_road",
+    "status": "habitat_clan_pool",
+    "strategy": "habitat_clan_pool_v1",
     "tier": 1,
-    "selection_profile_id": "starter_broken_road_goblins",
-    "selection_tags": [
-      "humanoid",
-      "goblin",
-      "scavenger",
-      "roadside_camp"
-    ],
-    "family_slots": [
-      {
-        "slot_id": "primary",
-        "role": "main_population",
-        "family_profile_key": "broken_road_goblin_scavengers",
-        "archetype": "humanoid",
-        "selection_tags": [
-          "humanoid",
-          "goblin",
-          "camp_guard",
-          "roadside_camp"
-        ],
-        "prototype_family_key": "goblin_tribe"
+    "habitat": {
+      "biome": "broken_road",
+      "keys": [
+        "road_tract",
+        "scavenger_camp"
+      ]
+    },
+    "clan_pool_policy": {
+      "primary": [
+        {
+          "family_id": "goblin_tribe",
+          "weight": 100
+        }
+      ],
+      "secondary": [
+        {
+          "family_id": "rat_swarm",
+          "weight": 30
+        }
+      ],
+      "blocked": [],
+      "policy_version": 1
+    },
+    "clan_flavors": {
+      "goblin_tribe": {
+        "name_ru": "Дорожные Сборщики",
+        "description": "Гоблинская артель держится у разбитого тракта и scavenger-camp, разбирая обломки рифта на оружие, ловушки и шумные приманки.",
+        "encounter_texts": {
+          "patrol": "Дорожные Сборщики прочесывают край тракта, перебрасываясь короткими командами и звоном лома.",
+          "ambush": "Гоблины выскакивают из-за дорожного мусора, где заранее спрятали крючья, щиты и грубые рифтовые приманки.",
+          "lair": "У лагеря Сборщиков каждый проход заставлен баррикадами, а старшие гоблины подгоняют мелких к бою.",
+          "random_meeting": "На дороге показывается шумная стайка гоблинов, тащащая добычу к своему лагерю."
+        }
       },
-      {
-        "slot_id": "secondary",
-        "role": "support_population",
-        "family_profile_key": "roadside_scavenger_beasts",
-        "archetype": "beast",
-        "selection_tags": [
-          "beast",
-          "rat",
-          "scavenger",
-          "broken_caravan"
-        ],
-        "prototype_family_key": "rat_swarm"
+      "rat_swarm": {
+        "name_ru": "Придорожная Стая",
+        "description": "Крысиный рой гнездится под разбитым трактом и выходит к scavenger-camp по запаху крови, пищи и теплого металла.",
+        "encounter_texts": {
+          "patrol": "Придорожная Стая идет вдоль трещин в камне, почти не поднимая голов от следа.",
+          "ambush": "Крысы вырываются из щелей под дорогой и разом смыкаются вокруг ближайшей цели.",
+          "lair": "В рваной норе под трактом шевелится вся стая, защищая теплое гнездо и собранные объедки.",
+          "random_meeting": "Из придорожной травы и мусора вытекает крысиный рой, привлеченный шумом шагов."
+        }
       }
-    ],
-    "context_tags": [
-      "starter_rift",
-      "tier_1_rift",
-      "broken_caravan",
-      "roadside_camp",
-      "goblin_scavengers",
-      "rift_scavenger_beasts"
-    ],
-    "family_hash_intent": "Use setting_key + biome_id + tier + context_tags as the DB clan context. Resolve each authored family slot inside the monster generation layer against active monster family definitions."
+    }
   }
 }

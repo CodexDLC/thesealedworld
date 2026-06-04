@@ -114,7 +114,24 @@ class FakeItemGeneration:
 
 
 async def _build_member(family_id: str, variant_key: str | None = None):
-    context = MonsterGenerationContext(zone_id="D4_0_1", biome_id="city_ruins", tier=1, tags=["mana_leak"])
+    context = MonsterGenerationContext(
+        zone_id="D4_0_1",
+        biome_id="city_ruins",
+        tier=1,
+        tags=["mana_leak"],
+        context_meta={
+            "clan_flavor": {
+                "name_ru": "Combat Test Clan",
+                "description": "Authored combat fixture clan.",
+                "encounter_texts": {
+                    "patrol": "Patrol text.",
+                    "ambush": "Ambush text.",
+                    "lair": "Lair text.",
+                    "random_meeting": "Random meeting text.",
+                },
+            }
+        },
+    )
     tags = normalize_tags(context.tags)
     context_hash = compute_context_hash(context.tier, context.biome_id, tags)
     unique_hash = compute_unique_clan_hash(family_id, context_hash)
@@ -154,14 +171,25 @@ async def _build_member(family_id: str, variant_key: str | None = None):
     clan = GeneratedClan(
         id=uuid.uuid4(),
         family_id=family_id,
-        tier=context.tier,
-        zone_id=context.zone_id,
+        identity_hash=unique_hash,
+        context_identity={
+            "tier": context.tier,
+            "zone_id": context.zone_id,
+            "biome_id": context.biome_id,
+            "habitat": {"biome": context.habitat_biome, "keys": context.habitat_keys},
+        },
         context_hash=context_hash,
-        unique_hash=unique_hash,
-        raw_tags={},
-        flavor_content={},
-        name_ru=family_id,
+        selected_traits=[],
+        title=family_id,
         description=family_id,
+        encounter_texts={
+            "patrol": "Patrol text.",
+            "ambush": "Ambush text.",
+            "lair": "Lair text.",
+            "random_meeting": "Random meeting text.",
+        },
+        generation_version=2,
+        resource_version=str(family.resource_version),
     )
     member = builder._build_member_row(
         clan_id=clan.id,
@@ -170,7 +198,8 @@ async def _build_member(family_id: str, variant_key: str | None = None):
         runtime_items=runtime_items,
         flavor={},
         context=context,
-        unique_hash=unique_hash,
+        identity_hash=unique_hash,
+        selected_traits=[],
     )
     member.clan = clan
     return member

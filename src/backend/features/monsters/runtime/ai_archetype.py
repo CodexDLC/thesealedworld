@@ -79,8 +79,8 @@ def resolve_monster_ai_archetype(
 
     Known variant ids are explicit and stable. Unknown non-empty variant ids
     stay balanced so adding a new monster does not accidentally inherit broad
-    role behaviour. Family/role fallback only applies when no variant id is
-    available, such as minimal fallback projections.
+    role behaviour. Family/role defaulting only applies when no variant id is
+    available, such as minimal placeholder projections.
     """
     normalized_variant = str(variant_id or "").strip().lower()
     if normalized_variant:

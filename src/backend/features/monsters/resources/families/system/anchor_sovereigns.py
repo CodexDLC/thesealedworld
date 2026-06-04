@@ -25,7 +25,6 @@ ANCHOR_SOVEREIGNS_FAMILY: MonsterFamily = {
             "east_evolution_sovereign",
         ],
     },
-    "family_modifiers": [],
     "loot_profile": {
         "salvage_type": "anchor_residue",
         "loot_mode": "hybrid",

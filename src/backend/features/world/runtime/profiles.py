@@ -144,9 +144,9 @@ class PopulationProfile:
 
 D4_POPULATION_PROFILE = PopulationProfile(
     id="d4_starting_city_population",
-    primary_families=("bandit_gang", "goblin_tribe", "rat_swarm", "wolf_pack"),
-    secondary_families=(),
-    excluded_families=(),
+    primary_families=("goblin_tribe", "bandit_gang"),
+    secondary_families=("wolf_pack", "rat_swarm"),
+    excluded_families=("sea_creatures",),
     tier_band=(0, 2),
     population_tags=("d4_city_ruins", "starter_ring", "sealed_city_gates"),
 )
@@ -430,3 +430,57 @@ def _default_population_profile(region_id: str, biome_id: str, influence: Anchor
 
 def is_inside_d4_region(x: int, y: int) -> bool:
     return abs(x - HUB_CENTER["x"]) <= 7 and abs(y - HUB_CENTER["y"]) <= 7
+
+
+def build_habitat_population_profile_payload(region_profile: RegionProfile) -> dict[str, Any]:
+    profile = region_profile.population_profile
+    keys = _habitat_keys_for_region(region_profile)
+    return {
+        "id": profile.id,
+        "habitat": {
+            "biome": region_profile.biome_id,
+            "keys": keys,
+        },
+        "clan_pool_policy": {
+            "primary": [{"family_id": family_id, "weight": 100} for family_id in profile.primary_families],
+            "secondary": [{"family_id": family_id, "weight": 30} for family_id in profile.secondary_families],
+            "blocked": list(profile.excluded_families),
+            "policy_version": 1,
+        },
+        "clan_flavors": _clan_flavors_for_region(region_profile, keys),
+        "tier_band": list(profile.tier_band),
+    }
+
+
+def _habitat_keys_for_region(region_profile: RegionProfile) -> list[str]:
+    if region_profile.id == "d4_old_capital":
+        return ["ancient", "ruined_old_city"]
+    tags = [
+        tag
+        for tag in [region_profile.region_archetype, *region_profile.population_profile.population_tags]
+        if tag and tag != region_profile.biome_id
+    ]
+    return sorted(dict.fromkeys(str(tag) for tag in tags))
+
+
+def _clan_flavors_for_region(region_profile: RegionProfile, habitat_keys: list[str]) -> dict[str, dict[str, object]]:
+    family_ids = [
+        *region_profile.population_profile.primary_families,
+        *region_profile.population_profile.secondary_families,
+    ]
+    habitat_label = ", ".join(habitat_keys) if habitat_keys else region_profile.biome_id
+    return {
+        family_id: {
+            "name_ru": family_id.replace("_", " ").title(),
+            "description": (
+                f"{family_id.replace('_', ' ').title()} clan bound to {region_profile.id} through {habitat_label}."
+            ),
+            "encounter_texts": {
+                "patrol": f"{family_id.replace('_', ' ').title()} patrols {habitat_label}.",
+                "ambush": f"{family_id.replace('_', ' ').title()} strikes from {habitat_label}.",
+                "lair": f"{family_id.replace('_', ' ').title()} defends its hold in {habitat_label}.",
+                "random_meeting": f"{family_id.replace('_', ' ').title()} crosses the route through {habitat_label}.",
+            },
+        }
+        for family_id in dict.fromkeys(family_ids)
+    }

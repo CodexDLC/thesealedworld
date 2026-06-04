@@ -16,8 +16,11 @@ class SpyRiftRuntimeIntegration:
 
 
 @pytest.mark.unit
-def test_rift_player_dependency_wires_db_state_repositories_for_cold_restore(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rift_player_dependency_wires_membership_and_snapshot_repositories_for_restore(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(dependencies, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
+    monkeypatch.setattr(dependencies, "get_mongo_provider", _fake_mongo_provider)
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(redis=object(), character_sessions=object())))
     db_session = object()
 
@@ -25,16 +28,17 @@ def test_rift_player_dependency_wires_db_state_repositories_for_cold_restore(mon
 
     assert isinstance(service, RiftPlayerService)
     assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
-    assert service.runtime.kwargs["portal_key_repository"] is not None
-    assert service.runtime.kwargs["instance_state_repository"] is not None
-    assert service.runtime.kwargs["run_state_repository"] is not None
+    assert service.runtime.kwargs["membership_repository"] is not None
+    assert service.runtime.kwargs["snapshot_repository"] is not None
+    assert service.runtime.kwargs["restore_lock"] is not None
 
 
 @pytest.mark.unit
-def test_rift_entry_dependency_wires_db_state_repositories_for_initial_snapshot(
+def test_rift_entry_dependency_wires_membership_and_snapshot_repositories_for_initial_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(dependencies, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
+    monkeypatch.setattr(dependencies, "get_mongo_provider", _fake_mongo_provider)
     request = SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(
@@ -50,16 +54,17 @@ def test_rift_entry_dependency_wires_db_state_repositories_for_initial_snapshot(
 
     assert isinstance(service, RiftEntryService)
     assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
-    assert service.runtime.kwargs["portal_key_repository"] is not None
-    assert service.runtime.kwargs["instance_state_repository"] is not None
-    assert service.runtime.kwargs["run_state_repository"] is not None
+    assert service.runtime.kwargs["membership_repository"] is not None
+    assert service.runtime.kwargs["snapshot_repository"] is not None
+    assert service.runtime.kwargs["restore_lock"] is not None
 
 
 @pytest.mark.unit
-def test_rift_event_entry_service_wires_db_state_repositories_for_initial_snapshot(
+def test_rift_event_entry_service_wires_membership_and_snapshot_repositories_for_initial_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(rift_events, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
+    monkeypatch.setattr(rift_events, "get_mongo_provider", _fake_mongo_provider)
     app = SimpleNamespace(
         state=SimpleNamespace(
             redis=object(),
@@ -73,19 +78,32 @@ def test_rift_event_entry_service_wires_db_state_repositories_for_initial_snapsh
 
     assert isinstance(service, RiftEntryService)
     assert isinstance(service.runtime, SpyRiftRuntimeIntegration)
-    assert service.runtime.kwargs["portal_key_repository"] is not None
-    assert service.runtime.kwargs["instance_state_repository"] is not None
-    assert service.runtime.kwargs["run_state_repository"] is not None
+    assert service.runtime.kwargs["membership_repository"] is not None
+    assert service.runtime.kwargs["snapshot_repository"] is not None
+    assert service.runtime.kwargs["restore_lock"] is not None
 
 
 @pytest.mark.unit
-def test_rift_dev_dependency_keeps_db_state_repositories_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rift_dev_dependency_keeps_membership_and_snapshot_repositories_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(dependencies, "RiftRuntimeIntegration", SpyRiftRuntimeIntegration)
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(redis=object())))
 
     runtime = dependencies.get_rift_runtime_integration(request)  # type: ignore[arg-type]
 
     assert isinstance(runtime, SpyRiftRuntimeIntegration)
-    assert runtime.kwargs["portal_key_repository"] is None
-    assert runtime.kwargs["instance_state_repository"] is None
-    assert runtime.kwargs["run_state_repository"] is None
+    assert runtime.kwargs["membership_repository"] is None
+    assert runtime.kwargs["snapshot_repository"] is None
+    assert runtime.kwargs["restore_lock"] is not None
+
+
+def _fake_mongo_provider() -> Any:
+    return SimpleNamespace(database=lambda: _FakeMongoDatabase())
+
+
+class _FakeMongoDatabase(dict[str, Any]):
+    def __missing__(self, key: str) -> Any:
+        value = object()
+        self[key] = value
+        return value

@@ -13,10 +13,10 @@ from src.backend.features.monsters.runtime.hashing import compute_context_hash, 
 class FakeRepository:
     def __init__(self) -> None:
         self.created: tuple[GeneratedClan, list] | None = None
-        self.by_unique: dict[str, GeneratedClan] = {}
+        self.by_identity: dict[str, GeneratedClan] = {}
 
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
-        return self.by_unique.get(unique_hash)
+    async def get_clan_by_identity_hash(self, identity_hash: str) -> GeneratedClan | None:
+        return self.by_identity.get(identity_hash)
 
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
         del context_hash
@@ -31,10 +31,10 @@ class FakeRepository:
         clan.members.extend(member for member in members if member not in clan.members)
         for member in clan.members:
             member.clan = clan
-        self.by_unique[clan.unique_hash] = clan
+        self.by_identity[clan.identity_hash] = clan
         return clan
 
-    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
+    async def update_clan_narrative(self, clan: GeneratedClan) -> GeneratedClan:
         return clan
 
 
@@ -64,28 +64,37 @@ async def test_clan_factory_builds_full_db_template_without_encounter_budget() -
         biome_id="city_ruins",
         tier=1,
         tags=["wolf_pack", "mana_leak"],
+        context_meta={
+            "clan_flavor": {
+                "name_ru": "Wolf Test Clan",
+                "description": "Authored wolf clan flavor.",
+                "encounter_texts": {
+                    "patrol": "Patrol text.",
+                    "ambush": "Ambush text.",
+                    "lair": "Lair text.",
+                    "random_meeting": "Random meeting text.",
+                },
+            }
+        },
     )
     tags = normalize_tags(context.tags)
     context_hash = compute_context_hash(context.tier, context.biome_id, tags)
-    unique_hash = compute_unique_clan_hash("wolf_pack", context_hash)
+    identity_hash = compute_unique_clan_hash("wolf_pack", context_hash)
 
     clan = await factory.build_clan_template(
         family_id="wolf_pack",
         context=context,
         context_hash=context_hash,
-        unique_hash=unique_hash,
+        identity_hash=identity_hash,
         normalized_tags=tags,
     )
 
     family = get_family_config("wolf_pack")
     assert family is not None
-    expected_variant_ids = {
-        variant.id
-        for variant in family.variants.values()
-        if variant.min_tier <= context.tier + 1 and variant.max_tier >= 0
-    }
-    assert "target_budget" not in clan.raw_tags
-    assert clan.raw_tags["variant_window"] == {"min_tier": 0, "max_tier": context.tier + 1}
-    assert {member.variant_key for member in clan.members} == expected_variant_ids
+    expected_variant_ids = set(family.variants)
+    assert "target_budget" not in clan.context_identity
+    assert clan.context_identity["variant_window"] == {"min_tier": 0, "max_tier": 7}
+    assert 1 <= len(clan.selected_traits) <= 2
+    assert {member.variant_id for member in clan.members} == expected_variant_ids
     assert len(clan.members) == len(expected_variant_ids)
     assert repository.created is not None

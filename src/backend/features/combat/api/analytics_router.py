@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.core.database import get_db
+from src.backend.core.mongo import get_mongo_provider
 from src.backend.features.combat.dependencies import CombatAnalyticsDashboardServiceDep  # noqa: TC001
 from src.backend.features.combat.dto.analytics_dashboard import (
     CombatAnalyticsDrilldownResponseDTO,
@@ -14,6 +15,7 @@ from src.backend.features.combat.dto.analytics_dashboard import (
 from src.backend.features.combat.runtime.analytics.ingestion import CombatAnalyticsIngestionService
 from src.backend.features.combat.services.analytics_dashboard_service import ROLLUP_DIMENSION_KEYS
 from src.backend.infrastructure.combat.repositories import CombatFinalizationRepository
+from src.backend.infrastructure.mongo import CombatDocumentRepository
 
 router = APIRouter(prefix="/api/game/combat/analytics", tags=["combat-analytics"])
 
@@ -118,21 +120,20 @@ async def backfill_combat_analytics(
     limit: Annotated[int, Query(ge=1, le=2000)] = 500,
 ) -> dict[str, int]:
     rows = await CombatFinalizationRepository(db_session).get_all_for_backfill(limit=limit)
+    document_repo = CombatDocumentRepository(get_mongo_provider().database())  # type: ignore
     processed = skipped = errors = 0
     for row in rows:
-        analytics = row.analytics if isinstance(row.analytics, dict) else {}
-        if not analytics:
+        document = await document_repo.get_by_combat_id(row.combat_id)
+        if not isinstance(document, dict):
             skipped += 1
             continue
-        finished_at = int(row.finished_at.timestamp()) if row.finished_at else None
-        finalization = {
-            "combat_id": row.combat_id,
-            "analytics": analytics,
-            "finished_at": finished_at,
-            "meta": {"battle_type": row.battle_type, "location_id": row.location_id},
-        }
         try:
-            await CombatAnalyticsIngestionService.ingest_finalization(db_session, finalization, aggregate_version=1)
+            await CombatAnalyticsIngestionService.ingest_finalization(
+                db_session,
+                document.get("finalization") if isinstance(document.get("finalization"), dict) else document,  # type: ignore
+                aggregate_version=1,
+                mongo_document_id=str(document.get("_id") or ""),
+            )
             processed += 1
         except Exception:
             errors += 1

@@ -14,15 +14,25 @@ class FakeInstanceStore:
         self.calls: list[tuple[Any, ...]] = []
         self.runtime = object()
         self.missing = False
+        self.instances: dict[str, Any] = {}
 
     async def save_instance(self, runtime: Any) -> None:
         self.calls.append(("save_instance", runtime))
+        rift_instance_id = getattr(runtime, "rift_instance_id", None)
+        if rift_instance_id:
+            self.instances[str(rift_instance_id)] = runtime
+
+    async def get_instance(self, rift_instance_id: str) -> Any | None:
+        self.calls.append(("get_instance", rift_instance_id))
+        if self.missing:
+            return None
+        return self.instances.get(rift_instance_id) or self.runtime
 
     async def require_instance(self, rift_instance_id: str) -> Any:
         self.calls.append(("require_instance", rift_instance_id))
         if self.missing:
             raise RiftInstanceNotFoundError(f"Rift instance not found: {rift_instance_id}")
-        return self.runtime
+        return self.instances.get(rift_instance_id) or self.runtime
 
     async def patch_node_event(self, rift_instance_id: str, node_id: str, event: dict[str, Any]) -> None:
         self.calls.append(("patch_node_event", rift_instance_id, node_id, event))
@@ -42,9 +52,11 @@ class FakeSessionStore:
         self.calls: list[tuple[Any, ...]] = []
         self.missing = False
         self.session: dict[str, Any] | None = None
+        self.sessions: dict[str, dict[str, Any]] = {}
 
     async def create_session(self, payload: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("create_session", payload))
+        self.sessions[str(payload["rift_session_id"])] = dict(payload)
         return payload
 
     async def save_session(
@@ -58,13 +70,13 @@ class FakeSessionStore:
 
     async def get_session(self, rift_session_id: str) -> dict[str, Any] | None:
         self.calls.append(("get_session", rift_session_id))
-        return self.session or {"rift_session_id": rift_session_id}
+        return self.session or self.sessions.get(rift_session_id) or {"rift_session_id": rift_session_id}
 
     async def require_session(self, rift_session_id: str) -> dict[str, Any]:
         self.calls.append(("require_session", rift_session_id))
         if self.missing:
             raise RiftRunSessionNotFoundError(f"Rift run session not found: {rift_session_id}")
-        return self.session or {"rift_session_id": rift_session_id}
+        return self.session or self.sessions.get(rift_session_id) or {"rift_session_id": rift_session_id}
 
     async def mark_dirty(self, rift_session_id: str, *, reason: str, paths: list[str]) -> None:
         self.calls.append(("mark_dirty", rift_session_id, reason, paths))
@@ -75,6 +87,10 @@ class FakeSessionStore:
     async def scan_dirty(self, *, limit: int = 100) -> list[str]:
         self.calls.append(("scan_dirty", limit))
         return ["run-1"]
+
+    async def list_by_instance(self, rift_instance_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        self.calls.append(("list_by_instance", rift_instance_id, limit))
+        return [session for session in self.sessions.values() if str(session.get("rift_instance_id")) == rift_instance_id]
 
     async def set_position(
         self,
@@ -111,12 +127,15 @@ class FakeSessionStore:
 class FakePresenceStore:
     def __init__(self) -> None:
         self.calls: list[tuple[Any, ...]] = []
+        self.nodes: dict[tuple[str, str], set[str]] = {}
 
     async def enter_node(self, rift_instance_id: str, node_id: str, participant_ref: str) -> None:
         self.calls.append(("enter_node", rift_instance_id, node_id, participant_ref))
+        self.nodes.setdefault((rift_instance_id, node_id), set()).add(participant_ref)
 
     async def leave_node(self, rift_instance_id: str, node_id: str, participant_ref: str) -> None:
         self.calls.append(("leave_node", rift_instance_id, node_id, participant_ref))
+        self.nodes.setdefault((rift_instance_id, node_id), set()).discard(participant_ref)
 
     async def move_node(
         self,
@@ -130,7 +149,7 @@ class FakePresenceStore:
 
     async def get_node_occupants(self, rift_instance_id: str, node_id: str) -> set[str]:
         self.calls.append(("get_node_occupants", rift_instance_id, node_id))
-        return {"player:7"}
+        return self.nodes.get((rift_instance_id, node_id), {"player:7"})
 
     async def join_travel(self, rift_instance_id: str, travel_id: str, participant_ref: str) -> None:
         self.calls.append(("join_travel", rift_instance_id, travel_id, participant_ref))
@@ -154,6 +173,7 @@ class FakePresenceStore:
 
     async def clear_node_presence(self, rift_instance_id: str, node_id: str) -> None:
         self.calls.append(("clear_node_presence", rift_instance_id, node_id))
+        self.nodes.pop((rift_instance_id, node_id), None)
 
     async def clear_travel_presence(self, rift_instance_id: str, travel_id: str) -> None:
         self.calls.append(("clear_travel_presence", rift_instance_id, travel_id))
@@ -162,33 +182,124 @@ class FakePresenceStore:
         self.calls.append(("clear_encounter_presence", rift_instance_id, encounter_id))
 
 
-class FakeStateRepository:
+class FakeMembershipRepository:
     def __init__(self) -> None:
         self.upserts: list[Any] = []
         self.records: dict[str, Any] = {}
+        self.snapshot_updates: list[dict[str, Any]] = []
 
-    async def get(self, key: str) -> Any | None:
-        return self.records.get(key)
+    async def get_by_session(self, rift_session_id: str) -> Any | None:
+        return self.records.get(rift_session_id)
+
+    async def get_active_for_participant(self, participant_ref: str) -> Any | None:
+        for record in self.records.values():
+            if record.participant_ref == participant_ref and record.status in {"active", "resumable"}:
+                return record
+        return None
+
+    async def list_by_instance(self, rift_instance_id: str) -> list[Any]:
+        return [record for record in self.records.values() if record.rift_instance_id == rift_instance_id]
 
     async def upsert(self, state: Any) -> Any:
         self.upserts.append(state)
+        self.records[state.rift_session_id] = state
         return state
 
+    async def update_snapshot_refs(
+        self,
+        *,
+        rift_instance_id: str,
+        mongo_snapshot_id: str,
+        snapshot_version: int,
+        participant_summaries: dict[str, dict[str, Any]],
+    ) -> None:
+        self.snapshot_updates.append(
+            {
+                "rift_instance_id": rift_instance_id,
+                "mongo_snapshot_id": mongo_snapshot_id,
+                "snapshot_version": snapshot_version,
+                "participant_summaries": participant_summaries,
+            }
+        )
+        for record in self.records.values():
+            if record.rift_instance_id != rift_instance_id:
+                continue
+            record.mongo_snapshot_id = mongo_snapshot_id
+            record.snapshot_version = snapshot_version
+            summary = participant_summaries.get(record.rift_session_id) or {}
+            if "current_node_id" in summary:
+                record.current_node_id = summary["current_node_id"]
+            if "active_encounter_id" in summary:
+                record.active_encounter_id = summary["active_encounter_id"]
 
-class FakeInstanceStateMapper:
-    def to_model(self, runtime: Any, *, status: str = "active") -> dict[str, Any]:
-        return {"kind": "instance_state", "runtime": runtime, "status": status}
 
-    def to_runtime(self, state: dict[str, Any]) -> Any:
-        return state["runtime"]
+class FakeMembership:
+    def __init__(
+        self,
+        *,
+        rift_instance_id: str,
+        rift_session_id: str,
+        participant_ref: str,
+        setting_key: str = "starter_rift",
+        status: str = "active",
+        mongo_snapshot_id: str | None = None,
+        snapshot_version: int = 0,
+        current_node_id: str | None = None,
+        active_encounter_id: str | None = None,
+    ) -> None:
+        self.rift_instance_id = rift_instance_id
+        self.rift_session_id = rift_session_id
+        self.participant_ref = participant_ref
+        self.setting_key = setting_key
+        self.status = status
+        self.mongo_snapshot_id = mongo_snapshot_id
+        self.snapshot_version = snapshot_version
+        self.current_node_id = current_node_id
+        self.active_encounter_id = active_encounter_id
 
 
-class FakeRunStateMapper:
-    def from_session_payload(self, payload: dict[str, Any], *, status: str | None = None) -> dict[str, Any]:
-        return {"kind": "run_state", "payload": payload, "status": status}
+class FakeSnapshotRepository:
+    def __init__(self) -> None:
+        self.upserts: list[dict[str, Any]] = []
+        self.snapshots: dict[str, dict[str, Any]] = {}
+        self.reads: list[str] = []
 
-    def to_session_payload(self, state: dict[str, Any]) -> dict[str, Any]:
-        return dict(state["payload"])
+    async def upsert_snapshot(
+        self,
+        *,
+        rift_instance_id: str,
+        snapshot_version: int,
+        instance: dict[str, Any],
+        sessions: dict[str, dict[str, Any]],
+        presence: dict[str, Any],
+    ) -> str:
+        document_id = f"rift-runtime-snapshot:{rift_instance_id}"
+        document = {
+            "_id": document_id,
+            "document_kind": "rift_runtime_snapshot",
+            "schema_version": 1,
+            "rift_instance_id": rift_instance_id,
+            "snapshot_version": snapshot_version,
+            "instance": instance,
+            "sessions": sessions,
+            "presence": presence,
+        }
+        self.upserts.append(document)
+        self.snapshots[rift_instance_id] = document
+        return document_id
+
+    async def get_snapshot(self, rift_instance_id: str) -> dict[str, Any] | None:
+        self.reads.append(rift_instance_id)
+        return self.snapshots.get(rift_instance_id)
+
+
+class FakeRestoreLock:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def run_once(self, rift_instance_id: str, callback: Any) -> Any:
+        self.calls.append(rift_instance_id)
+        return await callback()
 
 
 @pytest.mark.unit
@@ -295,114 +406,197 @@ async def test_runtime_integration_wraps_storage_not_found_errors() -> None:
 
 
 @pytest.mark.unit
-async def test_runtime_integration_restores_missing_redis_state_from_db_backup() -> None:
+async def test_runtime_integration_flushes_one_mongo_snapshot_and_updates_membership_index() -> None:
+    runtime = _runtime_payload("rift-1")
+    instance_store = FakeInstanceStore()
+    instance_store.runtime = runtime
+    session_store = FakeSessionStore()
+    session_store.sessions["run-1"] = {
+        "rift_session_id": "run-1",
+        "rift_instance_id": "rift-1",
+        "participant_ref": "char:1",
+        "current_node_id": "z01:0_0",
+        "active_encounter_id": None,
+    }
+    presence_store = FakePresenceStore()
+    await presence_store.enter_node("rift-1", "z01:0_0", "char:1")
+    memberships = FakeMembershipRepository()
+    memberships.records["run-1"] = FakeMembership(
+        rift_instance_id="rift-1",
+        rift_session_id="run-1",
+        participant_ref="char:1",
+    )
+    snapshots = FakeSnapshotRepository()
+    integration = RiftRuntimeIntegration(
+        instance_store=instance_store,
+        session_store=session_store,
+        presence_store=presence_store,
+        membership_repository=memberships,  # type: ignore[arg-type]
+        snapshot_repository=snapshots,  # type: ignore[arg-type]
+    )
+
+    result = await integration.flush_runtime_snapshot("rift-1")
+
+    assert result == {
+        "status": "ok",
+        "rift_instance_id": "rift-1",
+        "mongo_snapshot_id": "rift-runtime-snapshot:rift-1",
+        "snapshot_version": 1,
+    }
+    assert snapshots.upserts[0]["instance"]["rift_instance_id"] == "rift-1"
+    assert snapshots.upserts[0]["sessions"]["run-1"]["current_node_id"] == "z01:0_0"
+    assert snapshots.upserts[0]["presence"]["nodes"]["z01:0_0"] == ["char:1"]
+    assert memberships.snapshot_updates == [
+        {
+            "rift_instance_id": "rift-1",
+            "mongo_snapshot_id": "rift-runtime-snapshot:rift-1",
+            "snapshot_version": 1,
+            "participant_summaries": {
+                "run-1": {"current_node_id": "z01:0_0", "active_encounter_id": None},
+            },
+        }
+    ]
+
+
+@pytest.mark.unit
+async def test_runtime_integration_restore_uses_redis_short_path_without_reading_mongo() -> None:
+    memberships = FakeMembershipRepository()
+    memberships.records["run-1"] = FakeMembership(
+        rift_instance_id="rift-1",
+        rift_session_id="run-1",
+        participant_ref="char:1",
+        mongo_snapshot_id="snapshot-1",
+    )
+    snapshots = FakeSnapshotRepository()
+    instance_store = FakeInstanceStore()
+    session_store = FakeSessionStore()
+    integration = RiftRuntimeIntegration(
+        instance_store=instance_store,
+        session_store=session_store,
+        presence_store=FakePresenceStore(),
+        membership_repository=memberships,  # type: ignore[arg-type]
+        snapshot_repository=snapshots,  # type: ignore[arg-type]
+        restore_lock=FakeRestoreLock(),  # type: ignore[arg-type]
+    )
+
+    restored = await integration.restore_participant_rift("char:1")
+
+    assert restored == {"status": "already_live", "rift_instance_id": "rift-1", "rift_session_id": "run-1"}
+    assert snapshots.reads == []
+
+
+@pytest.mark.unit
+async def test_runtime_integration_restore_reads_mongo_once_under_lock_and_rebuilds_presence() -> None:
+    memberships = FakeMembershipRepository()
+    memberships.records["run-1"] = FakeMembership(
+        rift_instance_id="rift-1",
+        rift_session_id="run-1",
+        participant_ref="char:1",
+        mongo_snapshot_id="snapshot-1",
+    )
+    snapshots = FakeSnapshotRepository()
+    snapshots.snapshots["rift-1"] = {
+        "rift_instance_id": "rift-1",
+        "snapshot_version": 7,
+        "instance": _runtime_payload("rift-1"),
+        "sessions": {
+            "run-1": {
+                "rift_session_id": "run-1",
+                "rift_instance_id": "rift-1",
+                "participant_ref": "char:1",
+                "current_node_id": "z01:0_0",
+            },
+            "run-2": {
+                "rift_session_id": "run-2",
+                "rift_instance_id": "rift-1",
+                "participant_ref": "char:2",
+                "current_node_id": "z01:0_1",
+            },
+        },
+        "presence": {},
+    }
     instance_store = FakeInstanceStore()
     instance_store.missing = True
     session_store = FakeSessionStore()
-    session_store.missing = True
-    instance_repository = FakeStateRepository()
-    instance_repository.records["rift-1"] = {"runtime": instance_store.runtime}
-    run_repository = FakeStateRepository()
-    run_repository.records["run-1"] = {"payload": {"rift_session_id": "run-1", "rift_instance_id": "rift-1"}}
+    presence_store = FakePresenceStore()
+    restore_lock = FakeRestoreLock()
     integration = RiftRuntimeIntegration(
         instance_store=instance_store,
         session_store=session_store,
-        presence_store=FakePresenceStore(),
-        instance_state_repository=instance_repository,  # type: ignore[arg-type]
-        run_state_repository=run_repository,  # type: ignore[arg-type]
-        instance_state_mapper=FakeInstanceStateMapper(),  # type: ignore[arg-type]
-        run_state_mapper=FakeRunStateMapper(),  # type: ignore[arg-type]
+        presence_store=presence_store,
+        membership_repository=memberships,  # type: ignore[arg-type]
+        snapshot_repository=snapshots,  # type: ignore[arg-type]
+        restore_lock=restore_lock,  # type: ignore[arg-type]
     )
 
-    assert await integration.require_instance("rift-1") is instance_store.runtime
-    assert await integration.require_run_session("run-1") == {"rift_session_id": "run-1", "rift_instance_id": "rift-1"}
-    assert ("save_instance", instance_store.runtime) in instance_store.calls
-    assert any(call[0] == "create_session" for call in session_store.calls)
+    restored = await integration.restore_participant_rift("char:1")
+
+    assert restored == {"status": "restored", "rift_instance_id": "rift-1", "rift_session_id": "run-1"}
+    assert snapshots.reads == ["rift-1"]
+    assert restore_lock.calls == ["rift-1"]
+    assert ("create_session", snapshots.snapshots["rift-1"]["sessions"]["run-1"]) in session_store.calls
+    assert ("create_session", snapshots.snapshots["rift-1"]["sessions"]["run-2"]) in session_store.calls
+    assert presence_store.nodes[("rift-1", "z01:0_0")] == {"char:1"}
+    assert presence_store.nodes[("rift-1", "z01:0_1")] == {"char:2"}
 
 
 @pytest.mark.unit
-async def test_runtime_integration_internal_mode_can_save_instance_to_redis_and_db() -> None:
+async def test_runtime_integration_flushes_dirty_rift_run_to_mongo_snapshot_and_clears_marker() -> None:
     instance_store = FakeInstanceStore()
-    instance_repository = FakeStateRepository()
-    integration = RiftRuntimeIntegration(
-        instance_store=instance_store,
-        session_store=FakeSessionStore(),
-        presence_store=FakePresenceStore(),
-        instance_state_repository=instance_repository,  # type: ignore[arg-type]
-        instance_state_mapper=FakeInstanceStateMapper(),  # type: ignore[arg-type]
-    )
-
-    result = await integration.save_instance_runtime(instance_store.runtime, mode="redis_and_db", status="paused")
-
-    assert [call[0] for call in instance_store.calls] == ["save_instance"]
-    assert result == {"kind": "instance_state", "runtime": instance_store.runtime, "status": "paused"}
-    assert instance_repository.upserts == [result]
-
-
-@pytest.mark.unit
-async def test_runtime_integration_internal_mode_can_save_run_state_to_db_only() -> None:
-    session_store = FakeSessionStore()
-    run_repository = FakeStateRepository()
-    integration = RiftRuntimeIntegration(
-        instance_store=FakeInstanceStore(),
-        session_store=session_store,
-        presence_store=FakePresenceStore(),
-        run_state_repository=run_repository,  # type: ignore[arg-type]
-        run_state_mapper=FakeRunStateMapper(),  # type: ignore[arg-type]
-    )
-    payload = {"rift_session_id": "run-1"}
-
-    result = await integration.save_run_session_runtime(payload, mode="db_only", status="active")
-
-    assert session_store.calls == []
-    assert result == {"kind": "run_state", "payload": payload, "status": "active"}
-    assert run_repository.upserts == [result]
-
-
-@pytest.mark.unit
-async def test_runtime_integration_flushes_dirty_rift_run_to_db_and_clears_marker() -> None:
-    instance_store = FakeInstanceStore()
+    instance_store.runtime = _runtime_payload("rift-1")
     session_store = FakeSessionStore()
     session_store.session = {
         "rift_session_id": "run-1",
         "rift_instance_id": "rift-1",
+        "participant_ref": "char:1",
+        "current_node_id": "z01:0_0",
+        "active_encounter_id": None,
         "is_dirty": True,
         "dirty": {"dirty": True, "reason": "travel_completed"},
     }
-    instance_repository = FakeStateRepository()
-    run_repository = FakeStateRepository()
+    memberships = FakeMembershipRepository()
+    memberships.records["run-1"] = FakeMembership(
+        rift_instance_id="rift-1",
+        rift_session_id="run-1",
+        participant_ref="char:1",
+    )
+    snapshots = FakeSnapshotRepository()
     integration = RiftRuntimeIntegration(
         instance_store=instance_store,
         session_store=session_store,
         presence_store=FakePresenceStore(),
-        instance_state_repository=instance_repository,  # type: ignore[arg-type]
-        run_state_repository=run_repository,  # type: ignore[arg-type]
-        instance_state_mapper=FakeInstanceStateMapper(),  # type: ignore[arg-type]
-        run_state_mapper=FakeRunStateMapper(),  # type: ignore[arg-type]
+        membership_repository=memberships,  # type: ignore[arg-type]
+        snapshot_repository=snapshots,  # type: ignore[arg-type]
     )
 
     result = await integration.flush_dirty_run_session("run-1")
 
-    assert result == {"status": "ok", "rift_session_id": "run-1", "rift_instance_id": "rift-1"}
-    assert instance_repository.upserts == [
-        {"kind": "instance_state", "runtime": instance_store.runtime, "status": "active"}
-    ]
-    assert run_repository.upserts == [
-        {"kind": "run_state", "payload": session_store.session, "status": "active"}
-    ]
+    assert result == {
+        "status": "ok",
+        "rift_session_id": "run-1",
+        "rift_instance_id": "rift-1",
+        "mongo_snapshot_id": "rift-runtime-snapshot:rift-1",
+        "snapshot_version": 1,
+    }
+    assert snapshots.upserts
     assert ("clear_dirty", "run-1") in session_store.calls
 
 
 @pytest.mark.unit
-async def test_runtime_integration_db_modes_require_configured_repositories() -> None:
+async def test_runtime_integration_snapshot_flush_requires_configured_repositories() -> None:
     integration = RiftRuntimeIntegration(
         instance_store=FakeInstanceStore(),
         session_store=FakeSessionStore(),
         presence_store=FakePresenceStore(),
     )
 
-    with pytest.raises(RuntimeError, match="Rift instance state repository is not configured"):
-        await integration.save_instance_runtime(object(), mode="db_only")
+    with pytest.raises(RuntimeError, match="Rift snapshot repository is not configured"):
+        await integration.flush_runtime_snapshot("rift-1")
 
-    with pytest.raises(RuntimeError, match="Rift run state repository is not configured"):
-        await integration.save_run_session_runtime({"rift_session_id": "run-1"}, mode="db_only")
+
+def _runtime_payload(rift_instance_id: str) -> dict[str, Any]:
+    return {
+        "rift_instance_id": rift_instance_id,
+        "setting": {"setting_key": "starter_rift"},
+        "current_node_id": "z01:0_0",
+    }

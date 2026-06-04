@@ -290,6 +290,7 @@ class GameLobbyIntegration:
                     ATTRIBUTE_KEYS,
                     STARTING_IMPRINTS,
                 )
+
                 for key, definition in STARTING_IMPRINTS.items():
                     def_attrs = dict(definition.attribute_values)
                     match = True

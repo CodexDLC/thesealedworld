@@ -11,17 +11,11 @@ from src.backend.features.monsters.dto.generation import (
     MonsterGroupMemberPreview,
     MonsterGroupResult,
 )
-from src.backend.features.monsters.resources import get_available_variants_for_family_tier, get_family_config
+from src.backend.features.monsters.resources import get_family_config
 from src.backend.features.monsters.resources.visuals import version_generated_asset_url, version_visual_image_urls
 from src.backend.features.monsters.runtime.combat_actor_input import MonsterCombatActorInputBuilder
 from src.backend.features.monsters.runtime.encounter_profiles import get_monster_encounter_profile
 from src.backend.features.monsters.runtime.group_assembler import MonsterGroupAssembler
-from src.backend.features.monsters.runtime.hashing import (
-    MonsterHashContext,
-    compute_monster_context_hash,
-    compute_unique_clan_hash,
-    normalized_monster_hash_tags,
-)
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
 if TYPE_CHECKING:
@@ -105,28 +99,13 @@ class MonsterGroupService:
         composition_policy: dict[str, Any] | None = None,
     ) -> MonsterGroupResult:
         location = await self.location_context.get_location_context(loc_id)
-        context = MonsterGenerationContext(
-            zone_id=location.zone_id,
-            biome_id=location.biome_id,
-            tier=location.tier,
-            tags=location.tags,
-            difficulty="mid",
-            context_meta=self._context_meta(location.raw_location),
-        )
-        hash_context = MonsterHashContext(
-            source="world",
-            context_key=loc_id,
-            biome_id=context.biome_id,
-            tier=context.tier,
-            tags=tuple(context.tags),
-        )
-        normalized_tags = normalized_monster_hash_tags(hash_context)
-        context_hash = compute_monster_context_hash(hash_context)
-        clan, reused_existing_clan = await self._resolve_clan(
-            context,
-            context_hash,
-            normalized_tags,
-            preferred_family_id,
+        group_scope_id = scope_id
+        scope_type = "region"
+        pool_scope_id = self._location_region_id(location.raw_location)
+        clan, reused_existing_clan, pool_tags = await self._resolve_clan_from_pool(
+            scope_type=scope_type,
+            scope_id=pool_scope_id,
+            preferred_family_id=preferred_family_id,
         )
         return await self._prepare_group_from_clan(
             clan=clan,
@@ -136,12 +115,12 @@ class MonsterGroupService:
             loc_id=location.loc_id,
             zone_id=location.zone_id,
             biome_id=location.biome_id,
-            context_hash=context_hash,
-            tags=list(normalized_tags),
+            context_hash=clan.context_hash,
+            tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
             composition_policy=self._location_composition_policy(location.raw_location, composition_policy),
-            scope_id=scope_id,
+            scope_id=group_scope_id,
             ttl=ttl,
         )
 
@@ -149,7 +128,7 @@ class MonsterGroupService:
         self,
         *,
         family_id: str,
-        hash_context: MonsterHashContext,
+        hash_context: Any,
         generation_context: MonsterGenerationContext,
         budget: float,
         tier: int,
@@ -163,13 +142,29 @@ class MonsterGroupService:
         scope_id: str | None = None,
         ttl: int = 300,
     ) -> MonsterGroupResult:
-        normalized_tags = normalized_monster_hash_tags(hash_context)
-        context_hash = compute_monster_context_hash(hash_context)
-        clan, reused_existing_clan = await self._resolve_clan(
-            generation_context,
-            context_hash,
-            normalized_tags,
-            family_id,
+        raise RuntimeError("Hash-context monster group preparation was replaced by habitat clan pool lookup")
+
+    async def prepare_monster_group_for_scope(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+        budget: float,
+        tier: int,
+        danger: float,
+        biome_id: str,
+        loc_id: str,
+        zone_id: str | None = None,
+        preferred_family_id: str | None = None,
+        force_single_family: bool = True,
+        composition_policy: dict[str, Any] | None = None,
+        group_scope_id: str | None = None,
+        ttl: int = 300,
+    ) -> MonsterGroupResult:
+        clan, reused_existing_clan, pool_tags = await self._resolve_clan_from_pool(
+            scope_type=scope_type,
+            scope_id=scope_id,
+            preferred_family_id=preferred_family_id,
         )
 
         return await self._prepare_group_from_clan(
@@ -180,12 +175,12 @@ class MonsterGroupService:
             loc_id=loc_id,
             zone_id=zone_id,
             biome_id=biome_id,
-            context_hash=context_hash,
-            tags=list(tags if tags is not None else normalized_tags),
+            context_hash=clan.context_hash,
+            tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
             composition_policy=composition_policy,
-            scope_id=scope_id,
+            scope_id=group_scope_id,
             ttl=ttl,
         )
 
@@ -208,9 +203,13 @@ class MonsterGroupService:
         ttl: int,
     ) -> MonsterGroupResult:
         members = await self._fresh_clan_members(clan.id)
+        if not members:
+            members = list(clan.members)
         for member in members:
             if member.clan is None:
                 member.clan = clan
+        members = self._members_for_effective_tier(clan.family_id, members, tier=tier)
+        members = [self._select_tier_snapshot(member, tier=tier) for member in members]
         effective_policy = self._profile_composition_policy(
             clan=clan,
             members=members,
@@ -255,10 +254,11 @@ class MonsterGroupService:
             total_power=assembly.total_power,
             monster_ids=[str(member.id) for member in assembly.members],
             actor_commitments=actor_commitments,
+            encounter_texts={str(key): str(value) for key, value in clan.encounter_texts.items() if value},
             previews=previews,
             reused_existing_clan=reused_existing_clan,
             context_hash=context_hash,
-            unique_hash=clan.unique_hash,
+            unique_hash=clan.identity_hash,
             tags=tags,
         )
 
@@ -271,59 +271,69 @@ class MonsterGroupService:
             result.group_key = group_key
         return result
 
-    async def _resolve_clan(
+    async def _resolve_clan_from_pool(
         self,
-        context: MonsterGenerationContext,
-        context_hash: str,
-        normalized_tags: list[str],
+        *,
+        scope_type: str,
+        scope_id: str,
         preferred_family_id: str | None,
-    ) -> tuple[GeneratedClan, bool]:
-        if preferred_family_id:
-            self._validate_preferred_family(context, preferred_family_id)
-
-        existing = await self.repository.get_clans_by_context_hash(context_hash)
-        existing = [clan for clan in existing if not preferred_family_id or clan.family_id == preferred_family_id]
-        if existing:
-            return self._choose_existing_clan(existing), True
-
-        family_id = preferred_family_id or self.factory.select_family_id(context, context_hash)
-        if family_id is None:
-            raise ValueError(f"No monster families available for biome={context.biome_id} tier={context.tier}")
-
-        unique_hash = compute_unique_clan_hash(family_id, context_hash)
-        clan = await self.repository.get_clan_by_unique_hash(unique_hash)
-        if clan is not None:
-            return clan, True
-
-        clan = await self.factory.build_clan_template(
-            context=context,
-            family_id=family_id,
-            context_hash=context_hash,
-            unique_hash=unique_hash,
-            normalized_tags=normalized_tags,
+    ) -> tuple[GeneratedClan, bool, list[str]]:
+        entries = await self.repository.list_habitat_clan_pool_entries(
+            scope_type=scope_type,
+            scope_id=scope_id,
+            enabled_only=True,
         )
-        return clan, False
+        if preferred_family_id:
+            entries = [entry for entry in entries if entry.family_id == preferred_family_id]
+        if not entries:
+            raise ValueError(f"No materialized monster clan pool for {scope_type}={scope_id}")
+        entry = self._weighted_pool_entry(entries)
+        clan = await self.repository.get_clan_by_identity_hash(entry.clan_identity_hash)
+        if clan is None:
+            raise ValueError(f"Habitat clan pool points to missing clan: {entry.clan_identity_hash}")
+        return clan, True, [entry.habitat.biome, *entry.habitat.keys]
+
+    def _weighted_pool_entry(self, entries):
+        total = sum(max(0, int(entry.weight)) for entry in entries)
+        if total <= 0:
+            return sorted(entries, key=lambda entry: (entry.pool_tier, entry.family_id, entry.clan_identity_hash))[0]
+        roll = self._rng.uniform(0, total)
+        upto = 0.0
+        for entry in sorted(
+            entries, key=lambda item: (item.pool_tier != "primary", item.family_id, item.clan_identity_hash)
+        ):
+            upto += max(0, int(entry.weight))
+            if roll <= upto:
+                return entry
+        return entries[-1]
 
     async def _fresh_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
-        refresh = getattr(self.repository, "refresh_clan_gear_scores", None)
-        if callable(refresh):
-            return await refresh(clan_id, gear_score_service=self.gear_score_service)
         members = await self.repository.get_clan_members(clan_id)
-        self.gear_score_service.refresh_stale_monster_scores(members)
         return members
 
-    def _validate_preferred_family(self, context: MonsterGenerationContext, family_id: str) -> None:
-        family = get_family_config(family_id)
-        if family is None:
-            raise ValueError(f"Unknown monster family: {family_id}")
-        available = set(self.factory.get_available_family_ids(context))
-        if family_id not in available or not get_available_variants_for_family_tier(family_id, context.tier):
-            raise ValueError(
-                f"Monster family is not available for biome={context.biome_id} tier={context.tier}: {family_id}"
-            )
+    @staticmethod
+    def _location_region_id(raw_location: dict[str, Any]) -> str:
+        world_zone = raw_location.get("world_zone")
+        if isinstance(world_zone, dict) and world_zone.get("region_id"):
+            return str(world_zone["region_id"])
+        region_id = raw_location.get("region_id")
+        if region_id:
+            return str(region_id)
+        raise ValueError("World location is missing region_id for monster clan pool lookup")
 
     def _choose_existing_clan(self, clans: list[GeneratedClan]) -> GeneratedClan:
-        return self._rng.choice(sorted(clans, key=lambda clan: clan.unique_hash))
+        return self._rng.choice(sorted(clans, key=lambda clan: clan.identity_hash))
+
+    @staticmethod
+    def _members_for_effective_tier(
+        family_id: str,
+        members: list[GeneratedMonster],
+        *,
+        tier: int,
+    ) -> list[GeneratedMonster]:
+        del family_id
+        effective_tier = max(0, min(11, int(tier)))
+        return [member for member in members if member.min_tier <= effective_tier <= member.max_tier]
 
     def _profile_composition_policy(
         self,
@@ -416,16 +426,13 @@ class MonsterGroupService:
         visual = version_visual_image_urls(self._monster_visual(monster))
         return MonsterGroupMemberPreview(
             monster_id=str(monster.id),
-            name=monster.name_ru,
-            description=monster.description,
-            detected_ru=self._variant_text(monster, "detected"),
-            ambush_ru=self._variant_text(monster, "ambush"),
-            idle_ru=self._variant_text(monster, "idle"),
+            name=monster.title,
+            description=monster.short_description,
             role=monster.role,
-            variant_key=monster.variant_key,
-            member_tier=monster.member_tier,
-            threat_rating=monster.threat_rating,
-            hp=dict((monster.vitals or {}).get("hp") or {}),
+            variant_key=monster.variant_id,
+            member_tier=self._snapshot_tier(monster),
+            threat_rating=self._gear_score(monster) or 1,
+            hp=dict((monster.active_snapshot.get("combat_snapshot_input") or {}).get("status", {}).get("hp") or {}),
             image=self._visual_image_url(visual),
             visual=visual,
             tags=sorted(set(tags)),
@@ -440,13 +447,13 @@ class MonsterGroupService:
 
     @staticmethod
     def _monster_visual(monster: GeneratedMonster) -> dict[str, Any]:
-        meta = dict(monster.generation_meta or {})
-        visual = meta.get("visual")
+        base_projection = dict(monster.actor_document.get("base_projection") or {})
+        visual = base_projection.get("visual")
         return dict(visual) if isinstance(visual, dict) else {}
 
     @staticmethod
     def _visual_image_url(visual: dict[str, Any]) -> str | None:
-        for key in ("image_url", "generated_image_url", "fallback_image_url"):
+        for key in ("image_url", "generated_image_url", "placeholder_image_url"):
             value = visual.get(key)
             if value:
                 return version_generated_asset_url(str(value), visual)
@@ -454,24 +461,42 @@ class MonsterGroupService:
 
     @staticmethod
     def _organization_type(monster: GeneratedMonster, *, family: Any | None) -> str | None:
-        balance = dict((monster.generation_meta or {}).get("balance") or {})
-        value = balance.get("organization_type")
-        if value:
-            return str(value)
         return str(family.organization_type) if family is not None else None
 
     @staticmethod
     def _gear_score(monster: GeneratedMonster) -> int | None:
-        balance = dict((monster.generation_meta or {}).get("balance") or {})
-        value = balance.get("gear_score")
+        value = dict(monster.active_snapshot or {}).get("gear_score")
         try:
             return int(value)
         except (TypeError, ValueError):
             return None
 
     @staticmethod
+    def _select_tier_snapshot(monster: GeneratedMonster, *, tier: int) -> GeneratedMonster:
+        actor_document = monster.actor_document if isinstance(monster.actor_document, dict) else {}
+        snapshots = actor_document.get("tier_snapshots")
+        if not isinstance(snapshots, dict):
+            raise ValueError(f"Generated monster actor document has no tier_snapshots: {monster.mongo_actor_key}")
+        key = f"tier_{int(tier)}"
+        snapshot = snapshots.get(key)
+        if not isinstance(snapshot, dict):
+            raise ValueError(
+                f"Missing generated monster tier snapshot actor={monster.mongo_actor_key} effective_tier={key}"
+            )
+        monster.active_snapshot = dict(snapshot)
+        return monster
+
+    @staticmethod
+    def _snapshot_tier(monster: GeneratedMonster) -> int:
+        value = dict(monster.active_snapshot or {}).get("effective_tier")
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return monster.min_tier
+
+    @staticmethod
     def _preview_vitals(monster: GeneratedMonster) -> dict[str, Any]:
-        raw = dict(monster.vitals or {})
+        raw = dict((monster.active_snapshot.get("combat_snapshot_input") or {}).get("status") or {})
         return {
             "hp": dict(raw.get("hp") or {}),
             "energy": dict(raw.get("energy") or raw.get("en") or {}),
@@ -480,7 +505,7 @@ class MonsterGroupService:
 
     @staticmethod
     def _preview_equipment(monster: GeneratedMonster) -> list[dict[str, Any]]:
-        items = dict(monster.items or {})
+        items = dict(monster.active_snapshot.get("items") or {})
         layout = dict(items.get("layout") or {})
         equipment = dict(layout.get("equipment") or {})
         by_id = dict(items.get("by_id") or {})
@@ -505,36 +530,7 @@ class MonsterGroupService:
 
     @staticmethod
     def _preview_affixes(monster: GeneratedMonster) -> list[dict[str, Any]]:
-        items = dict(monster.items or {})
-        by_id = dict(items.get("by_id") or {})
-        affixes: list[dict[str, Any]] = []
-        for item in by_id.values():
-            if not isinstance(item, dict):
-                continue
-            generation = dict(item.get("generation") or {})
-            raw_affixes = generation.get("affixes")
-            if isinstance(raw_affixes, list):
-                affixes.extend(dict(affix) for affix in raw_affixes if isinstance(affix, dict))
-        return affixes
-
-    @staticmethod
-    def _variant_text(monster: GeneratedMonster, key: str) -> str:
-        clan = monster.clan
-        if clan is None:
-            return ""
-        variants = clan.flavor_content.get("variants_flavor")
-        if not isinstance(variants, dict):
-            return ""
-        flavor = variants.get(monster.variant_key)
-        if not isinstance(flavor, dict):
-            return ""
-        nested = flavor.get("flavor")
-        if isinstance(nested, dict):
-            value = nested.get(key)
-            if value:
-                return str(value)
-        value = flavor.get(key)
-        return str(value) if value else ""
+        return [dict(affix) for affix in monster.active_snapshot.get("affixes", []) if isinstance(affix, dict)]
 
     @staticmethod
     def _group_payload(result: MonsterGroupResult) -> dict[str, object]:
@@ -590,8 +586,7 @@ def _family_expected_gear_score(members: list[GeneratedMonster], *, tier: int) -
 
 
 def _member_raw_gear_score(member: GeneratedMonster) -> int | None:
-    balance = dict((member.generation_meta or {}).get("balance") or {})
-    value = balance.get("raw_gear_score")
+    value = dict(member.active_snapshot or {}).get("raw_gear_score")
     try:
         return int(value)
     except (TypeError, ValueError):

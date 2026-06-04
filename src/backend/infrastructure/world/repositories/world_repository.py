@@ -177,6 +177,18 @@ class WorldRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_active_regions(self) -> list[WorldRegion]:
+        stmt = (
+            select(WorldRegion)
+            .join(WorldZone, WorldZone.region_id == WorldRegion.id)
+            .join(WorldGrid, WorldGrid.zone_id == WorldZone.id)
+            .where(WorldGrid.is_active)
+            .distinct()
+            .order_by(WorldRegion.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_active_nodes_by_zone_ids(self, zone_ids: list[str]) -> list[WorldGrid]:
         if not zone_ids:
             return []

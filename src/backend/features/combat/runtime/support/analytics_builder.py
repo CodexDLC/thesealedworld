@@ -67,6 +67,8 @@ class CombatAnalyticsFactBuilder:
     ) -> dict[str, Any]:
         outcome = cls._outcome(result)
         action_id = cls._action_id(action)
+        source_actor = ctx.get_actor(result.source_id) if result.source_id is not None else None
+        target_actor = ctx.get_actor(result.target_id) if result.target_id is not None else None
         return {
             "v": ANALYTICS_SCHEMA_VERSION,
             "analytics_schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -76,6 +78,8 @@ class CombatAnalyticsFactBuilder:
             "w": wave,
             "s": str(result.source_id) if result.source_id is not None else None,
             "d": str(result.target_id) if result.target_id is not None else None,
+            "s_combatant_key": cls._actor_combatant_key(source_actor),
+            "d_combatant_key": cls._actor_combatant_key(target_actor),
             "a": action_id,
             "act": cls._action_fact(action, result),
             "m": cls.MODES.get(action.action_type, action.action_type),
@@ -120,6 +124,8 @@ class CombatAnalyticsFactBuilder:
         action = CombatActionDTO.model_validate(payload.action)
         outcome = cls._outcome(result)
         action_id = cls._action_id(action)
+        source_actor = payload.actors.get(str(result.source_id)) if result.source_id is not None else None
+        target_actor = payload.actors.get(str(result.target_id)) if result.target_id is not None else None
         return {
             "v": ANALYTICS_SCHEMA_VERSION,
             "analytics_schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -129,6 +135,8 @@ class CombatAnalyticsFactBuilder:
             "w": payload.wave,
             "s": str(result.source_id) if result.source_id is not None else None,
             "d": str(result.target_id) if result.target_id is not None else None,
+            "s_combatant_key": cls._payload_actor_combatant_key(source_actor),
+            "d_combatant_key": cls._payload_actor_combatant_key(target_actor),
             "a": action_id,
             "act": cls._action_fact(action, result),
             "m": cls.MODES.get(action.action_type, action.action_type),
@@ -190,6 +198,7 @@ class CombatAnalyticsFactBuilder:
                     "team": actor_meta.get("team"),
                     "template_id": actor_meta.get("template_id"),
                     "archetype": actor_meta.get("archetype"),
+                    "combatant_key": actor_meta.get("combatant_key"),
                 },
                 "vitals": {
                     "hp": actor_meta.get("hp"),
@@ -431,8 +440,8 @@ class CombatAnalyticsFactBuilder:
         source = ctx.get_actor(result.source_id) if result.source_id is not None else None
         target = ctx.get_actor(result.target_id) if result.target_id is not None else None
         return CombatAnalyticsFactBuilder._equipment_slice(
-            getattr(getattr(source, "loadout", None), "equipment_refs", {}) if source else {},
-            getattr(getattr(target, "loadout", None), "equipment_refs", {}) if target else {},
+            getattr(source, "loadout", None) if source else None,
+            getattr(target, "loadout", None) if target else None,
             result.hand,
         )
 
@@ -440,23 +449,70 @@ class CombatAnalyticsFactBuilder:
     def _equipment_slice_from_payload(payload: Any, result: InteractionResultDTO) -> dict[str, Any]:
         source = payload.actors.get(str(result.source_id)) if result.source_id is not None else None
         target = payload.actors.get(str(result.target_id)) if result.target_id is not None else None
-        source_refs = getattr(source, "loadout", {}).get("equipment_refs", {}) if source else {}
-        target_refs = getattr(target, "loadout", {}).get("equipment_refs", {}) if target else {}
-        return CombatAnalyticsFactBuilder._equipment_slice(source_refs, target_refs, result.hand)
+        return CombatAnalyticsFactBuilder._equipment_slice(
+            getattr(source, "loadout", None) if source else None,
+            getattr(target, "loadout", None) if target else None,
+            result.hand,
+        )
 
     @staticmethod
-    def _equipment_slice(source_refs: Any, target_refs: Any, hand: str) -> dict[str, Any]:
-        source_refs = source_refs or {}
-        target_refs = target_refs or {}
+    def _equipment_slice(source_loadout: Any, target_loadout: Any, hand: str) -> dict[str, Any]:
         source_slot = "off_hand" if hand in {"off", "off_hand"} else "main_hand"
-        source_weapon = CombatAnalyticsFactBuilder._dump_equipment_ref(source_refs.get(source_slot))
-        target_armor = CombatAnalyticsFactBuilder._dump_equipment_ref(
-            target_refs.get("body") or target_refs.get("chest_armor")
-        )
+        source_weapon = CombatAnalyticsFactBuilder._weapon_ref_from_loadout(source_loadout, source_slot)
+        target_armor = CombatAnalyticsFactBuilder._armor_ref_from_loadout(target_loadout)
         return {
             "s": {"weapon": source_weapon},
             "d": {"armor": target_armor},
         }
+
+    @staticmethod
+    def _weapon_ref_from_loadout(loadout: Any, slot: str) -> dict[str, Any]:
+        equipment_refs = CombatAnalyticsFactBuilder._loadout_mapping(loadout, "equipment_refs")
+        ref = CombatAnalyticsFactBuilder._dump_equipment_ref(equipment_refs.get(slot))
+        if ref.get("base_id") or ref.get("skill_key"):
+            return ref
+        surfaces = CombatAnalyticsFactBuilder._loadout_mapping(loadout, "combat_surfaces")
+        surface = CombatAnalyticsFactBuilder._dump_equipment_ref(surfaces.get(slot))
+        layout = CombatAnalyticsFactBuilder._loadout_mapping(loadout, "layout")
+        if not surface.get("skill_key") and layout.get(slot):
+            surface["skill_key"] = str(layout.get(slot))
+        if not surface.get("base_id") and surface.get("skill_key"):
+            surface["base_id"] = str(surface["skill_key"])
+        return surface
+
+    @staticmethod
+    def _armor_ref_from_loadout(loadout: Any) -> dict[str, Any]:
+        equipment_refs = CombatAnalyticsFactBuilder._loadout_mapping(loadout, "equipment_refs")
+        ref = CombatAnalyticsFactBuilder._dump_equipment_ref(
+            equipment_refs.get("body") or equipment_refs.get("chest_armor")
+        )
+        if ref.get("armor_class") or ref.get("skill_key"):
+            return ref
+        layout = CombatAnalyticsFactBuilder._loadout_mapping(loadout, "layout")
+        body_skill = layout.get("body") or layout.get("chest_armor")
+        if body_skill:
+            return {
+                "skill_key": str(body_skill),
+                "armor_class": CombatAnalyticsFactBuilder._armor_class_from_skill(body_skill),
+            }
+        return ref
+
+    @staticmethod
+    def _armor_class_from_skill(value: Any) -> str:
+        return {
+            "skill_light_armor": "light_armor",
+            "skill_medium_armor": "medium_armor",
+            "skill_heavy_armor": "heavy_armor",
+        }.get(str(value or ""), str(value or ""))
+
+    @staticmethod
+    def _loadout_mapping(loadout: Any, key: str) -> dict[str, Any]:
+        if loadout is None:
+            return {}
+        value = loadout.get(key) if isinstance(loadout, dict) else getattr(loadout, key, None)
+        if hasattr(value, "model_dump"):
+            value = value.model_dump(mode="json")
+        return value if isinstance(value, dict) else {}
 
     @staticmethod
     def _dump_equipment_ref(value: Any) -> dict[str, Any]:
@@ -477,3 +533,40 @@ class CombatAnalyticsFactBuilder:
             "triggers": value.get("triggers", []),
             "tags": value.get("tags", []),
         }
+
+    @staticmethod
+    def _actor_combatant_key(actor: Any) -> str | None:
+        if actor is None:
+            return None
+        actor_meta = getattr(actor, "meta", {})
+        if isinstance(actor_meta, dict):
+            role = actor_meta.get("combatant_key")
+        else:
+            role = getattr(actor_meta, "combatant_key", None)
+        return CombatAnalyticsFactBuilder._normalize_combatant_key(role)
+
+    @staticmethod
+    def _payload_actor_combatant_key(actor: Any) -> str | None:
+        if actor is None:
+            return None
+        role = getattr(actor, "combatant_key", None)
+        return CombatAnalyticsFactBuilder._normalize_combatant_key(role)
+
+    @staticmethod
+    def _normalize_combatant_key(value: Any) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple, set)):
+            values = [str(item).strip() for item in value if str(item).strip()]
+            if not values:
+                return None
+            value = "/".join(values)
+        else:
+            value = str(value).strip()
+        if not value:
+            return None
+        if value.startswith(("player ", "monster ", "shadow ")):
+            return value
+        if value.startswith("[") and value.endswith("]"):
+            return value
+        return f"[{value}]"

@@ -14,10 +14,10 @@ from src.backend.features.monsters.services.gear_score_service import MonsterGea
 class FakeRepository:
     def __init__(self) -> None:
         self.created: tuple[GeneratedClan, list] | None = None
-        self.by_unique: dict[str, GeneratedClan] = {}
+        self.by_identity: dict[str, GeneratedClan] = {}
 
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
-        return self.by_unique.get(unique_hash)
+    async def get_clan_by_identity_hash(self, identity_hash: str) -> GeneratedClan | None:
+        return self.by_identity.get(identity_hash)
 
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
         return []
@@ -30,10 +30,10 @@ class FakeRepository:
         clan.members.extend(member for member in members if member not in clan.members)
         for member in clan.members:
             member.clan = clan
-        self.by_unique[clan.unique_hash] = clan
+        self.by_identity[clan.identity_hash] = clan
         return clan
 
-    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
+    async def update_clan_narrative(self, clan: GeneratedClan) -> GeneratedClan:
         return clan
 
 
@@ -73,6 +73,19 @@ class FakeItemGeneration:
         return projections
 
 
+def _clan_flavor(name: str = "Test Clan") -> dict[str, object]:
+    return {
+        "name_ru": name,
+        "description": "Authored clan flavor for generation tests.",
+        "encounter_texts": {
+            "patrol": "Patrol text.",
+            "ambush": "Ambush text.",
+            "lair": "Lair text.",
+            "random_meeting": "Random meeting text.",
+        },
+    }
+
+
 @pytest.mark.unit
 async def test_generation_builder_creates_clan_template_with_all_available_members_and_items() -> None:
     repository = FakeRepository()
@@ -85,35 +98,33 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
         tags=["sewer"],
         threat=18,
         difficulty="mid",
+        context_meta={"clan_flavor": _clan_flavor("Rat Test Clan")},
     )
 
     clan = await builder.generate_clan_template(
         context,
         family_id="rat_swarm",
         context_hash="a" * 32,
-        unique_hash="b" * 32,
+        identity_hash="b" * 32,
         reuse_existing=False,
     )
 
     family = get_family_config("rat_swarm")
     assert family is not None
-    max_tier = context.tier + 1
-    expected_variants = [
-        variant
-        for variant in family.variants.values()
-        if variant.min_tier <= max_tier and variant.max_tier >= 0
-    ]
+    expected_variants = list(family.variants.values())
     assert repository.created is not None
     assert clan.family_id == "rat_swarm"
-    assert clan.flavor_content["loot_culture"]["craft_style"]
-    assert clan.flavor_content["loot_culture"]["tone_hints"]
-    assert "target_budget" not in clan.raw_tags
-    assert clan.raw_tags["variant_window"] == {"min_tier": 0, "max_tier": max_tier}
-    assert len(clan.members) == len(expected_variants)
-    assert {member.variant_key for member in clan.members} == {variant.id for variant in expected_variants}
+    assert "target_budget" not in clan.context_identity
+    assert clan.context_identity["variant_window"] == {"min_tier": 0, "max_tier": 7}
+    assert 1 <= len(clan.selected_traits) <= 2
+    assert any(trait["key"] in {"plague_borne", "rot_adapted", "swarm_pressure"} for trait in clan.selected_traits)
+    assert len(clan.members) == len(family.variants)
+    assert {member.variant_id for member in clan.members} == set(family.variants)
     assert len(item_generation.batches) == 1
     expected_item_count = sum(
-        len(variant.fixed_loadout.model_dump(exclude_none=True)) for variant in expected_variants
+        len(variant.fixed_loadout.model_dump(exclude_none=True))
+        * len(builder._snapshot_tiers(family, variant))
+        for variant in expected_variants
     )
     assert len(item_generation.batches[0]) == expected_item_count
     # transmog: natural keys resolve to player item base_ids
@@ -128,24 +139,32 @@ async def test_generation_builder_creates_clan_template_with_all_available_membe
     )
 
     first = clan.members[0]
-    assert first.items["layout"]["equipment"]
-    assert clan.raw_tags["combat_math_version"] == COMBAT_MATH_VERSION
-    assert first.generation_meta["schema_version"] == 2
-    assert first.generation_meta["combat_math_version"] == COMBAT_MATH_VERSION
-    assert first.generation_meta["family_resource_version"] == family.resource_version
-    assert first.generation_meta["visual"]["status"] == "fallback"
-    assert first.generation_meta["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
-    assert first.items["by_id"]
-    assert first.scaled_attributes["endurance"] > 0
-    assert first.vitals["hp"]["max"] > 0
-    assert first.text_content["detected_ru"]
-    assert first.text_content["ambush_ru"]
-    assert first.text_content["idle_ru"]
-    assert first.generation_meta["balance"]["gear_score"] > 0
-    assert first.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
-    assert first.threat_rating == first.generation_meta["balance"]["gear_score"]
-    assert "base_cost" not in first.generation_meta["balance"]
-    assert "effective_cost" not in first.generation_meta["balance"]
+    assert first.active_snapshot["items"]["layout"]["equipment"]
+    assert clan.context_identity["combat_math_version"] == COMBAT_MATH_VERSION
+    assert first.metadata_["schema_version"] == 2
+    assert first.metadata_["combat_math_version"] == COMBAT_MATH_VERSION
+    assert first.metadata_["family_resource_version"] == family.resource_version
+    assert first.metadata_["visual"]["status"] == "placeholder"
+    assert first.metadata_["visual"]["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
+    assert "family_modifiers" not in first.metadata_
+    assert first.actor_document["document_kind"] == "monster_actor_projection"
+    assert first.actor_document["snapshot_version"] == 1
+    assert first.actor_document["base_projection"]["selected_traits_applied"] == clan.selected_traits
+    assert set(first.actor_document["tier_snapshots"]) == {
+        f"tier_{tier}" for tier in builder._snapshot_tiers(family, family.variants[first.variant_id])
+    }
+    assert first.active_snapshot["combat_snapshot_input"]["meta"]["actor_type"] == "monster"
+    assert first.active_snapshot["items"]["by_id"]
+    assert first.active_snapshot["attributes"]["endurance"] > 0
+    assert first.active_snapshot["combat_snapshot_input"]["status"]["hp"]["max"] > 0
+    assert clan.encounter_texts["patrol"]
+    assert clan.encounter_texts["ambush"]
+    assert clan.encounter_texts["lair"]
+    assert clan.encounter_texts["random_meeting"]
+    assert "detected_ru" not in first.active_snapshot
+    assert "ambush_ru" not in first.active_snapshot
+    assert "idle_ru" not in first.active_snapshot
+    assert first.active_snapshot["gear_score"] > 0
 
 
 @pytest.mark.unit
@@ -176,25 +195,32 @@ async def test_generation_builder_reuses_existing_unique_clan_when_requested() -
     existing = GeneratedClan(
         id=uuid.uuid4(),
         family_id="rat_swarm",
-        tier=1,
-        zone_id="zone-a",
+        identity_hash="b" * 32,
+        context_identity={"tier": 1, "zone_id": "zone-a"},
         context_hash="a" * 32,
-        unique_hash="b" * 32,
-        raw_tags={},
-        flavor_content={},
-        name_ru="Existing",
+        selected_traits=[],
+        title="Existing",
         description="Existing",
+        encounter_texts={},
+        generation_version=2,
+        resource_version="1",
     )
     repository = FakeRepository()
-    repository.by_unique[existing.unique_hash] = existing
+    repository.by_identity[existing.identity_hash] = existing
     item_generation = FakeItemGeneration()
     builder = MonsterClanGenerationBuilder(repository=repository, item_generation=item_generation)
 
     clan = await builder.generate_clan_template(
-        MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=[]),
+        MonsterGenerationContext(
+            zone_id="zone-a",
+            biome_id="city_ruins",
+            tier=1,
+            tags=[],
+            context_meta={"clan_flavor": _clan_flavor()},
+        ),
         family_id="rat_swarm",
         context_hash=existing.context_hash,
-        unique_hash=existing.unique_hash,
+        identity_hash=existing.identity_hash,
     )
 
     assert clan is existing
@@ -211,7 +237,7 @@ async def test_generation_builder_rejects_tier_zero_clan_templates() -> None:
             MonsterGenerationContext(zone_id="D4_tier0_start", biome_id="city_ruins", tier=0, tags=[]),
             family_id="rat_swarm",
             context_hash="0" * 32,
-            unique_hash="1" * 32,
+            identity_hash="1" * 32,
             reuse_existing=False,
         )
 
@@ -223,10 +249,17 @@ async def test_generation_builder_creates_humanoid_item_orders_from_fixed_loadou
     builder = MonsterClanGenerationBuilder(repository=repository, item_generation=item_generation)
 
     await builder.generate_clan_template(
-        MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=[], threat=10),
+        MonsterGenerationContext(
+            zone_id="zone-a",
+            biome_id="city_ruins",
+            tier=1,
+            tags=[],
+            threat=10,
+            context_meta={"clan_flavor": _clan_flavor("Bandit Test Clan")},
+        ),
         family_id="bandit_gang",
         context_hash="c" * 32,
-        unique_hash="d" * 32,
+        identity_hash="d" * 32,
         reuse_existing=False,
     )
 
@@ -243,34 +276,23 @@ async def test_generation_builder_creates_humanoid_item_orders_from_fixed_loadou
 
 
 @pytest.mark.unit
-def test_d4_context_tags_are_preserved_for_clan_hashing() -> None:
+def test_d4_context_tags_are_preserved_for_context_metadata() -> None:
     tags = normalize_tags(["d4_rift_rat_king", "rat_swarm", "unknown_noise"])
 
-    assert tags == ["d4_rift_rat_king", "rat_swarm"]
+    assert tags == ["d4_rift_rat_king", "rat_swarm", "unknown_noise"]
     assert compute_context_hash(2, "city_ruins", tags) != compute_context_hash(2, "city_ruins", [])
+    assert compute_context_hash(2, "city_ruins", tags) == compute_context_hash(7, "city_ruins", tags)
 
 
 @pytest.mark.unit
-def test_d4_rat_rift_family_is_available_at_tier_two() -> None:
+async def test_generation_builder_requires_authored_clan_flavor() -> None:
     builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
-    context = MonsterGenerationContext(
-        zone_id="D4_0_0",
-        biome_id="city_ruins",
-        tier=2,
-        tags=["d4_rift_rat_king", "rat_swarm"],
-    )
 
-    assert builder.get_available_family_ids(context) == ["rat_swarm"]
-
-
-@pytest.mark.unit
-def test_broken_road_allows_authored_starter_goblins_without_tier_one_fallback() -> None:
-    builder = MonsterClanGenerationBuilder(repository=FakeRepository(), item_generation=FakeItemGeneration())
-    context = MonsterGenerationContext(
-        zone_id="rift:starter_rift:secondary",
-        biome_id="broken_road",
-        tier=1,
-        tags=[],
-    )
-
-    assert builder.get_available_family_ids(context) == ["bandit_gang", "goblin_tribe", "rat_swarm"]
+    with pytest.raises(ValueError, match="requires clan_flavor"):
+        await builder.generate_clan_template(
+            MonsterGenerationContext(zone_id="zone-a", biome_id="city_ruins", tier=1, tags=[]),
+            family_id="rat_swarm",
+            context_hash="e" * 32,
+            identity_hash="f" * 32,
+            reuse_existing=False,
+        )

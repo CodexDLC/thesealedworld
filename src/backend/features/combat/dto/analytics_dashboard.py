@@ -52,6 +52,8 @@ class CombatAnalyticsExchangeFactDTO(BaseModel):
     location_id: str | None = None
     source_actor_id: str | None = None
     target_actor_id: str | None = None
+    source_combatant_key: str | None = None
+    target_combatant_key: str | None = None
     action_id: str | None = None
     feint_id: str | None = None
     outcome: str | None = None
@@ -72,12 +74,8 @@ class CombatAnalyticsExchangeFactDTO(BaseModel):
     phys_res_raw: float | None = None
     phys_res_effective: float | None = None
     physical_suppression: float | None = None
-    checks: list[Any] = Field(default_factory=list)
-    damage_trace: dict[str, Any] = Field(default_factory=dict)
-    trigger_attempts: list[Any] = Field(default_factory=list)
-    mutations: list[Any] = Field(default_factory=list)
-    equipment: dict[str, Any] = Field(default_factory=dict)
-    tags: list[str] = Field(default_factory=list)
+    mongo_document_id: str | None = None
+    trace_status: str = "mongo"
     schema_version: int = 2
 
 

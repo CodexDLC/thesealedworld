@@ -20,19 +20,13 @@ class ClanFactory:
     def __init__(self, generator: MonsterClanGenerationBuilder) -> None:
         self.generator = generator
 
-    def get_available_family_ids(self, context: MonsterGenerationContext) -> list[str]:
-        return self.generator.get_available_family_ids(context)
-
-    def select_family_id(self, context: MonsterGenerationContext, context_hash: str) -> str | None:
-        return self.generator.select_family_id(context, context_hash)
-
     async def build_clan_template(
         self,
         *,
         family_id: str,
         context: MonsterGenerationContext,
         context_hash: str,
-        unique_hash: str,
+        identity_hash: str,
         normalized_tags: Sequence[str],
         reuse_existing: bool = False,
     ) -> GeneratedClan:
@@ -40,7 +34,7 @@ class ClanFactory:
             context,
             family_id=family_id,
             context_hash=context_hash,
-            unique_hash=unique_hash,
+            identity_hash=identity_hash,
             normalized_tags=normalized_tags,
             reuse_existing=reuse_existing,
         )

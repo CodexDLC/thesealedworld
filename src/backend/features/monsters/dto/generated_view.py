@@ -27,7 +27,7 @@ class GeneratedAssetVisualDTO(BaseModel):
     source: str = ""
     image_url: str = ""
     generated_image_url: str = ""
-    fallback_image_url: str = ""
+    placeholder_image_url: str = ""
     storage_key: str = ""
     storage_backend: str = ""
     asset_hash: str = ""
@@ -44,20 +44,16 @@ class GeneratedMonsterEquipmentSummaryDTO(BaseModel):
 
 
 class GeneratedMonsterViewDTO(BaseModel):
-    monster_id: str
-    variant_key: str
+    member_id: str
+    clan_id: str
+    variant_id: str
+    member_hash: str
     role: str
-    member_tier: int
-    name_ru: str
-    description: str = ""
-    text_content: dict[str, Any] = Field(default_factory=dict)
-    scaled_attributes: dict[str, Any] = Field(default_factory=dict)
-    scaled_skills: dict[str, Any] = Field(default_factory=dict)
-    items: dict[str, Any] = Field(default_factory=dict)
-    vitals: dict[str, Any] = Field(default_factory=dict)
-    ai_profile: dict[str, Any] = Field(default_factory=dict)
-    generation_meta: dict[str, Any] = Field(default_factory=dict)
-    combat_actor_snapshot: dict[str, Any] = Field(default_factory=dict)
+    title: str
+    short_description: str = ""
+    min_tier: int
+    max_tier: int
+    mongo_actor_key: str
     metadata_: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any] = Field(default_factory=dict)
     source_context: dict[str, Any] = Field(default_factory=dict)
@@ -67,23 +63,22 @@ class GeneratedMonsterViewDTO(BaseModel):
     schema_version: int = 1
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    threat_rating: int
-    gear_score: int | None = None
     visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
-    equipment_summary: GeneratedMonsterEquipmentSummaryDTO = Field(default_factory=GeneratedMonsterEquipmentSummaryDTO)
 
 
 class GeneratedClanViewDTO(BaseModel):
     clan_id: str
     family_id: str
-    tier: int
     zone_id: str | None = None
     context_hash: str = ""
-    unique_hash: str = ""
-    raw_tags: dict[str, Any] = Field(default_factory=dict)
-    flavor_content: dict[str, Any] = Field(default_factory=dict)
-    name_ru: str
+    identity_hash: str = ""
+    context_identity: dict[str, Any] = Field(default_factory=dict)
+    selected_traits: list[dict[str, Any]] = Field(default_factory=list)
+    title: str
     description: str
+    encounter_texts: dict[str, Any] = Field(default_factory=dict)
+    generation_version: int = 1
+    resource_version: str = ""
     metadata_: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any] = Field(default_factory=dict)
     source_context: dict[str, Any] = Field(default_factory=dict)
@@ -94,7 +89,7 @@ class GeneratedClanViewDTO(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     visual: GeneratedAssetVisualDTO = Field(default_factory=GeneratedAssetVisualDTO)
-    gear_score_summary: GearScoreSummaryDTO
+    gear_score_summary: GearScoreSummaryDTO = Field(default_factory=GearScoreSummaryDTO)
     members: list[GeneratedMonsterViewDTO] = Field(default_factory=list)
 
 

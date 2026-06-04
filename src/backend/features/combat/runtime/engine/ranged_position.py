@@ -164,7 +164,7 @@ class RangedPositionService:
         )
         chance = max(0.0, min(cap, raw))
         return chance, {
-            "position": position,
+            "position": position,  # type: ignore
             "evasion": evasion,
             "line_control": line_control,
             "skill_ranged_combat": ranged_skill,
@@ -266,16 +266,16 @@ class RangedPositionService:
             1.0,
         )
         damage_pressure *= DAMAGE_PRESSURE_THREAT_MULT[current]
-        damage_pressure *= max(0.0, float(action_facts.get("ranged_damage_pressure_mult", 1.0) or 1.0))
+        damage_pressure *= max(0.0, float(action_facts.get("ranged_damage_pressure_mult", 1.0) or 1.0))  # type: ignore
         melee_contact_pressure = RangedPositionService._clamp(
             max(0, int(melee_pressure)) / MELEE_CONTACT_PRESSURE_DIVISOR,
             0.0,
             1.0,
         )
-        melee_contact_pressure *= max(0.0, float(action_facts.get("ranged_melee_pressure_mult", 1.0) or 1.0))
+        melee_contact_pressure *= max(0.0, float(action_facts.get("ranged_melee_pressure_mult", 1.0) or 1.0))  # type: ignore
         melee_contact_resistance = max(0.25, 1.0 - (0.65 * ranged_skill))
         enemy_pressure = max(0.0, float(enemy_stats.mods.anti_dodge_chance or 0.0))
-        enemy_pressure *= max(0.0, float(action_facts.get("ranged_enemy_pressure_mult", 1.0) or 1.0))
+        enemy_pressure *= max(0.0, float(action_facts.get("ranged_enemy_pressure_mult", 1.0) or 1.0))  # type: ignore
 
         far = 0.05 + (0.40 * ranged_skill) + (0.15 * evasion) + (0.18 * max(tempo, 0.0))
         far -= (0.45 * damage_pressure) + (0.18 * max(-tempo, 0.0)) + (0.20 * enemy_pressure)
@@ -297,9 +297,9 @@ class RangedPositionService:
             mid += 0.15
             far -= 0.16 * (1.0 - (0.50 * ranged_skill))
 
-        far += float(action_facts.get("ranged_far_weight_bonus", 0.0) or 0.0)
-        mid += float(action_facts.get("ranged_mid_weight_bonus", 0.0) or 0.0)
-        close += float(action_facts.get("ranged_close_weight_bonus", 0.0) or 0.0)
+        far += float(action_facts.get("ranged_far_weight_bonus", 0.0) or 0.0)  # type: ignore
+        mid += float(action_facts.get("ranged_mid_weight_bonus", 0.0) or 0.0)  # type: ignore
+        close += float(action_facts.get("ranged_close_weight_bonus", 0.0) or 0.0)  # type: ignore
         if melee_contact_pressure > 0.0:
             close = max(close, 0.10 * melee_contact_pressure)
 

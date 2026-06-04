@@ -37,7 +37,11 @@ async def online_vitals_regen_task(ctx: dict[str, Any], payload: dict[str, Any] 
     refreshed: list[int] = []
     for char_id in candidate_ids:
         before = copy.deepcopy(await sessions.get_section(char_id, "vitals"))
-        updated = await sessions.apply_vitals_regen(char_id) if now is None else await sessions.apply_vitals_regen(char_id, now=now)
+        updated = (
+            await sessions.apply_vitals_regen(char_id)
+            if now is None
+            else await sessions.apply_vitals_regen(char_id, now=now)
+        )
         if updated != before:
             processed.append(char_id)
             refreshed.append(char_id)

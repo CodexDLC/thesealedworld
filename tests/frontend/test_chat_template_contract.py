@@ -102,7 +102,7 @@ def test_chat_template_refresh_notice_wakes_existing_fragment() -> None:
     assert "new CustomEvent('realtime:refresh'" in template
 
 
-def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
+def test_chat_template_does_not_treat_combat_logs_as_system_channel_history() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 
     assert "_isCombatLog(m)" in template
@@ -110,6 +110,7 @@ def test_chat_template_keeps_combat_logs_in_system_channel() -> None:
     assert "_ensureInitialCombatTab" not in template
     assert "combatLogKey" not in template
     assert "channels.dynamic[combatLogKey]" not in template
+    assert "_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)" not in template
     assert "_isClosedDynamicTab(key)" in template
     assert "_rememberClosedDynamicTab(key)" in template
     assert "_forgetClosedDynamicTab(dynamicKey)" in template
@@ -121,7 +122,7 @@ def test_chat_template_does_not_rebuild_system_messages_during_render() -> None:
     assert "_systemMessages()" not in template
     assert "slice().reverse()" not in template
     assert 'x-for="(m, idx) in _visibleMessagesForTab(\'system\')"' in template
-    assert "_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)" in template
+    assert "_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)" not in template
 
 
 def test_chat_template_can_hide_visible_tab_messages_without_deleting_history() -> None:

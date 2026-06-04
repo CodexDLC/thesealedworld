@@ -546,7 +546,7 @@
                 visual.generated_image_url,
             ];
             const fallbackCandidates = [
-                visual.fallback_image_url,
+                visual.placeholder_image_url,
                 isFamilyFallbackImage(visual.image_url) ? visual.image_url : null,
             ];
             return uniqueImageCandidates([...generatedCandidates, ...fallbackCandidates]);

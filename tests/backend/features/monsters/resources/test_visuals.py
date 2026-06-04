@@ -11,7 +11,7 @@ from src.backend.features.monsters.resources.visuals import (
 def test_family_visual_exposes_content_addressed_generated_target() -> None:
     visual = get_family_visual("rat_swarm")
 
-    assert visual["status"] == "fallback"
+    assert visual["status"] == "placeholder"
     assert visual["image_url"] == "/static/images/monsters/families/rat_swarm.svg"
     assert str(visual["storage_key"]).startswith("monsters/generated/families/")
     assert str(visual["generated_image_url"]).startswith("/static/generated-assets/monsters/generated/families/")
@@ -66,14 +66,16 @@ def test_generated_visual_urls_are_versioned_for_browser_cache_busting() -> None
     visual = {
         "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
         "generated_image_url": "/static/generated-assets/monsters/generated/members/rat.webp",
-        "fallback_image_url": "/static/images/monsters/families/rat_swarm.svg",
+        "placeholder_image_url": "/static/images/monsters/families/rat_swarm.svg",
         "asset_hash": "rat-image-bytes",
     }
 
     assert version_generated_asset_url(str(visual["image_url"]), visual) == (
         "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
     )
-    assert version_visual_image_urls(visual)["fallback_image_url"] == "/static/images/monsters/families/rat_swarm.svg"
+    assert version_visual_image_urls(visual)["placeholder_image_url"] == (
+        "/static/images/monsters/families/rat_swarm.svg"
+    )
 
 
 def test_pending_visual_uses_previous_hash_for_previous_image_url() -> None:

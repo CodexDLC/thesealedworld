@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO, AIGenerationTaskSpecDTO
 from src.backend.features.generation_ai.handlers import AIGenerationTaskHandler
 from src.backend.features.generation_ai.identity import build_generation_task_identity_key
+from src.backend.features.generation_ai.models import AIGenerationTask
 from src.backend.features.generation_ai.registry import AIGenerationTaskRegistry
 from src.backend.features.generation_ai.services import GENERATION_AI_ARQ_TASK, GenerationAIService
 
@@ -26,6 +27,13 @@ class FakeTask:
     input_payload: dict[str, Any] = field(default_factory=dict)
     prompt_payload: dict[str, Any] = field(default_factory=dict)
     error: dict[str, Any] = field(default_factory=dict)
+    output_payload: dict[str, Any] = field(default_factory=dict)
+    metadata_: dict[str, Any] = field(default_factory=dict)
+    mongo_document_id: str | None = None
+    mongo_status: str = "legacy"
+    mongo_schema_version: int | None = None
+    last_error_type: str | None = None
+    last_error_message: str | None = None
 
     def bump_revision(self) -> int:
         return 1
@@ -38,13 +46,15 @@ class FakeRepository:
         self.done: list[str] = []
         self.cooldown: list[str] = []
         self.failed: list[str] = []
+        self.payload_documents: dict[str, dict[str, Any]] = {}
 
     async def find_by_identity_key(self, identity_key: str) -> FakeTask | None:
         return self.by_identity.get(identity_key)
 
     async def create(self, spec: AIGenerationTaskSpecDTO, *, batch_id: str, identity_key: str) -> FakeTask:
+        task_id = f"task-{len(self.by_id) + 1}"
         task = FakeTask(
-            id=f"task-{len(self.by_id) + 1}",
+            id=task_id,
             task_type=spec.task_type,
             entity_type=spec.entity_type,
             entity_id=spec.entity_id,
@@ -52,9 +62,21 @@ class FakeRepository:
             input_payload=spec.input_payload,
             prompt_payload=spec.prompt_payload,
             max_attempts=spec.max_attempts,
+            metadata_=spec.metadata,
+            mongo_document_id=f"mongo-{task_id}",
+            mongo_status="stored",
+            mongo_schema_version=1,
         )
         self.by_identity[identity_key] = task
         self.by_id[task.id] = task
+        self.payload_documents[task.id] = {
+            "_id": task.mongo_document_id,
+            "input_payload": dict(spec.input_payload),
+            "prompt_payload": dict(spec.prompt_payload),
+            "output_payload": {},
+            "metadata": dict(spec.metadata),
+            "error": {},
+        }
         return task
 
     async def get(self, task_id: str) -> FakeTask | None:
@@ -73,6 +95,10 @@ class FakeRepository:
         if task is None:
             return None
         task.status = "done"
+        task.output_payload = dict(result.output_payload)
+        self.payload_documents[task.id]["output_payload"] = dict(result.output_payload)
+        self.payload_documents[task.id]["metadata"] = {**task.metadata_, **result.metadata}
+        self.payload_documents[task.id]["error"] = {}
         self.done.append(task_id)
         return task
 
@@ -88,6 +114,9 @@ class FakeRepository:
             return None
         task.status = "cooldown"
         task.error = dict(error or {})
+        task.last_error_type = str(task.error.get("type") or "") or None
+        task.last_error_message = str(task.error.get("message") or "") or None
+        self.payload_documents[task.id]["error"] = dict(task.error)
         self.cooldown.append(task_id)
         return task
 
@@ -97,6 +126,9 @@ class FakeRepository:
             return None
         task.status = "failed"
         task.error = dict(error)
+        task.last_error_type = str(task.error.get("type") or "") or None
+        task.last_error_message = str(task.error.get("message") or "") or None
+        self.payload_documents[task.id]["error"] = dict(task.error)
         self.failed.append(task_id)
         return task
 
@@ -281,6 +313,16 @@ def test_identity_key_is_stable_for_equivalent_specs() -> None:
     assert build_generation_task_identity_key(_spec()) == build_generation_task_identity_key(_spec())
 
 
+def test_ai_generation_task_sql_model_has_no_heavy_payload_columns() -> None:
+    assert {
+        "prompt_payload",
+        "input_payload",
+        "output_payload",
+        "metadata",
+        "error",
+    }.isdisjoint(AIGenerationTask.__table__.columns.keys())
+
+
 def test_registry_rejects_duplicate_task_type() -> None:
     registry = AIGenerationTaskRegistry()
     registry.register(FakeHandler())
@@ -309,6 +351,24 @@ async def test_enqueue_many_creates_or_reuses_tasks_and_schedules_arq() -> None:
         (GENERATION_AI_ARQ_TASK, first.task_ids[0]),
         (GENERATION_AI_ARQ_TASK, first.task_ids[0]),
     ]
+
+
+@pytest.mark.asyncio
+async def test_enqueue_many_stores_heavy_payloads_in_task_document() -> None:
+    registry = AIGenerationTaskRegistry()
+    registry.register(FakeHandler())
+    repository = FakeRepository()
+    service = GenerationAIService(repository=repository, registry=registry)
+
+    result = await service.enqueue_many([_spec()])
+    task = repository.by_id[result.task_ids[0]]
+    document = repository.payload_documents[task.id]
+
+    assert task.mongo_document_id == f"mongo-{task.id}"
+    assert task.mongo_status == "stored"
+    assert document["input_payload"] == {"item_id": "item-1"}
+    assert document["prompt_payload"] == {}
+    assert document["metadata"] == {}
 
 
 @pytest.mark.asyncio
@@ -350,6 +410,7 @@ async def test_process_task_routes_through_registered_handler_and_marks_done() -
     assert repository.done == [task.id]
     assert handler.applied == [task.id]
     assert task.status == "done"
+    assert repository.payload_documents[task.id]["output_payload"]["task_id"] == task.id
 
 
 @pytest.mark.asyncio
@@ -369,7 +430,8 @@ async def test_process_task_rejects_json_request_without_schema() -> None:
     assert result is None
     assert task.status == "cooldown"
     assert repository.cooldown == [task.id]
-    assert "schema" in task.error["message"]
+    assert "schema" in task.last_error_message
+    assert "schema" in repository.payload_documents[task.id]["error"]["message"]
 
 
 @pytest.mark.asyncio

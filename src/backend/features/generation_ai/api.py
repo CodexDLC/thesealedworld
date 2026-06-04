@@ -88,6 +88,6 @@ def _task_view(task: AIGenerationTask) -> AIGenerationTaskViewDTO:
         storage_key=task.storage_key,
         generated_url=task.generated_url,
         asset_hash=task.asset_hash,
-        metadata=dict(task.metadata_ or {}),
-        error=dict(task.error or {}),
+        metadata=dict(getattr(task, "metadata_", {}) or {}),
+        error=dict(getattr(task, "error", {}) or {}),
     )

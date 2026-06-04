@@ -33,7 +33,7 @@ async def _run(args: argparse.Namespace) -> None:
 
         extracted: list[dict[str, Any]] = []
         for finalization in finalizations:
-            facts = CombatAnalyticsIngestionService.extract_exchange_facts(finalization.finalization)
+            facts = CombatAnalyticsIngestionService.extract_exchange_facts(finalization.finalization)  # type: ignore
             await repo.replace_facts_for_combat(finalization.combat_id, facts)
             extracted.extend(facts)
 

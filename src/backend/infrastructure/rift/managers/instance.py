@@ -32,6 +32,9 @@ class RiftInstanceStore:
         doc = self._first(result)
         return RiftZoneRuntimeDTO.model_validate(doc) if isinstance(doc, dict) else None
 
+    async def exists(self, rift_instance_id: str) -> bool:
+        return await self.get_instance(rift_instance_id) is not None
+
     async def require_instance(self, rift_instance_id: str) -> RiftZoneRuntimeDTO:
         runtime = await self.get_instance(rift_instance_id)
         if runtime is None:

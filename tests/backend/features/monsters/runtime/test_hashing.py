@@ -1,86 +1,125 @@
 import pytest
 
 from src.backend.features.monsters.runtime.hashing import (
-    MonsterHashContext,
-    compute_context_hash,
-    compute_monster_context_hash,
-    compute_rift_context_hash,
-    compute_unique_clan_hash,
-    normalize_tags,
-    normalized_monster_hash_tags,
+    compute_clan_identity_hash,
+    compute_habitat_hash,
+    normalize_habitat,
+    normalize_habitat_keys,
 )
 
 
 @pytest.mark.unit
-def test_context_hash_is_stable_for_tag_order_and_ignores_non_mutation_tags() -> None:
-    left_tags = normalize_tags(["mana_leak", "road", "ancient_tech"])
-    right_tags = normalize_tags(["ancient_tech", "mana_leak", "decorative_noise"])
-
-    assert left_tags == ["ancient_tech", "mana_leak"]
-    assert compute_context_hash(1, "forest", left_tags) == compute_context_hash(1, "forest", right_tags)
-
-
-@pytest.mark.unit
-def test_unique_clan_hash_depends_on_family_and_context() -> None:
-    context_hash = compute_context_hash(2, "forest", ["mana_leak"])
-
-    assert compute_unique_clan_hash("wolf_pack", context_hash) == compute_unique_clan_hash("wolf_pack", context_hash)
-    assert compute_unique_clan_hash("wolf_pack", context_hash) != compute_unique_clan_hash("rat_swarm", context_hash)
+def test_habitat_keys_are_normalized_and_order_stable() -> None:
+    assert normalize_habitat_keys(["Ruined Old City", "ancient", "ancient", "cold-wind"]) == [
+        "ancient",
+        "cold_wind",
+        "ruined_old_city",
+    ]
+    assert normalize_habitat(biome="City-Ruins", keys=["ruined_old_city"]).biome == "city_ruins"
 
 
 @pytest.mark.unit
-def test_rift_context_hash_keeps_rift_tags_without_world_whitelist() -> None:
-    left_hash = compute_rift_context_hash(
-        setting_key="starter_rift",
-        biome_id="broken_road",
-        tier=1,
-        tags=["broken_caravan", "roadside_camp", "starter_rift"],
+def test_habitat_hash_ignores_location_tier_and_player_state() -> None:
+    left = compute_habitat_hash(biome="city_ruins", keys=["ancient", "ruined_old_city"])
+    right = compute_habitat_hash(
+        biome="city_ruins",
+        keys=[
+            "ruined_old_city",
+            "ancient",
+            # These are intentionally absent from the hash call because location/tier/player state
+            # must never become clan identity.
+        ],
     )
-    right_hash = compute_rift_context_hash(
-        setting_key="starter_rift",
-        biome_id="broken_road",
-        tier=1,
-        tags=["starter_rift", "roadside_camp", "broken_caravan"],
-    )
-    world_hash = compute_context_hash(1, "broken_road", normalize_tags(["broken_caravan", "roadside_camp"]))
 
-    assert normalize_tags(["broken_caravan", "roadside_camp"]) == []
-    assert left_hash == right_hash
-    assert left_hash != world_hash
+    assert left == right
 
 
 @pytest.mark.unit
-def test_rift_context_hash_depends_on_setting_key() -> None:
-    starter_hash = compute_rift_context_hash(
-        setting_key="starter_rift",
-        biome_id="broken_road",
-        tier=1,
-        tags=["broken_caravan"],
-    )
-    quarry_hash = compute_rift_context_hash(
-        setting_key="quarry_rift",
-        biome_id="broken_road",
-        tier=1,
-        tags=["broken_caravan"],
-    )
+def test_clan_identity_hash_has_no_tier_player_gear_or_cost_inputs() -> None:
+    identity_inputs = {
+        "family_id": "goblin_tribe",
+        "biome": "city_ruins",
+        "keys": ["ancient", "ruined_old_city"],
+        "selected_trait_keys": ["fortified_scavengers"],
+        "generation_version": 2,
+        "resource_version": "1.4",
+    }
+    runtime_state = {
+        **identity_inputs,
+        "effective_tier": 7,
+        "player_tier": 5,
+        "gear_score": 240,
+        "assembly_cost": 12,
+    }
 
-    assert starter_hash != quarry_hash
+    assert compute_clan_identity_hash(**identity_inputs) == compute_clan_identity_hash(**identity_inputs)
+    assert {"effective_tier", "player_tier", "gear_score", "assembly_cost"}.isdisjoint(identity_inputs)
+    assert {key: runtime_state[key] for key in identity_inputs} == identity_inputs
 
 
 @pytest.mark.unit
-def test_monster_hash_context_is_shared_by_rift_generation_and_group_ordering() -> None:
-    context = MonsterHashContext(
-        source="rift",
-        context_key="starter_rift:primary",
-        biome_id="broken_road",
-        tier=1,
-        tags=("starter_rift", "camp_guard", "primary"),
+def test_clan_identity_hash_can_be_shared_across_regions() -> None:
+    left = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["fortified_scavengers"],
+        resource_version="1.4",
+    )
+    right = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ruined_old_city", "ancient"],
+        selected_trait_keys=["fortified_scavengers"],
+        resource_version="1.4",
     )
 
-    assert normalized_monster_hash_tags(context) == ["camp_guard", "primary", "starter_rift"]
-    assert compute_monster_context_hash(context) == compute_rift_context_hash(
-        setting_key="starter_rift:primary",
-        biome_id="broken_road",
-        tier=1,
-        tags=["starter_rift", "camp_guard", "primary"],
+    assert left == right
+
+
+@pytest.mark.unit
+def test_clan_identity_hash_changes_by_habitat_keys_and_traits() -> None:
+    base = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["fortified_scavengers"],
     )
+    flooded = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "flooded"],
+        selected_trait_keys=["fortified_scavengers"],
+    )
+    different_traits = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["ambush_drilled"],
+    )
+    different_family = compute_clan_identity_hash(
+        family_id="rat_swarm",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["fortified_scavengers"],
+    )
+    different_generation_version = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["fortified_scavengers"],
+        generation_version=3,
+    )
+    different_resource_version = compute_clan_identity_hash(
+        family_id="goblin_tribe",
+        biome="city_ruins",
+        keys=["ancient", "ruined_old_city"],
+        selected_trait_keys=["fortified_scavengers"],
+        resource_version="2.0",
+    )
+
+    assert base != flooded
+    assert base != different_traits
+    assert base != different_family
+    assert base != different_generation_version
+    assert base != different_resource_version

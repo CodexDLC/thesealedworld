@@ -14,6 +14,7 @@ Read these before broad architecture work:
 For event-driven or cross-feature backend work, also use `turnbasedmmorpg-redis-streams`.
 For frontend feature/template/static work, also use `turnbasedmmorpg-frontend`.
 For backend feature/API/service/repository work, also use `turnbasedmmorpg-backend`.
+For PostgreSQL/MongoDB storage boundary work, also use `turnbasedmmorpg-hybrid-persistence`.
 
 ## Operating Rules
 
@@ -23,6 +24,7 @@ For backend feature/API/service/repository work, also use `turnbasedmmorpg-backe
 - Keep shared code narrow and stable; do not put one-side-only models into `src/shared`.
 - Prefer feature-owned modules over global managers, global repositories, or a central dispatcher.
 - Keep changes scoped to the active feature unless a documented architecture rule requires otherwise.
+- Treat PostgreSQL as the source of truth and MongoDB as the heavy flexible document store when using hybrid persistence.
 
 ## Local Cabinet Access
 

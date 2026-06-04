@@ -100,7 +100,9 @@ async def game_combat_move(
                 ability_id=normalized_ability,
             ),
         )
-        logger.bind(char_id=char_id, action=action, response_type=type(combat_payload).__name__).info("FrontendCombatMoveSucceeded")
+        logger.bind(char_id=char_id, action=action, response_type=type(combat_payload).__name__).info(
+            "FrontendCombatMoveSucceeded"
+        )
     except httpx.HTTPStatusError as exc:
         error = _backend_combat_error(exc)
         logger.bind(char_id=char_id, action=action, code=error.code, detail=error.message).warning("CombatMoveRejected")

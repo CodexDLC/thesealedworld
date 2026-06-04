@@ -1364,7 +1364,7 @@ def test_rift_state_js_is_loaded_outside_shared_game_bundle() -> None:
     assert "enemyImageCandidates" in rift_source
     assert "visual.image_url" in rift_source
     assert "visual.generated_image_url" in rift_source
-    assert "visual.fallback_image_url" in rift_source
+    assert "visual.placeholder_image_url" in rift_source
     assert "isFamilyFallbackImage" in rift_source
     assert "/static/images/monsters/families/" in rift_source
     assert "uniqueImageCandidates" in rift_source

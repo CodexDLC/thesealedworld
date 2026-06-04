@@ -73,8 +73,19 @@ def test_ingestion_extracts_exchange_fact_from_finalization_analytics_v2() -> No
     assert fact["armor_effective"] == 4.0
     assert fact["armor_ignored"] == 4.0
     assert fact["physical_suppression"] == 0.5
-    assert fact["trigger_attempts"][0][0] == "crit.weapon_dagger_pierce"
-    assert fact["mutations"][0][3] == "mods.flat_armor_penetration_bonus_pct"
+    assert "checks" not in fact
+    assert "damage_trace" not in fact
+    assert "trigger_attempts" not in fact
+    assert "mutations" not in fact
+    assert "equipment" not in fact
+    assert "tags" not in fact
+
+    trace_facts = CombatAnalyticsIngestionService.extract_exchange_facts(finalization, include_trace=True)
+    assert trace_facts[0]["trigger_attempts"][0][0] == "crit.weapon_dagger_pierce"
+    assert trace_facts[0]["mutations"][0][3] == "mods.flat_armor_penetration_bonus_pct"
+    combat_document = CombatAnalyticsIngestionService.build_combat_document(finalization, trace_facts)
+    assert combat_document["combat_id"] == "combat-1"
+    assert combat_document["exchanges"][0]["damage_trace"]["raw"] == 18.0
 
 
 @pytest.mark.unit

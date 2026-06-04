@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from src.backend.features.monsters.dto import MonsterGroupMemberPreview, MonsterGroupResult
-from src.backend.features.monsters.runtime.hashing import MonsterHashContext
 from src.backend.features.rift.dto import (
     RiftCombatPromptActionDTO,
     RiftCombatPromptDTO,
@@ -17,9 +16,9 @@ class FakeMonsterGroupService:
     def __init__(self) -> None:
         self.calls: list[dict] = []
 
-    async def prepare_monster_group_for_hash_context(self, **kwargs) -> MonsterGroupResult:
+    async def prepare_monster_group_for_scope(self, **kwargs) -> MonsterGroupResult:
         self.calls.append(dict(kwargs))
-        family_id = str(kwargs["family_id"])
+        family_id = str(kwargs.get("preferred_family_id") or "goblin_tribe")
         budget = float(kwargs["budget"])
         return MonsterGroupResult(
             group_id="rift:encounter:1",
@@ -36,6 +35,12 @@ class FakeMonsterGroupService:
             total_power=300,
             monster_ids=["monster-1"],
             actor_commitments={"monster:monster-1": "actor:snapshot:monster-1"},
+            encounter_texts={
+                "patrol": "Клановая патрульная фраза.",
+                "ambush": "Клановая засада.",
+                "lair": "Клановая оборона логова.",
+                "random_meeting": "Клановая случайная встреча.",
+            },
             previews=[
                 MonsterGroupMemberPreview(
                     monster_id="monster-1",
@@ -51,7 +56,7 @@ class FakeMonsterGroupService:
             reused_existing_clan=True,
             context_hash="ctx-from-hash-context",
             unique_hash="unique-from-hash-context",
-            tags=["starter_rift"],
+            tags=["broken_road", "road_tract", "scavenger_camp"],
         )
 
 
@@ -131,19 +136,14 @@ async def test_rift_encounter_service_prepares_group_from_bound_family_and_build
 
     enriched = await service.enrich_combat_prompt(runtime, session=session, prompt=prompt)
 
-    assert monster_groups.calls[0]["family_id"] == "bandit_gang"
-    assert monster_groups.calls[0]["hash_context"] == MonsterHashContext(
-        source="rift",
-        context_key="starter_rift:primary",
-        biome_id="broken_road",
-        tier=1,
-        tags=("starter_rift", "camp_guard", "primary", "bandit_gang"),
-    )
+    assert monster_groups.calls[0]["scope_type"] == "rift"
+    assert monster_groups.calls[0]["scope_id"] == "starter_rift"
     assert monster_groups.calls[0]["budget"] == 612
     assert monster_groups.calls[0]["tier"] == 1
     assert monster_groups.calls[0]["biome_id"] == "broken_road"
     assert monster_groups.calls[0]["loc_id"] == "rift:rift-instance-1:node-start"
     assert monster_groups.calls[0]["composition_policy"] == {"encounter_kind": "ordinary"}
+    assert enriched.description == "Клановая патрульная фраза."
     assert enriched.enemies[0].name == "Дорожный налетчик"
     assert enriched.enemies[0].threat_rating is None
     assert enriched.enemies[0].intel["vitals"]["hp"] == {"current": 100, "max": 100, "label": "100/100"}
@@ -167,6 +167,46 @@ async def test_rift_encounter_service_prepares_group_from_bound_family_and_build
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({"event_scope": "node_entry", "encounter_kind": "heart_guard", "to_node_id": "node-heart"}, "Клановая оборона логова."),
+        (
+            {"event_scope": "node_entry", "encounter_kind": "ordinary_node", "to_node_id": "node-road"},
+            "Клановая случайная встреча.",
+        ),
+        (
+            {"event_scope": "transition", "encounter_kind": "ambush", "to_node_id": "node-road"},
+            "Клановая засада.",
+        ),
+    ],
+)
+async def test_rift_encounter_service_uses_clan_level_encounter_texts(
+    metadata: dict[str, str],
+    expected: str,
+) -> None:
+    monster_groups = FakeMonsterGroupService()
+    service = RiftEncounterService(monster_groups=monster_groups)
+    runtime = _runtime()
+    session = {
+        "rift_session_id": "rift-run-1",
+        "participant_ref": "char:7",
+        "entry_context": {"combat_power": {"player_gear_score": 612}},
+    }
+    prompt = RiftCombatPromptDTO(
+        source="rift_transition",
+        title="Стычка",
+        description="Placeholder.",
+        actions=[RiftCombatPromptActionDTO(id="attack", label="В бой!", action="attack")],
+        metadata=metadata,
+    )
+
+    enriched = await service.enrich_combat_prompt(runtime, session=session, prompt=prompt)
+
+    assert enriched.description == expected
+
+
+@pytest.mark.asyncio
 async def test_rift_encounter_service_uses_secondary_beast_family_for_scavenger_nodes() -> None:
     monster_groups = FakeMonsterGroupService()
     service = RiftEncounterService(monster_groups=monster_groups)
@@ -186,8 +226,8 @@ async def test_rift_encounter_service_uses_secondary_beast_family_for_scavenger_
 
     await service.enrich_combat_prompt(runtime, session=session, prompt=prompt)
 
-    assert monster_groups.calls[0]["family_id"] == "rat_swarm"
-    assert monster_groups.calls[0]["hash_context"].context_key == "starter_rift:secondary"
+    assert monster_groups.calls[0]["scope_type"] == "rift"
+    assert monster_groups.calls[0]["scope_id"] == "starter_rift"
     assert monster_groups.calls[0]["loc_id"] == "rift:rift-instance-1:node-wagon"
 
 

@@ -61,6 +61,8 @@ Deploy workflow получает production `.env` из GitHub secret `ENV_FILE`
 - secrets не хранить в репозитории;
 - значения `.env` с символом `$` экранировать как `$$`, иначе Docker Compose применит interpolation;
 - site/game deploy может читать общий `.env`, но не должен перезапускать чужой слой из-за изменения переменной без явного full/infra плана.
+- `BOOTSTRAP_CONTENT_MATERIALIZATION_ENABLED=True` разрешает backend startup синхронизировать статический/world/rift generated content без внешних AI-вызовов;
+- `BOOTSTRAP_AI_GENERATION_ENABLED=False` является production default: backend startup не должен ставить AI generation tasks автоматически, даже если materialization создала локальные generated rows.
 
 ## Runtime Boundary
 

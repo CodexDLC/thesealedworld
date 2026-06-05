@@ -97,3 +97,36 @@ class _FakeCatalogDocumentRepository:
         _ = setting_key, pool_node_key
         self.node_payloads[pool_node_id] = payload
         return f"rift-node:{pool_node_id}"
+
+
+@pytest.mark.unit
+async def test_game_feature_bootstrap_ai_scheduling_is_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("src.backend.core.containers.game.settings.bootstrap_ai_generation_enabled", False)
+    scheduler = _FakeGenerationAIScheduler()
+
+    scheduled = await GameFeatureContainer()._schedule_bootstrap_generation_ai(scheduler)  # type: ignore[arg-type]
+
+    assert scheduled == 0
+    assert scheduler.calls == 0
+
+
+@pytest.mark.unit
+async def test_game_feature_bootstrap_ai_scheduling_requires_explicit_enable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("src.backend.core.containers.game.settings.bootstrap_ai_generation_enabled", True)
+    scheduler = _FakeGenerationAIScheduler()
+
+    scheduled = await GameFeatureContainer()._schedule_bootstrap_generation_ai(scheduler)  # type: ignore[arg-type]
+
+    assert scheduled == 3
+    assert scheduler.calls == 1
+
+
+class _FakeGenerationAIScheduler:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def schedule_pending_task_ids(self) -> int:
+        self.calls += 1
+        return 3

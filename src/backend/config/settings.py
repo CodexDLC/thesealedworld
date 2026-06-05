@@ -82,6 +82,8 @@ class BackendSettings(BaseCommonSettings):
 
     world_auto_generate: bool = False
     world_generation_mode: str = "test"
+    bootstrap_content_materialization_enabled: bool = True
+    bootstrap_ai_generation_enabled: bool = False
 
     # Generated asset storage. Local dev can serve a mirror of these keys; prod can map them to S3/CDN.
     asset_storage_backend: Literal["local", "s3"] = "local"

@@ -19,13 +19,18 @@ from src.backend.features.monsters.runtime import ClanFactory, MonsterClanGenera
 from src.backend.features.monsters.services import (
     AnchorProjectionBootstrapService,
     EncounterMonsterService,
+    HabitatClanPoolMaterializationResult,
     HabitatClanPoolMaterializationService,
 )
 from src.backend.features.monsters.services.habitat_clan_pool_materialization_service import (
     habitat_scope_config_from_population_profile,
 )
 from src.backend.features.rift.resources.loader import RiftResourceLoader
-from src.backend.features.rift.services import RiftCatalogBootstrapService, RiftPopulationBootstrapService
+from src.backend.features.rift.services import (
+    RiftCatalogBootstrapService,
+    RiftPopulationBootstrapResult,
+    RiftPopulationBootstrapService,
+)
 from src.backend.features.scenario.integrations import ScenarioImportIntegration
 from src.backend.features.world.integrations import WorldDataIntegration, WorldLocationIntegration
 from src.backend.features.world.services import LLMWorldGenerator, WorldBootstrapService, WorldCacheService
@@ -85,23 +90,27 @@ class GameFeatureContainer:
                 repository=MonsterGenerationRepository(session),
                 factory=monster_factory,
             )
-            active_regions = await data.get_active_regions()
-            population_result = await habitat_materializer.ensure_scope_pools(
-                [
-                    habitat_scope_config_from_population_profile(
-                        scope_type="region",
-                        scope_id=str(region.id),
-                        population_profile=dict(region.population_profile or {}),
-                        default_biome=str(region.biome_id or "wasteland"),
-                        tier=max(1, int(region.tier_min or 1)),
-                        source_meta={"region_archetype": str(region.region_archetype or "")},
-                    )
-                    for region in active_regions
-                    if isinstance(region.population_profile, dict)
-                    and region.population_profile.get("habitat")
-                    and region.population_profile.get("clan_pool_policy")
-                ]
-            )
+            if settings.bootstrap_content_materialization_enabled:
+                active_regions = await data.get_active_regions()
+                population_result = await habitat_materializer.ensure_scope_pools(
+                    [
+                        habitat_scope_config_from_population_profile(
+                            scope_type="region",
+                            scope_id=str(region.id),
+                            population_profile=dict(region.population_profile or {}),
+                            default_biome=str(region.biome_id or "wasteland"),
+                            tier=max(1, int(region.tier_min or 1)),
+                            source_meta={"region_archetype": str(region.region_archetype or "")},
+                        )
+                        for region in active_regions
+                        if isinstance(region.population_profile, dict)
+                        and region.population_profile.get("habitat")
+                        and region.population_profile.get("clan_pool_policy")
+                    ]
+                )
+            else:
+                population_result = HabitatClanPoolMaterializationResult(scopes=0, pool_entries=0, clans=0)
+                logger.info("MonsterPopulationBootstrapSkipped")
             rift_loader = RiftResourceLoader()
             rift_catalog_result = await RiftCatalogBootstrapService(
                 loader=rift_loader,
@@ -109,10 +118,20 @@ class GameFeatureContainer:
                 node_pool_repository=RiftNodePoolRepository(session),
                 catalog_document_repository=RiftCatalogDocumentRepository(get_mongo_provider().database()),
             ).sync_fixtures()
-            rift_population_result = await RiftPopulationBootstrapService(
-                loader=rift_loader,
-                materializer=habitat_materializer,
-            ).ensure_static_population()
+            if settings.bootstrap_content_materialization_enabled:
+                rift_population_result = await RiftPopulationBootstrapService(
+                    loader=rift_loader,
+                    materializer=habitat_materializer,
+                ).ensure_static_population()
+            else:
+                rift_population_result = RiftPopulationBootstrapResult(
+                    rifts=0,
+                    family_slots=0,
+                    clans=0,
+                    pruned_clans=0,
+                    bindings={},
+                )
+                logger.info("RiftPopulationBootstrapSkipped")
             app.state.world_cache_loaded_count = loaded_count
             app.state.monster_population_contexts = population_result.scopes
             app.state.monster_population_clans = population_result.clans
@@ -137,8 +156,15 @@ class GameFeatureContainer:
                 clan_count=rift_population_result.clans,
             ).info("RiftPopulationBootstrapFinished")
             await session.commit()
-            scheduled = await generation_ai.schedule_pending_task_ids()
-            logger.bind(task_count=scheduled).info("GenerationAiBootstrapTasksScheduled")
+            await self._schedule_bootstrap_generation_ai(generation_ai)
+
+    async def _schedule_bootstrap_generation_ai(self, generation_ai: GenerationAIService) -> int:
+        if not settings.bootstrap_ai_generation_enabled:
+            logger.info("GenerationAiBootstrapSchedulingSkipped")
+            return 0
+        scheduled = await generation_ai.schedule_pending_task_ids()
+        logger.bind(task_count=scheduled).info("GenerationAiBootstrapTasksScheduled")
+        return scheduled
 
     async def _bootstrap_anchor_projections(self, app: FastAPI) -> None:
         logger.info("AnchorProjectionsBootstrapStarted")

@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.frontend.features.account.services.account_service import AccountService
 from src.frontend.features.account.view_models.profile_vm import AccountProfileVM
@@ -30,27 +30,45 @@ class TestAccountService:
         return AccountService(repo=repo, email_service=email_service, email_admin="admin@example.com")
 
     def test_build_profile_vm_for_regular_user(self, service):
+        user_id = uuid.uuid4()
         user = MagicMock(
+            id=user_id,
             email="player@example.com",
             tester_status="none",
             tester_approved_at=None,
+            referral_code="SEAL-ABCD2345",
             created_at=datetime(2026, 5, 1, 12, 0, 0),
         )
-        vm = service.build_profile_vm(user)
+        vm = service.build_profile_vm(
+            user,
+            site_base_url="https://example.test",
+            referral_stats={"invited": 3, "active": 2, "bonus": 100},
+        )
 
         assert isinstance(vm, AccountProfileVM)
+        assert vm.account_id == str(user_id)
         assert vm.email == "player@example.com"
+        assert vm.display_name == "Player"
+        assert vm.initials == "P"
+        assert vm.referral_code == "SEAL-ABCD2345"
+        assert vm.referral_link == "https://example.test/register?ref=SEAL-ABCD2345"
+        assert vm.referrals_invited == 3
+        assert vm.referrals_active == 2
+        assert vm.referral_bonus == 100
         assert vm.tester_status == "none"
         assert vm.is_tester is False
-        assert vm.can_create_character is False
+        assert vm.can_create_character is True
         assert vm.tester_approved_at is None
 
     def test_build_profile_vm_for_tester(self, service):
+        user_id = uuid.uuid4()
         approved_at = datetime(2026, 5, 10, 14, 0, 0)
         user = MagicMock(
+            id=user_id,
             email="tester@example.com",
             tester_status="approved",
             tester_approved_at=approved_at,
+            referral_code="SEAL-TESTER01",
             created_at=datetime(2026, 5, 1, 12, 0, 0),
         )
         vm = service.build_profile_vm(user)
@@ -61,22 +79,26 @@ class TestAccountService:
 
     def test_build_profile_vm_for_pending(self, service):
         user = MagicMock(
+            id=uuid.uuid4(),
             email="pending@example.com",
             tester_status="pending",
             tester_approved_at=None,
+            referral_code="SEAL-PENDING1",
             created_at=datetime(2026, 5, 1, 12, 0, 0),
         )
         vm = service.build_profile_vm(user)
 
         assert vm.tester_status == "pending"
         assert vm.is_tester is False
-        assert vm.can_create_character is False
+        assert vm.can_create_character is True
 
     def test_build_profile_vm_for_denied(self, service):
         user = MagicMock(
+            id=uuid.uuid4(),
             email="denied@example.com",
             tester_status="denied",
             tester_approved_at=None,
+            referral_code="SEAL-DENIED11",
             created_at=datetime(2026, 5, 1, 12, 0, 0),
         )
         vm = service.build_profile_vm(user)

@@ -1,3 +1,4 @@
+from src.frontend.features.auth.models.referral_reward import ReferralReward
 from src.frontend.features.auth.models.refresh_token import RefreshToken
 from src.frontend.features.auth.models.user import User
 from src.frontend.features.feedback.models.feedback import Feedback
@@ -9,6 +10,7 @@ __all__ = [
     "Article",
     "Feedback",
     "PlayerDailyActivity",
+    "ReferralReward",
     "RefreshToken",
     "Survey",
     "SurveyQuestion",

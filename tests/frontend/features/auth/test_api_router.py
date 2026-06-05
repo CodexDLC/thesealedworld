@@ -56,6 +56,7 @@ class TestAuthRouter:
             is_superuser=False,
             tester_status="none",
             tester_approved_at=None,
+            referral_code="SEAL-ABCD2345",
             created_at=datetime.now()
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user

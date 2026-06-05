@@ -11,6 +11,7 @@ class RegisterForm:
     email: str = ""
     password: str = ""
     password_confirm: str = ""
+    referrer_code: str = ""
     errors: list[str] = field(default_factory=list)
 
     @classmethod
@@ -21,6 +22,7 @@ class RegisterForm:
             email=form_data.get("email", [""])[0].strip().lower(),
             password=form_data.get("password", [""])[0],
             password_confirm=form_data.get("password_confirm", [""])[0],
+            referrer_code=form_data.get("referrer_code", [""])[0].strip(),
         )
 
     @property

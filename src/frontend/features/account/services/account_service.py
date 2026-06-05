@@ -27,16 +27,38 @@ class AccountService:
         self._email_service = email_service
         self._email_admin = email_admin
 
-    def build_profile_vm(self, user: UserResponse) -> AccountProfileVM:
+    def build_profile_vm(
+        self,
+        user: UserResponse,
+        *,
+        site_base_url: str = "",
+        referral_stats: dict[str, int] | None = None,
+    ) -> AccountProfileVM:
         is_tester = user.tester_status == "approved"
         approved_at = user.tester_approved_at
+        account_id = str(getattr(user, "id", "") or "")
+        email_name = user.email.split("@", maxsplit=1)[0]
+        display_name = email_name.replace(".", " ").replace("_", " ").strip().title() or "Игрок"
+        initials = "".join(part[0] for part in display_name.split()[:2]).upper() or "И"
+        code = (user.referral_code or "").strip() or "SEAL-PLAYER"
+        base = site_base_url.rstrip("/") if site_base_url else ""
+        link = f"{base}/register?ref={code}" if base else f"/register?ref={code}"
+        stats = referral_stats or {}
         return AccountProfileVM(
+            account_id=account_id,
             email=user.email,
             created_at=user.created_at.strftime("%d.%m.%Y"),
+            display_name=display_name,
+            initials=initials,
+            referral_code=code,
+            referral_link=link,
+            referrals_invited=int(stats.get("invited", 0)),
+            referrals_active=int(stats.get("active", 0)),
+            referral_bonus=int(stats.get("bonus", 0)),
             tester_status=user.tester_status,
             tester_approved_at=approved_at.strftime("%d.%m.%Y") if approved_at else None,
             is_tester=is_tester,
-            can_create_character=is_tester,
+            can_create_character=True,
         )
 
     async def apply_for_testing(self, user_id: uuid.UUID) -> None:

@@ -2,74 +2,220 @@
 
 {% block content %}
 <section class="account-profile">
-    {% if applied %}
-    <div class="ds-panel ds-panel--success" style="margin-bottom: var(--sp-4);">
+    {% if active_section == "overview" %}
+    <div class="ds-panel account-hero-panel">
         <div class="ds-panel-body">
-            <p>Ваша заявка на тестирование принята! Мы рассмотрим её в ближайшее время и свяжемся с вами по email.</p>
+            <div class="account-hero">
+                <div class="account-avatar-card">
+                    <div class="account-avatar-frame">
+                        <span>{{ profile.initials }}</span>
+                    </div>
+                    <button type="button" class="btn-node ghost sm" disabled><span>Загрузить аватар</span></button>
+                    <p class="account-muted">Загрузка изображений будет подключена после профиля игрока.</p>
+                </div>
+
+                <div class="account-hero-main">
+                    <div class="account-kicker">Личный кабинет</div>
+                    <h1>{{ profile.display_name }}</h1>
+                    <p class="account-lead">Центр аккаунта игрока: профиль, персонажи, приглашения и будущие игровые сервисы.</p>
+                    <div class="account-hero-actions">
+                        <a href="/play" class="btn-node lg"><span>В игру</span></a>
+                        <a href="/account/profile?section=characters" class="btn-node ghost lg"><span>Мои персонажи</span></a>
+                    </div>
+                </div>
+
+                <div class="account-status-stack">
+                    <div class="account-status-card">
+                        <span class="account-profile-label">Статус</span>
+                        {% include "account/includes/status_badge.html" %}
+                    </div>
+                    <div class="account-status-card">
+                        <span class="account-profile-label">Дата регистрации</span>
+                        <strong>{{ profile.created_at }}</strong>
+                    </div>
+                    <div class="account-status-card">
+                        <span class="account-profile-label">Доступ</span>
+                        <strong>Открыт</strong>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    {% endif %}
 
-    <div class="ds-panel">
+    <div class="account-overview-grid">
+        <a href="/account/profile?section=profile" class="ds-panel account-overview-tile">
+            <span>Профиль</span>
+            <strong>Данные игрока</strong>
+            <em>Аватар, имя, фамилия, год рождения</em>
+        </a>
+        <a href="/account/profile?section=characters" class="ds-panel account-overview-tile">
+            <span>Персонажи</span>
+            <strong>Игровые слоты</strong>
+            <em>Список персонажей будет подключен к игровому входу</em>
+        </a>
+        <a href="/account/profile?section=referrals" class="ds-panel account-overview-tile">
+            <span>Рефералы</span>
+            <strong>{{ profile.referral_code }}</strong>
+            <em>Код приглашения уже закреплен за аккаунтом</em>
+        </a>
+        <a href="/account/profile?section=payments" class="ds-panel account-overview-tile">
+            <span>Платежи</span>
+            <strong>В разработке</strong>
+            <em>Будущая история платежей и доната</em>
+        </a>
+    </div>
+    {% elif active_section == "profile" %}
+    <div class="ds-panel account-section">
         <div class="ds-panel-header">Профиль</div>
         <div class="ds-panel-body">
+            <div class="account-section-title">
+                <h2>Данные игрока</h2>
+                <span class="tag sys">Редактирование в разработке</span>
+            </div>
+
             <div class="account-profile-grid">
-                <div class="account-profile-row">
-                    <span class="account-profile-label">Статус</span>
-                    <span class="account-profile-value">
-                        {% include "account/includes/status_badge.html" %}
-                    </span>
-                </div>
                 <div class="account-profile-row">
                     <span class="account-profile-label">Email</span>
                     <span class="account-profile-value">{{ profile.email }}</span>
                 </div>
                 <div class="account-profile-row">
-                    <span class="account-profile-label">Дата регистрации</span>
-                    <span class="account-profile-value">{{ profile.created_at }}</span>
+                    <span class="account-profile-label">Имя</span>
+                    <span class="account-profile-value account-empty-value">Не заполнено</span>
                 </div>
-                {% if profile.tester_approved_at %}
                 <div class="account-profile-row">
-                    <span class="account-profile-label">Принят в тест</span>
-                    <span class="account-profile-value">{{ profile.tester_approved_at }}</span>
+                    <span class="account-profile-label">Фамилия</span>
+                    <span class="account-profile-value account-empty-value">Не заполнено</span>
                 </div>
-                {% endif %}
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Год рождения</span>
+                    <span class="account-profile-value account-empty-value">Не заполнено</span>
+                </div>
+                <div class="account-profile-row">
+                    <span class="account-profile-label">ID аккаунта</span>
+                    <span class="account-profile-value">{{ profile.account_id or "Создан" }}</span>
+                </div>
             </div>
         </div>
     </div>
+    {% elif active_section == "characters" %}
+    <div class="ds-panel account-section">
+        <div class="ds-panel-header">Персонажи</div>
+        <div class="ds-panel-body">
+            <div class="account-section-title">
+                <h2>Мои персонажи</h2>
+                <span class="tag">Слот игрока</span>
+            </div>
 
-    {% if profile.tester_status == "none" %}
-    <div class="ds-panel" style="margin-top: var(--sp-4);">
-        <div class="ds-panel-header">Тестирование</div>
-        <div class="ds-panel-body">
-            <p>Хотите помочь с тестированием pre-alpha версии?</p>
-            <form method="post" action="/account/apply-tester" style="margin-top: var(--sp-3);">
-                <button type="submit" class="btn-node"><span>Подать заявку на тестирование</span></button>
-            </form>
-        </div>
-    </div>
-    {% elif profile.tester_status == "pending" %}
-    <div class="ds-panel" style="margin-top: var(--sp-4);">
-        <div class="ds-panel-header">Тестирование</div>
-        <div class="ds-panel-body">
-            <p>Ваша заявка на рассмотрении. Мы свяжемся с вами по email.</p>
-        </div>
-    </div>
-    {% elif profile.is_tester %}
-    <div class="ds-panel" style="margin-top: var(--sp-4);">
-        <div class="ds-panel-header">Возможности тестера</div>
-        <div class="ds-panel-body">
-            <div class="account-tester-actions">
-                <a href="/game-lobby" class="btn-node"><span>Играть</span></a>
-                <a href="/account/feedback" class="btn-node ghost"><span>Обратная связь</span></a>
+            <div class="account-character-empty">
+                <div class="account-character-sigil">I</div>
+                <div>
+                    <h3>Персонажи подключаются через игровой вход</h3>
+                    <p>Когда список персонажей будет вынесен в кабинет, здесь появятся карточки с уровнем, состоянием и быстрым переходом.</p>
+                </div>
+                <a href="/play" class="btn-node"><span>Открыть игру</span></a>
             </div>
         </div>
     </div>
-    {% elif profile.tester_status == "denied" %}
-    <div class="ds-panel" style="margin-top: var(--sp-4);">
-        <div class="ds-panel-header">Тестирование</div>
+    {% elif active_section == "referrals" %}
+    <div class="ds-panel account-section" x-data="{
+        link: '{{ profile.referral_link }}',
+        copied: false,
+        copyLink() {
+            const fallback = () => {
+                const ta = document.createElement('textarea');
+                ta.value = this.link;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'absolute';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+            };
+            const done = () => {
+                this.copied = true;
+                setTimeout(() => { this.copied = false; }, 1800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(this.link).then(done, () => { fallback(); done(); });
+            } else {
+                fallback(); done();
+            }
+        }
+    }">
+        <div class="ds-panel-header">Рефералы</div>
         <div class="ds-panel-body">
-            <p>К сожалению, ваша заявка была отклонена.</p>
+            <div class="account-section-title">
+                <h2>Приглашения</h2>
+                <span class="tag sys">Бета</span>
+            </div>
+
+            <div class="account-referral-box">
+                <div>
+                    <span class="account-profile-label">Ваш код</span>
+                    <strong>{{ profile.referral_code }}</strong>
+                    <p class="account-muted" x-text="link"></p>
+                </div>
+                <button type="button" class="btn-node ghost" @click="copyLink()">
+                    <span x-text="copied ? 'Скопировано' : 'Скопировать ссылку'"></span>
+                </button>
+            </div>
+
+            <div class="account-mini-stats">
+                <div>
+                    <span>Приглашено</span>
+                    <strong>{{ profile.referrals_invited }}</strong>
+                </div>
+                <div>
+                    <span>Бонусы</span>
+                    <strong>{{ profile.referral_bonus }}</strong>
+                </div>
+                <div>
+                    <span>Активные</span>
+                    <strong>{{ profile.referrals_active }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif active_section == "payments" %}
+    <div class="ds-panel account-section account-section--locked">
+        <div class="ds-panel-header">Платежи</div>
+        <div class="ds-panel-body">
+            <div class="account-section-title">
+                <h2>Платежи и донат</h2>
+                <span class="tag sys">В разработке</span>
+            </div>
+            <p class="account-muted">Раздел подготовлен под будущие покупки, историю платежей и поддержку проекта. Платежная логика пока не подключена.</p>
+        </div>
+    </div>
+    {% elif active_section == "security" %}
+    <div class="ds-panel account-section account-section--locked">
+        <div class="ds-panel-header">Безопасность</div>
+        <div class="ds-panel-body">
+            <div class="account-section-title">
+                <h2>Защита аккаунта</h2>
+                <span class="tag sys">В разработке</span>
+            </div>
+            <div class="account-profile-grid">
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Пароль</span>
+                    <span class="account-profile-value account-empty-value">Смена пароля будет добавлена</span>
+                </div>
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Сессии</span>
+                    <span class="account-profile-value account-empty-value">История входов будет добавлена</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif active_section == "settings" %}
+    <div class="ds-panel account-section account-section--locked">
+        <div class="ds-panel-header">Настройки</div>
+        <div class="ds-panel-body">
+            <div class="account-section-title">
+                <h2>Настройки кабинета</h2>
+                <span class="tag sys">В разработке</span>
+            </div>
+            <p class="account-muted">Здесь появятся уведомления, приватность, язык интерфейса и игровые предпочтения аккаунта.</p>
         </div>
     </div>
     {% endif %}

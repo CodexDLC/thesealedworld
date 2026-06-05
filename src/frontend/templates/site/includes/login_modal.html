@@ -20,6 +20,7 @@
                 </div>
 
                 <form action="/login" method="post" class="login-form">
+                    {% include "site/includes/csrf_field.html" %}
                     <div class="form-group">
                         <label for="modal-email">SOUL_IDENTIFIER</label>
                         <input type="email" id="modal-email" name="email" placeholder="essence@void.link" required>
@@ -50,6 +51,7 @@
                 </div>
 
                 <form action="/register" method="post" class="login-form">
+                    {% include "site/includes/csrf_field.html" %}
                     <div class="form-group">
                         <label for="modal-register-email">SOUL_IDENTIFIER</label>
                         <input type="email" id="modal-register-email" name="email" placeholder="essence@void.link" required>
@@ -61,6 +63,10 @@
                     <div class="form-group">
                         <label for="modal-register-password-confirm">CONFIRM_RESONANCE</label>
                         <input type="password" id="modal-register-password-confirm" name="password_confirm" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-register-referrer">REFERRAL_SIGIL <span class="ds-tag sys" style="margin-left:6px;">опционально</span></label>
+                        <input type="text" id="modal-register-referrer" name="referrer_code" placeholder="SEAL-XXXXXXXX" autocomplete="off">
                     </div>
 
                     <div class="login-actions">

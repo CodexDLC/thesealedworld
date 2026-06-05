@@ -55,8 +55,10 @@ class TestUserRepository:
     async def test_create_user(self, repo, session):
         user_in = UserCreate(email="test@e.com", password="password123")
 
-        result = await repo.create(user_in)
+        result = await repo.create(user_in, referral_code="SEAL-AAAA2345")
         assert result.email == "test@e.com"
+        assert result.referral_code == "SEAL-AAAA2345"
+        assert result.referred_by_id is None
         session.add.assert_called_once()
         session.flush.assert_called_once()
         session.refresh.assert_called_once()

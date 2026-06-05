@@ -28,8 +28,10 @@ class FrontendAuthService:
         logger.info("FrontendAuthLoginCompleted")
         return tokens
 
-    async def register(self, email: str, password: str) -> UserResponse:
-        user = await self.auth_service.register_user(UserCreate(email=email, password=password))
+    async def register(self, email: str, password: str, *, referrer_code: str | None = None) -> UserResponse:
+        user = await self.auth_service.register_user(
+            UserCreate(email=email, password=password, referrer_code=referrer_code)
+        )
         logger.bind(user_id=str(user.id)).info("FrontendAuthRegistrationCompleted")
         return user
 

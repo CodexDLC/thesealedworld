@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,17 +39,39 @@ class UserRepository:
         result = await self.session.execute(stmt.order_by(User.created_at.desc()).limit(limit).offset(offset))
         return list(result.scalars().all())
 
-    async def create(self, user_in: UserCreate) -> User:
+    async def create(
+        self,
+        user_in: UserCreate,
+        *,
+        referral_code: str,
+        referred_by_id: uuid.UUID | None = None,
+    ) -> User:
         db_user = User(
             email=user_in.email,
             hashed_password=user_in.password,
             is_active=True,
             is_superuser=False,
+            referral_code=referral_code,
+            referred_by_id=referred_by_id,
         )
         self.session.add(db_user)
         await self.session.flush()
         await self.session.refresh(db_user)
         return db_user
+
+    async def get_by_referral_code(self, code: str) -> User | None:
+        result = await self.session.execute(select(User).where(User.referral_code == code))
+        return result.scalar_one_or_none()
+
+    async def get_referral_stats(self, user_id: uuid.UUID) -> dict[str, Any]:
+        invited = await self.session.execute(
+            select(func.count()).select_from(User).where(User.referred_by_id == user_id)
+        )
+        return {
+            "invited": int(invited.scalar_one() or 0),
+            "active": 0,  # Activation logic lands with email verification (PR-4).
+            "bonus": 0,
+        }
 
     async def update_tester_status(
         self,

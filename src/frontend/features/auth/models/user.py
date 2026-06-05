@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -23,6 +23,12 @@ class User(Base):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     tester_status: Mapped[str] = mapped_column(String(20), default="none")
     tester_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    referral_code: Mapped[str] = mapped_column(String(16), unique=True, index=True, nullable=False)
+    referred_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("site.auth_users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 

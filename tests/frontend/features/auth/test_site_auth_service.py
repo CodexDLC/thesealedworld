@@ -29,6 +29,7 @@ class TestAuthService:
             is_superuser=False,
             tester_status="none",
             tester_approved_at=None,
+            referral_code="SEAL-ABCD2345",
             created_at=datetime.now()
         )
         persistence.register_user = AsyncMock(return_value=mock_user)
@@ -39,6 +40,7 @@ class TestAuthService:
         assert result.email == "test@example.com"
         assert result.tester_status == "none"
         assert result.tester_approved_at is None
+        assert result.referral_code == "SEAL-ABCD2345"
         persistence.register_user.assert_called_once()
 
     async def test_register_user_duplicate_email(self, service, persistence):
@@ -58,6 +60,7 @@ class TestAuthService:
             is_superuser=False,
             tester_status="none",
             tester_approved_at=None,
+            referral_code="SEAL-ABCD2345",
             created_at=datetime.now()
         )
         persistence.get_user_by_email = AsyncMock(return_value=user)
@@ -122,7 +125,7 @@ class TestAuthService:
         persistence.get_refresh_token = AsyncMock(return_value=db_token)
         persistence.delete_refresh_token = AsyncMock()
 
-        user = MagicMock(id=db_token.user_id, email="t@e.com", is_active=True, tester_status="none", tester_approved_at=None, created_at=datetime.now())
+        user = MagicMock(id=db_token.user_id, email="t@e.com", is_active=True, tester_status="none", tester_approved_at=None, referral_code="SEAL-ABCD2345", created_at=datetime.now())
         persistence.get_user_by_id = AsyncMock(return_value=user)
 
         mocker.patch.object(service, "create_tokens", AsyncMock(return_value="new_tokens"))

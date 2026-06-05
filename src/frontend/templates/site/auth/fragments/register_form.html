@@ -25,6 +25,10 @@
                 <label for="password_confirm">CONFIRM_RESONANCE</label>
                 <input type="password" id="password_confirm" name="password_confirm" placeholder="••••••••" required>
             </div>
+            <div class="form-group">
+                <label for="referrer_code">REFERRAL_SIGIL <span class="ds-tag sys" style="margin-left:6px;">опционально</span></label>
+                <input type="text" id="referrer_code" name="referrer_code" value="{{ form.referrer_code if form else '' }}" placeholder="SEAL-XXXXXXXX" autocomplete="off">
+            </div>
 
             <div class="login-actions">
                 <button type="submit" class="act-btn login-btn">

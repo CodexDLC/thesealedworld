@@ -33,13 +33,17 @@ async def account_root():
 async def account_profile(
     request: Request,
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     user = getattr(request.state, "user", None)
     if user is None:
         return RedirectResponse(url="/login", status_code=303)
 
+    repo = UserRepository(session=db)
+    stats = await repo.get_referral_stats(user.id)
+    site_base_url = str(request.base_url).rstrip("/")
     service = AccountService()
-    profile = service.build_profile_vm(user)
+    profile = service.build_profile_vm(user, site_base_url=site_base_url, referral_stats=stats)
     applied = request.query_params.get("applied") == "1"
     active_section = request.query_params.get("section") or "overview"
     if active_section not in ACCOUNT_PROFILE_SECTIONS:

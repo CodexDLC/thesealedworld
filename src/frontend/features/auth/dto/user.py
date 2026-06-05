@@ -11,6 +11,7 @@ PASSWORD_MIN_LENGTH = 10
 class UserCreate(BaseRequest):
     email: EmailStr
     password: str = Field(..., min_length=PASSWORD_MIN_LENGTH)
+    referrer_code: str | None = None
 
     @field_validator("email", mode="before")
     @classmethod
@@ -32,4 +33,5 @@ class UserResponse(BaseResponse):
     is_superuser: bool
     tester_status: str = "none"
     tester_approved_at: datetime | None = None
+    referral_code: str | None = None
     created_at: datetime

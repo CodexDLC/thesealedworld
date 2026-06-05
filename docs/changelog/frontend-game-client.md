@@ -16,6 +16,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 - `/account` redirect to `/account/profile` now returns `303 See Other` instead of `307`, so any future POST traffic is not silently replayed.
 - Every browser request now goes through a double-submit CSRF middleware: an `X-CSRF-Token` cookie is issued on first response, mirrored in a `<meta name="csrf-token">` tag and a hidden `csrf_token` field in every POST form, and validated on unsafe methods against either the header or the form field. The `/static`, `/auth`, `/metrics`, `/health` and `/favicon.ico` paths are exempt because they either serve assets or use Bearer-token auth.
 - A small `/static/js/csrf.js` shim auto-attaches the token to `fetch` and HTMX requests so SPA-style AJAX needs no per-call changes.
+- Each user now owns a stable `referral_code` (`SEAL-XXXXXXXX`) and an optional `referred_by_id` link. `GET /register?ref=...` stores the code in a 30-day `tbmmorpg_ref` cookie, the register form has an optional REFERRAL_SIGIL field, and `AuthPersistence.register_user` attaches the referrer + writes a `ReferralReward(kind='signup')` row in the same transaction. Signups never fail because of an unknown referral code.
+- Account profile referrals panel now shows the real code, a copy-to-clipboard link, and live invited/active/bonus counts (active count is wired up later with email verification).
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

@@ -42,6 +42,9 @@ from src.shared.infrastructure.logging_config import setup_logging
 from src.shared.infrastructure.metrics_endpoint import metrics_router
 from src.shared.infrastructure.metrics_middleware import PrometheusMiddleware
 
+SITE_SURFACES = {"all", "site"}
+PLAY_SURFACES = {"all", "play"}
+
 setup_logging(
     settings=settings,
     service_name="frontend",
@@ -90,7 +93,7 @@ def inline_css(file_path: str) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    logger.info("FrontendStartupStarted")
+    logger.bind(surface=settings.frontend_surface).info("FrontendStartupStarted")
     if settings.debug:
         logger.info("FrontendDebugModeEnabled")
 
@@ -170,16 +173,19 @@ configure_generated_asset_serving(app, config=settings)
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
-app.add_middleware(AccountAuthMiddleware)
-app.add_middleware(AdminAuthMiddleware)
+if settings.frontend_surface in SITE_SURFACES:
+    app.add_middleware(AccountAuthMiddleware)
+    app.add_middleware(AdminAuthMiddleware)
 app.add_middleware(AuthUserMiddleware)
 app.add_middleware(SiteAnalyticsMiddleware)
-app.add_middleware(GameMenuMiddleware)
-app.add_middleware(GameTokenRefreshMiddleware)
+if settings.frontend_surface in PLAY_SURFACES:
+    app.add_middleware(GameMenuMiddleware)
+    app.add_middleware(GameTokenRefreshMiddleware)
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
-include_frontend_routers(app)
-include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")
+include_frontend_routers(app, surface=settings.frontend_surface)
+if settings.frontend_surface in SITE_SURFACES:
+    include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")
 app.include_router(metrics_router)
 
 

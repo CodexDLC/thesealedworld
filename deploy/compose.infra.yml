@@ -37,6 +37,28 @@ services:
     networks:
       - tbmmorpg-network
 
+  mongo:
+    image: mongo:8
+    container_name: tbmmorpg-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?MONGO_INITDB_ROOT_USERNAME is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MONGO_INITDB_ROOT_PASSWORD is required}
+    command: ["mongod", "--auth", "--quiet"]
+    volumes:
+      - tbmmorpg-mongo-data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet -u \"$${MONGO_INITDB_ROOT_USERNAME}\" -p \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval \"db.adminCommand('ping').ok\" | grep 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tbmmorpg-network
+
   nginx:
     image: ${DOCKER_IMAGE_NGINX:?DOCKER_IMAGE_NGINX is required}
     container_name: tbmmorpg-nginx
@@ -75,6 +97,8 @@ volumes:
     name: tbmmorpg-postgres-data
   tbmmorpg-redis-data:
     name: tbmmorpg-redis-data
+  tbmmorpg-mongo-data:
+    name: tbmmorpg-mongo-data
   tbmmorpg-certs:
     name: tbmmorpg-certs
   tbmmorpg-certbot-challenge:

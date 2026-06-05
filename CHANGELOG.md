@@ -14,6 +14,8 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Prepares the `0.3.0` rollout for a clean game/chat persistence reset: production infra now includes authenticated MongoDB and generated monster content can be restored from a backend snapshot without regenerating S3 images.
+
 ## [v0.2.1a2] - Alpha 0.2.1a2
 
 ### Runtime

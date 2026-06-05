@@ -5,6 +5,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Gameplay routes can now run as a dedicated play surface while the public site remains on its own route/middleware set.
+
 ## [v0.2.1a2] - Alpha 0.2.1a2
 
 - Game chat now renders outside the footer shell while the footer placement contract is rebuilt.

@@ -3,54 +3,27 @@ from collections.abc import Sequence
 from fastapi import APIRouter, FastAPI
 from loguru import logger
 
-# Architecture Note:
-# Features are split into two main categories:
-# 1. features: Site web logic (Authentication, User Cabinet, Library, Landing/Static pages)
-# 2. game_features: Core gameplay interactions (Lobby, Menu systems, Game Scenarios)
-from src.frontend.features.account.routes.pages import router as account_router
-from src.frontend.features.auth.api import router as auth_api_router
-from src.frontend.features.auth.routes.pages import router as auth_router
-from src.frontend.features.feedback.routes.pages import router as feedback_router
-from src.frontend.features.library.routes.pages import router as library_router
-from src.frontend.features.news.routes.pages import router as news_router
-from src.frontend.features.public_site.routes.pages import router as frontend_pages_router
-from src.frontend.features.surveys.routes.pages import router as surveys_router
-from src.frontend.game_features.arena.routes.actions import router as arena_router
-from src.frontend.game_features.character_status.routes.fragments import router as character_status_router
-from src.frontend.game_features.city_services.routes.actions import router as city_services_router
-from src.frontend.game_features.combat.routes.actions import router as combat_router
-from src.frontend.game_features.exploration.routes.actions import router as exploration_router
-from src.frontend.game_features.game_catalog.routes.bootstrap import router as game_catalog_router
-from src.frontend.game_features.game_lobby.routes.pages import router as game_lobby_router
-from src.frontend.game_features.inventory.routes.fragments import router as inventory_router
-from src.frontend.game_features.rift.routes.pages import router as rift_router
-from src.frontend.game_features.scenario.routes.pages import router as scenario_router
-from src.frontend.game_features.session.routes.pages import router as game_session_router
+from src.frontend.config.settings import settings
+from src.frontend.core.routing_play import PLAY_ROUTERS
+from src.frontend.core.routing_site import SITE_ROUTERS
 
-FRONTEND_ROUTERS: Sequence[APIRouter] = (
-    frontend_pages_router,
-    news_router,
-    library_router,
-    auth_api_router,
-    auth_router,
-    account_router,
-    feedback_router,
-    surveys_router,
-    arena_router,
-    character_status_router,
-    city_services_router,
-    combat_router,
-    exploration_router,
-    game_catalog_router,
-    game_lobby_router,
-    inventory_router,
-    rift_router,
-    scenario_router,
-    game_session_router,
-)
+FrontendSurface = str
+
+FRONTEND_ROUTERS: Sequence[APIRouter] = (*SITE_ROUTERS, *PLAY_ROUTERS)
 
 
-def include_frontend_routers(app: FastAPI) -> None:
-    for router in FRONTEND_ROUTERS:
+def routers_for_surface(surface: FrontendSurface) -> Sequence[APIRouter]:
+    if surface == "site":
+        return SITE_ROUTERS
+    if surface == "play":
+        return PLAY_ROUTERS
+    if surface == "all":
+        return FRONTEND_ROUTERS
+    raise ValueError(f"Unsupported frontend surface: {surface!r}")
+
+
+def include_frontend_routers(app: FastAPI, *, surface: FrontendSurface | None = None) -> None:
+    active_surface = surface or settings.frontend_surface
+    for router in routers_for_surface(active_surface):
         app.include_router(router)
-        logger.bind(tags=router.tags).debug("FrontendRouterRegistered")
+        logger.bind(surface=active_surface, tags=router.tags).debug("FrontendRouterRegistered")

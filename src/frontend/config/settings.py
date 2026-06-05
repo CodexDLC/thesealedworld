@@ -21,6 +21,7 @@ class FrontendSettings(BaseCommonSettings):
     # Server Settings
     app_host: str = "0.0.0.0"  # nosec
     app_port: int = 8000
+    frontend_surface: Literal["all", "site", "play"] = "all"
     backend_base_url: str = "http://127.0.0.1:8001"
     realtime_ws_url: str = "ws://127.0.0.1:8002"
     backend_internal_service_key: str = "dev-site-to-game-service-key"  # pragma: allowlist secret

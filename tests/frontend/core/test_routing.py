@@ -65,3 +65,39 @@ def test_frontend_router_list_does_not_register_legacy_cabinet_route() -> None:
     include_frontend_routers(app)
 
     assert all(getattr(route, "name", None) != "cabinet" for route in app.routes)
+
+
+def test_site_surface_registers_site_routes_only() -> None:
+    app = FastAPI()
+
+    include_frontend_routers(app, surface="site")
+
+    route_names = {getattr(route, "name", None) for route in app.routes}
+    assert "index" in route_names
+    assert "login" in route_names
+    assert "game_session" not in route_names
+    assert "game_combat_move" not in route_names
+
+
+def test_play_surface_registers_game_routes_only() -> None:
+    app = FastAPI()
+
+    include_frontend_routers(app, surface="play")
+
+    route_names = {getattr(route, "name", None) for route in app.routes}
+    assert "game_lobby" in route_names
+    assert "game_session" in route_names
+    assert "index" not in route_names
+    assert "login" not in route_names
+
+
+def test_all_surface_keeps_site_and_game_routes() -> None:
+    app = FastAPI()
+
+    include_frontend_routers(app, surface="all")
+
+    route_names = {getattr(route, "name", None) for route in app.routes}
+    assert "index" in route_names
+    assert "login" in route_names
+    assert "game_lobby" in route_names
+    assert "game_session" in route_names

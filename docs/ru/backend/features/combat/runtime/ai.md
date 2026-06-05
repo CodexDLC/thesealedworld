@@ -5,7 +5,7 @@ payload-ы намерений через обычный путь `CombatTurnMana
 **только оффлайн**, отдельным скриптом, на синтетических сценариях.
 
 > Дизайнерский контекст и тактические оси: см.
-> [`docs/game-design/designer/combat/07_ai_brain.md`](../../../../game-design/designer/combat/07_ai_brain.md).
+> `docs/game-design/designer/combat/07_ai_brain.md`.
 
 ## Где код
 
@@ -29,9 +29,9 @@ src/backend/features/combat/runtime/ai/
 
 Интеграция:
 
-- [`src/backend/features/combat/runtime/processors/ai_processor.py`](../../../../../../src/backend/features/combat/runtime/processors/ai_processor.py)
+- `src/backend/features/combat/runtime/processors/ai_processor.py`
   — `decide_turn` + `decide_exchange` (обёртка).
-- [`src/backend/features/combat/workers/tasks/ai_turn_task.py`](../../../../../../src/backend/features/combat/workers/tasks/ai_turn_task.py)
+- `src/backend/features/combat/workers/tasks/ai_turn_task.py`
   — вызывает `decide_turn` один раз со всем `BattleContext`.
 
 ## Runtime-инференс
@@ -76,7 +76,7 @@ class MonsterCombatBrain:
 
 ### Observation: какие фичи берутся
 
-**`SelfObservation`** ([observation.py](../../../../../../src/backend/features/combat/runtime/ai/observation.py)):
+**`SelfObservation`** (`src/backend/features/combat/runtime/ai/observation.py`):
 
 | Поле | Источник |
 |---|---|
@@ -138,10 +138,10 @@ modifier/pipeline/effect id-шникам остался как fallback для �
 | `triggers[*]` | substring match | fallback |
 
 Полная таблица substring → тег — в
-[`action_space.py:_ID_KEYWORD_TAGS`](../../../../../../src/backend/features/combat/runtime/ai/action_space.py).
+`src/backend/features/combat/runtime/ai/action_space.py:_ID_KEYWORD_TAGS`.
 
 Все 9 токенов из
-[`game_catalog/combat/resources/tokens.py`](../../../../../../src/backend/features/game_catalog/combat/resources/tokens.py)
+`src/backend/features/game_catalog/combat/resources/tokens.py`
 покрыты: `tempo`, `hit`, `crit`, `dodge`, `parry`, `block`, `counter`,
 `blood`, `gift`.
 
@@ -152,7 +152,7 @@ score = Σ weight[feature] × feature_value
 ```
 
 Основные пары `feature × weight` (полный список —
-[`scorer.py`](../../../../../../src/backend/features/combat/runtime/ai/scorer.py)):
+`src/backend/features/combat/runtime/ai/scorer.py`):
 
 | Условие/тег действия | Вес × множитель |
 |---|---|
@@ -198,7 +198,7 @@ score = Σ weight[feature] × feature_value
 отголоски идут как `unidirectional`-попадания без повторной оплаты финта и без
 нового размена.
 
-Алгоритм ([`brain.MonsterCombatBrain._greedy_allocate`](../../../../../../src/backend/features/combat/runtime/ai/brain.py)):
+Алгоритм (`src/backend/features/combat/runtime/ai/brain.py:MonsterCombatBrain._greedy_allocate`):
 
 1. Для каждой цели взять лучшую базовую атаку и все её feint-кандидаты.
 2. Для каждого feint-кандидата вычислить `delta = score(feint) - score(basic)`.
@@ -217,7 +217,7 @@ score = Σ weight[feature] × feature_value
 1. Аргумент `path` (если передан явно).
 2. ENV `COMBAT_AI_POLICY_PATH`.
 3. Встроенный
-   [`src/backend/features/combat/runtime/ai/policies/default_policy.json`](../../../../../../src/backend/features/combat/runtime/ai/policies/default_policy.json).
+   `src/backend/features/combat/runtime/ai/policies/default_policy.json`.
 
 При битом внешнем артефакте — лог `CombatAiPolicyLoadFailed` и fallback
 на встроенный default. LRU-кэш по `(absolute_path, mtime_ns)` — JSON
@@ -248,9 +248,9 @@ score = Σ weight[feature] × feature_value
 ```
 
 Полный список ключей — в
-[`policy.DEFAULT_WEIGHT_KEYS`](../../../../../../src/backend/features/combat/runtime/ai/policy.py).
+`src/backend/features/combat/runtime/ai/policy.py:policy.DEFAULT_WEIGHT_KEYS`.
 
-Контракт — [`Policy`](../../../../../../src/backend/features/combat/runtime/ai/policy.py).
+Контракт — `src/backend/features/combat/runtime/ai/policy.py:Policy`.
 Ключи весов — открытая мапа: добавление нового тега в action space →
 добавление веса в `default_policy.json` → переобучение, без правок API.
 
@@ -274,9 +274,9 @@ CLI и backend-тренировка не пишут файловые артеф�
 
 | Шаг | Где |
 |---|---|
-| Набор сценариев `(bot, targets, expected_tags)` | [`scenarios.default_scenario_set`](../../../../../../src/backend/features/combat/runtime/ai/training/scenarios.py) |
-| Reward-функция | [`environment.ScoringEnvironment.evaluate`](../../../../../../src/backend/features/combat/runtime/ai/training/environment.py) |
-| Эволюционный цикл (gaussian mutation + турнирная селекция + elitism + sigma decay) | [`evolution.evolve`](../../../../../../src/backend/features/combat/runtime/ai/training/evolution.py) |
+| Набор сценариев `(bot, targets, expected_tags)` | `src/backend/features/combat/runtime/ai/training/scenarios.py:default_scenario_set` |
+| Reward-функция | `src/backend/features/combat/runtime/ai/training/environment.py:ScoringEnvironment.evaluate` |
+| Эволюционный цикл (gaussian mutation + турнирная селекция + elitism + sigma decay) | `src/backend/features/combat/runtime/ai/training/evolution.py:evolve` |
 
 Reward (детерминированный):
 

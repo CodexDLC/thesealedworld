@@ -66,8 +66,8 @@ frontend database layer.
 
 ## Разделы
 
-- [Дизайн веб-интерфейса](interface_design/)
-- [Game Features](game_features/)
-- [Site Features](site_features/)
+- [Дизайн веб-интерфейса](interface_design/index.md)
+- [Game Features](game_features/index.md)
+- [Site Features](site_features/index.md)
 - [Integrations](integrations.md)
 - [Middleware](middleware.md)

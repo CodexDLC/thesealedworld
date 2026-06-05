@@ -139,7 +139,9 @@ nav:
 
   - Frontend:
     - Обзор: frontend/index.md
-    - Дизайн веб-интерфейса: frontend/interface_design/index.md
+    - Дизайн веб-интерфейса:
+      - Обзор: frontend/interface_design/index.md
+      - Аудит CSS интерфейса игры: frontend/interface_design/game_css_interface_audit.md
     - Game Features:
       - Обзор: frontend/game_features/index.md
       - Arena: frontend/game_features/arena.md

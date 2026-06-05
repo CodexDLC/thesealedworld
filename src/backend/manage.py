@@ -67,6 +67,15 @@ def rebuild_generated_monsters(args: list[str]):
     asyncio.run(async_main(parse_args(args)))
 
 
+def generated_snapshot(args: list[str]):
+    """Export or import generated monster content snapshots."""
+    import asyncio
+
+    from src.backend.features.monsters.scripts.generated_snapshot import async_main, parse_args
+
+    asyncio.run(async_main(parse_args(args)))
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
 
@@ -88,6 +97,9 @@ if __name__ == "__main__":
     elif "rebuild-monsters" in args:
         command_index = args.index("rebuild-monsters")
         rebuild_generated_monsters(args[command_index + 1 :])
+    elif "generated-snapshot" in args:
+        command_index = args.index("generated-snapshot")
+        generated_snapshot(args[command_index + 1 :])
     elif "prepare" in args:
         # Run everything for setup
         import asyncio
@@ -98,5 +110,5 @@ if __name__ == "__main__":
     else:
         print(
             "Unknown command. Available: runserver, upgrade, migrate, bootstrap, "
-            "ensure-mongo-indexes, rebuild-monsters, prepare"
+            "ensure-mongo-indexes, rebuild-monsters, generated-snapshot, prepare"
         )

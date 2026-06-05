@@ -72,6 +72,35 @@ class AIGenerationTaskRepository:
     async def find_existing(self, spec: AIGenerationTaskSpecDTO) -> AIGenerationTask | None:
         return await self.find_by_identity_key(build_generation_task_identity_key(spec))
 
+    async def prepare_existing_for_enqueue(
+        self,
+        task: AIGenerationTask,
+        *,
+        max_attempts: int,
+    ) -> AIGenerationTask:
+        if task.status in {"failed", "cancelled"}:
+            task.status = "pending"
+            task.attempts = 0
+            task.max_attempts = max(int(task.max_attempts or 1), int(max_attempts))
+            task.storage_key = None
+            task.generated_url = None
+            task.not_before = None
+            task.claimed_at = None
+            task.completed_at = None
+            task.last_error_type = None
+            task.last_error_message = None
+            cast("Any", task).error = {}
+            await self._record_error_payload(task, {})
+            task.bump_revision()
+            await self.session.flush()
+            return task
+
+        if task.status in {"pending", "cooldown"} and int(task.max_attempts or 1) < int(max_attempts):
+            task.max_attempts = int(max_attempts)
+            task.bump_revision()
+            await self.session.flush()
+        return task
+
     async def claim_next(self, *, now: datetime | None = None) -> AIGenerationTask | None:
         moment = now or datetime.now(UTC)
         stmt = (

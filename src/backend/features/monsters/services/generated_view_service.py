@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from src.backend.features.monsters.dto.generated_view import (
     GeneratedMonsterEquipmentSummaryDTO,
     GeneratedMonstersResponseDTO,
+    GeneratedMonstersSummaryDTO,
 )
 from src.backend.features.monsters.services.gear_score_service import MonsterGearScoreService
 
@@ -25,19 +26,30 @@ class GeneratedMonsterViewService:
         clan_id: str | None = None,
         role: str | None = None,
         include_members: bool = True,
+        light: bool = False,
         limit: int = 25,
         offset: int = 0,
     ) -> GeneratedMonstersResponseDTO:
         total = await self.repository.count_generated_clans(family_id=family_id, clan_id=clan_id)
-        clans = await self.repository.list_generated_clans_page(
+        page_loader = (
+            self.repository.list_generated_clans_page_light
+            if light and hasattr(self.repository, "list_generated_clans_page_light")
+            else self.repository.list_generated_clans_page
+        )
+        clans = await page_loader(
             family_id=family_id,
             clan_id=clan_id,
             limit=limit,
             offset=offset,
+            include_members=include_members,
         )
         clans = await self._refresh_stale_clans(clans)
+        visual_tasks = {} if light else await self._load_visual_task_index(clans)
         return GeneratedMonstersResponseDTO(
-            items=[self._clan_payload(clan, role=role, include_members=include_members) for clan in clans],
+            items=[
+                self._clan_payload(clan, role=role, include_members=include_members, visual_tasks=visual_tasks)
+                for clan in clans
+            ],
             pagination={
                 "limit": limit,
                 "offset": offset,
@@ -46,6 +58,10 @@ class GeneratedMonsterViewService:
             },
         )
 
+    async def summary(self, *, family_id: str | None = None) -> GeneratedMonstersSummaryDTO:
+        payload = await self.repository.generated_monsters_summary(family_id=family_id)
+        return GeneratedMonstersSummaryDTO(**payload)
+
     async def _refresh_stale_clans(self, clans: list[GeneratedClan]) -> list[GeneratedClan]:
         return clans
 
@@ -53,11 +69,39 @@ class GeneratedMonsterViewService:
         del clan
         return False
 
-    def _clan_payload(self, clan: GeneratedClan, *, role: str | None, include_members: bool) -> dict[str, Any]:
+    async def _load_visual_task_index(self, clans: list[GeneratedClan]) -> dict[str, dict[str, Any]]:
+        entity_ids: set[str] = set()
+        asset_hashes: set[str] = set()
+        for clan in clans:
+            _collect_visual_task_refs(str(clan.id), (clan.metadata_ or {}).get("visual"), entity_ids, asset_hashes)
+            for member in clan.members:
+                _collect_visual_task_refs(
+                    str(member.id),
+                    (member.metadata_ or {}).get("visual"),
+                    entity_ids,
+                    asset_hashes,
+                )
+        loader = getattr(self.repository, "list_latest_visual_generation_tasks", None)
+        if loader is None:
+            return {}
+        return await loader(entity_ids=entity_ids, asset_hashes=asset_hashes)
+
+    def _clan_payload(
+        self,
+        clan: GeneratedClan,
+        *,
+        role: str | None,
+        include_members: bool,
+        visual_tasks: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         members = [member for member in clan.members if role is None or member.role == role]
         summary = self._summary(clan, members, role=role)
         context_identity = dict(clan.context_identity or {})
-        flavor_content = _flavor_content(clan, visual=_visual((clan.metadata_ or {}).get("visual")))
+        clan_visual = _visual(
+            (clan.metadata_ or {}).get("visual"),
+            task=_visual_task_for(str(clan.id), (clan.metadata_ or {}).get("visual"), visual_tasks),
+        )
+        flavor_content = _flavor_content(clan, visual=clan_visual)
         localized = _clan_localized(clan, flavor_content=flavor_content)
         return {
             "clan_id": str(clan.id),
@@ -87,19 +131,31 @@ class GeneratedMonsterViewService:
             "schema_version": clan.schema_version,
             "created_at": clan.created_at,
             "updated_at": clan.updated_at,
-            "visual": _visual((clan.metadata_ or {}).get("visual")),
+            "visual": clan_visual,
             "gear_score_summary": summary,
-            "members": [self._member_payload(member, clan=clan) for member in self._sort_members(members)]
+            "members": [
+                self._member_payload(member, clan=clan, visual_tasks=visual_tasks)
+                for member in self._sort_members(members)
+            ]
             if include_members
             else [],
         }
 
     def _summary(self, clan: GeneratedClan, members: list[GeneratedMonster], *, role: str | None) -> dict[str, Any]:
+        if role is None and all(not member.active_snapshot for member in members):
+            persisted = _dict((clan.context_identity or {}).get("gear_score_summary"))
+            if persisted:
+                return persisted
         del clan, role
         return self.gear_score_service.build_clan_summary(members)
 
     @staticmethod
-    def _member_payload(member: GeneratedMonster, *, clan: GeneratedClan) -> dict[str, Any]:
+    def _member_payload(
+        member: GeneratedMonster,
+        *,
+        clan: GeneratedClan,
+        visual_tasks: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         snapshot = dict(member.active_snapshot or {})
         text_content = _dict(snapshot.get("text_content"))
         variant_flavor = _variant_flavor(clan, member.variant_id)
@@ -156,7 +212,10 @@ class GeneratedMonsterViewService:
             "updated_at": member.updated_at,
             "threat_rating": gear_score or 0,
             "gear_score": gear_score,
-            "visual": _visual((member.metadata_ or {}).get("visual")),
+            "visual": _visual(
+                (member.metadata_ or {}).get("visual"),
+                task=_visual_task_for(str(member.id), (member.metadata_ or {}).get("visual"), visual_tasks),
+            ),
             "equipment_summary": _equipment_summary(items),
         }
 
@@ -338,10 +397,15 @@ def _affix_labels(value: Any) -> list[str]:
     return labels
 
 
-def _visual(value: Any) -> dict[str, Any]:
+def _visual(value: Any, *, task: dict[str, Any] | None = None) -> dict[str, Any]:
     visual = dict(value) if isinstance(value, dict) else {}
+    task_payload = dict(task or {})
+    task_status = str(task_payload.get("status") or "")
+    visual_status = str(visual.get("status") or "")
+    projected_status = task_status if visual_status in {"", "pending"} and task_status else visual_status
+    task_id = str(task_payload.get("task_id") or visual.get("pending_task_id") or "")
     return {
-        "status": str(visual.get("status") or ""),
+        "status": projected_status,
         "source": str(visual.get("source") or ""),
         "image_url": str(visual.get("image_url") or ""),
         "generated_image_url": str(visual.get("generated_image_url") or ""),
@@ -352,7 +416,41 @@ def _visual(value: Any) -> dict[str, Any]:
         "content_type": str(visual.get("content_type") or ""),
         "size_bytes": _optional_int(visual.get("size_bytes")),
         "pending_task_id": str(visual.get("pending_task_id")) if visual.get("pending_task_id") else None,
+        "task_id": task_id or None,
+        "task_status": task_status,
+        "task_attempts": _optional_int(task_payload.get("attempts")) or 0,
+        "task_max_attempts": _optional_int(task_payload.get("max_attempts")) or 0,
+        "task_error_type": str(task_payload.get("error_type") or ""),
+        "task_error_message": str(task_payload.get("error_message") or ""),
     }
+
+
+def _collect_visual_task_refs(
+    entity_id: str,
+    visual: Any,
+    entity_ids: set[str],
+    asset_hashes: set[str],
+) -> None:
+    payload = dict(visual) if isinstance(visual, dict) else {}
+    entity_ids.add(entity_id)
+    asset_hash = str(payload.get("asset_hash") or "").strip()
+    if asset_hash:
+        asset_hashes.add(asset_hash)
+
+
+def _visual_task_for(
+    entity_id: str,
+    visual: Any,
+    visual_tasks: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    payload = dict(visual) if isinstance(visual, dict) else {}
+    by_entity = visual_tasks.get(f"entity:{entity_id}")
+    if by_entity is not None:
+        return by_entity
+    asset_hash = str(payload.get("asset_hash") or "").strip()
+    if asset_hash:
+        return visual_tasks.get(f"asset:{asset_hash}")
+    return None
 
 
 def _optional_int(value: Any) -> int | None:

@@ -37,7 +37,10 @@
                         <tr><th>Ключ хранения</th><td>{{ clan.visual.storage_key or "—" }}</td></tr>
                         <tr><th>Хранилище</th><td>{{ clan.visual.storage_backend or "—" }}</td></tr>
                         <tr><th>Статус</th><td>{{ clan.visual.status or "—" }}</td></tr>
-                        <tr><th>Задача</th><td>{{ clan.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Задача</th><td>{{ clan.visual.task_id or clan.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Статус задачи</th><td>{{ clan.visual.task_status or "—" }}</td></tr>
+                        <tr><th>Попытки</th><td>{% if clan.visual.task_max_attempts %}{{ clan.visual.task_attempts }} / {{ clan.visual.task_max_attempts }}{% else %}—{% endif %}</td></tr>
+                        <tr><th>Ошибка</th><td>{% if clan.visual.task_error_message %}{{ clan.visual.task_error_type }}: {{ clan.visual.task_error_message }}{% else %}—{% endif %}</td></tr>
                         <tr><th>Context hash</th><td>{{ clan.context_hash or "—" }}</td></tr>
                         <tr><th>Unique hash</th><td>{{ clan.unique_hash or "—" }}</td></tr>
                         <tr><th>Schema version</th><td>{{ clan.schema_version }}</td></tr>
@@ -68,6 +71,7 @@
                         <th>Сила</th>
                         <th>Изображение</th>
                         <th>Хранилище</th>
+                        <th>Задача</th>
                         <th>Экипировка</th>
                         <th>Аффиксы</th>
                         <th>Действие</th>
@@ -93,6 +97,18 @@
                                 {% endif %}
                             </td>
                             <td>{{ member.visual.storage_backend or "—" }}</td>
+                            <td>
+                                {% if member.visual.task_status == "failed" %}
+                                    <span class="fc-pill fc-pill--warn">failed</span>
+                                    {% if member.visual.task_error_message %}
+                                        <br><small>{{ member.visual.task_error_message }}</small>
+                                    {% endif %}
+                                {% elif member.visual.task_status %}
+                                    <span class="fc-pill">{{ member.visual.task_status }}</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
                             <td>{{ member.equipment|join(", ") if member.equipment else "—" }}</td>
                             <td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td>
                             <td>

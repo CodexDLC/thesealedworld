@@ -34,6 +34,12 @@ class GeneratedAssetVisualDTO(BaseModel):
     content_type: str = ""
     size_bytes: int | None = None
     pending_task_id: str | None = None
+    task_id: str | None = None
+    task_status: str = ""
+    task_attempts: int = 0
+    task_max_attempts: int = 0
+    task_error_type: str = ""
+    task_error_message: str = ""
 
 
 class GeneratedMonsterEquipmentSummaryDTO(BaseModel):
@@ -128,6 +134,12 @@ class GeneratedMonstersResponseDTO(BaseModel):
     pagination: PaginationDTO
 
 
+class GeneratedMonstersSummaryDTO(BaseModel):
+    clans: int = 0
+    members: int = 0
+    missing_images: int = 0
+
+
 class MonsterImageRegenerationResponseDTO(BaseModel):
     task_id: str
     entity_type: str
@@ -193,6 +205,7 @@ __all__ = [
     "GeneratedClanViewDTO",
     "GeneratedMonsterEquipmentSummaryDTO",
     "GeneratedMonsterViewDTO",
+    "GeneratedMonstersSummaryDTO",
     "MonsterAIRegenerationResponseDTO",
     "MonsterDataRebuildItemDTO",
     "MonsterDataRebuildRequestDTO",

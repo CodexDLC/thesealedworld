@@ -34,12 +34,34 @@ class AdminAIGenerationTask:
 
 
 @dataclass(frozen=True)
+class AdminGeneratedMonstersSummary:
+    clans: int = 0
+    members: int = 0
+    missing_images: int = 0
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> AdminGeneratedMonstersSummary:
+        payload = dict(data or {})
+        return cls(
+            clans=int(payload.get("clans") or 0),
+            members=int(payload.get("members") or 0),
+            missing_images=int(payload.get("missing_images") or 0),
+        )
+
+
+@dataclass(frozen=True)
 class AdminMonsterVisual:
     status: str = ""
     image_url: str = ""
     storage_key: str = ""
     storage_backend: str = ""
     pending_task_id: str | None = None
+    task_id: str | None = None
+    task_status: str = ""
+    task_attempts: int = 0
+    task_max_attempts: int = 0
+    task_error_type: str = ""
+    task_error_message: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> AdminMonsterVisual:
@@ -50,6 +72,12 @@ class AdminMonsterVisual:
             storage_key=str(payload.get("storage_key") or ""),
             storage_backend=str(payload.get("storage_backend") or ""),
             pending_task_id=str(payload.get("pending_task_id")) if payload.get("pending_task_id") else None,
+            task_id=str(payload.get("task_id")) if payload.get("task_id") else None,
+            task_status=str(payload.get("task_status") or ""),
+            task_attempts=int(payload.get("task_attempts") or 0),
+            task_max_attempts=int(payload.get("task_max_attempts") or 0),
+            task_error_type=str(payload.get("task_error_type") or ""),
+            task_error_message=str(payload.get("task_error_message") or ""),
         )
 
 
@@ -183,16 +211,30 @@ class AdminGeneratedMonsterClan:
 
 
 class AdminMonstersApi(BaseApiClient):
+    async def get_generated_summary(self, *, family_id: str | None = None) -> AdminGeneratedMonstersSummary:
+        params: dict[str, Any] = {}
+        if family_id:
+            params["family_id"] = family_id
+        raw = await self._request("GET", "/api/admin/monsters/generated/summary", params=params)
+        return AdminGeneratedMonstersSummary.from_dict(dict(raw or {}))
+
     async def list_generated(
         self,
         *,
         family_id: str | None = None,
         role: str | None = None,
         missing_image: bool = False,
+        include_members: bool = True,
+        light: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> list[AdminGeneratedMonsterClan]:
-        params: dict[str, Any] = {"limit": limit, "offset": offset, "include_members": True}
+        params: dict[str, Any] = {
+            "limit": limit,
+            "offset": offset,
+            "include_members": include_members,
+            "light": light,
+        }
         if family_id:
             params["family_id"] = family_id
         if role:

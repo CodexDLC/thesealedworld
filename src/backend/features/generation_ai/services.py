@@ -56,6 +56,7 @@ class GenerationAIService:
                 task = await self.repository.create(spec, batch_id=batch_id, identity_key=identity_key)
                 created += 1
             else:
+                task = await self.repository.prepare_existing_for_enqueue(task, max_attempts=spec.max_attempts)
                 reused += 1
             task_ids.append(task.id)
             if task.status in {"pending", "cooldown"}:

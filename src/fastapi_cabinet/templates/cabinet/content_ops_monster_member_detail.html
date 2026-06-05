@@ -38,7 +38,10 @@
                         <tr><th>Ключ хранения</th><td>{{ member.visual.storage_key or "—" }}</td></tr>
                         <tr><th>Хранилище</th><td>{{ member.visual.storage_backend or "—" }}</td></tr>
                         <tr><th>Статус</th><td>{{ member.visual.status or "—" }}</td></tr>
-                        <tr><th>Задача</th><td>{{ member.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Задача</th><td>{{ member.visual.task_id or member.visual.pending_task_id or "—" }}</td></tr>
+                        <tr><th>Статус задачи</th><td>{{ member.visual.task_status or "—" }}</td></tr>
+                        <tr><th>Попытки</th><td>{% if member.visual.task_max_attempts %}{{ member.visual.task_attempts }} / {{ member.visual.task_max_attempts }}{% else %}—{% endif %}</td></tr>
+                        <tr><th>Ошибка</th><td>{% if member.visual.task_error_message %}{{ member.visual.task_error_type }}: {{ member.visual.task_error_message }}{% else %}—{% endif %}</td></tr>
                     </tbody>
                 </table>
                 <form method="post" action="/admin/content-ops/regenerate-member-image" class="fc-inline-action">

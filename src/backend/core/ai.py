@@ -4,7 +4,7 @@ from typing import Any
 from codex_ai import GeminiProvider
 from google import genai
 from loguru import logger as log
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from src.backend.config.settings import settings
 
@@ -101,6 +101,13 @@ class AIService:
                 max_output_tokens=256,
             ),
         )
+        parsed = getattr(response, "parsed", None)
+        if parsed is not None:
+            try:
+                return ImageTextValidationDTO.model_validate(parsed)
+            except ValidationError:
+                pass
+
         text = response.text or ""
         if not text.strip():
             raise RuntimeError("AI image text validation returned an empty response")

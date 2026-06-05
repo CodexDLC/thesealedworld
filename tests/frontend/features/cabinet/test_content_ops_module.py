@@ -97,6 +97,7 @@ def test_content_ops_rebuild_plan_renders_result_items(monkeypatch: pytest.Monke
     class FakeAdminMonstersApi:
         async def list_generated(self, *, limit: int, **kwargs):
             assert limit == 100
+            assert kwargs["light"] is True
             return [_clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)]
 
         async def plan_generated_rebuild(self, **kwargs):
@@ -306,10 +307,28 @@ def test_content_ops_finds_member_for_detail_page() -> None:
 
 
 @pytest.mark.asyncio
+async def test_monster_count_provider_uses_summary_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeAdminMonstersApi:
+        async def get_generated_summary(self):
+            return SimpleNamespace(clans=6, members=72, missing_images=1)
+
+        async def list_generated(self, **kwargs):
+            raise AssertionError(f"overview metric must not load generated list: {kwargs}")
+
+    monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())
+
+    metric = await content_ops._monster_count_provider(SimpleNamespace())
+
+    assert metric.value == "6"
+    assert metric.subtitle == "участников 72 / без изображения 1"
+
+
+@pytest.mark.asyncio
 async def test_monster_browser_uses_backend_contract_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeAdminMonstersApi:
         async def list_generated(self, *, limit: int, **kwargs):
             assert limit == 100
+            assert kwargs["light"] is True
             return [_clan("rat-clan", family="rats", storage="local", roles=("scout",), missing_member=False)]
 
     monkeypatch.setattr(content_ops, "_api", lambda request: FakeAdminMonstersApi())

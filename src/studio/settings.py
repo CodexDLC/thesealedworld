@@ -82,6 +82,18 @@ class StudioSettings(BaseCommonSettings):
     frontend_templates_dir: Path = BASE_DIR / "src" / "frontend" / "templates"
     frontend_static_dir: Path = BASE_DIR / "src" / "frontend" / "static"
 
+    # Generated asset serving. Studio renders backend-owned content previews,
+    # so it must honor the same public URL contract as the main frontend.
+    generated_assets_dir: Path = BASE_DIR / "var" / "generated-assets"
+    asset_storage_backend: Literal["local", "s3"] = "local"
+    asset_public_base_url: str = "/static/generated-assets"
+    asset_local_root: str = "var/generated-assets"
+    asset_s3_bucket: str | None = None
+    asset_s3_region: str | None = None
+    asset_s3_endpoint_url: str | None = None
+    asset_s3_access_key_id: str | None = None
+    asset_s3_secret_access_key: str | None = None
+
     # Studio-specific overrides.
     studio_templates_dir: Path = BASE_DIR / "src" / "studio" / "templates"
     studio_static_dir: Path = BASE_DIR / "src" / "studio" / "static"

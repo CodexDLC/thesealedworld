@@ -21,6 +21,7 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
             clan_id=None,
             role=None,
             include_members=True,
+            light=False,
             limit=25,
             offset=0,
         ) -> GeneratedMonstersResponseDTO:
@@ -28,6 +29,7 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
             assert clan_id is None
             assert role is None
             assert include_members is True
+            assert light is True
             assert limit == 10
             assert offset == 20
             return GeneratedMonstersResponseDTO(
@@ -70,7 +72,7 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
 
     app.dependency_overrides[get_generated_monster_view_service] = lambda: FakeService()
     try:
-        response = client.get("/api/admin/monsters/generated?family_id=rat_swarm&limit=10&offset=20")
+        response = client.get("/api/admin/monsters/generated?family_id=rat_swarm&light=true&limit=10&offset=20")
     finally:
         app.dependency_overrides.pop(get_generated_monster_view_service, None)
 
@@ -80,6 +82,25 @@ def test_generated_monsters_route_returns_paginated_clans(client) -> None:
     assert payload["items"][0]["members"][0]["monster_id"]
     assert payload["items"][0]["members"][0]["variant_key"] == "sewer_rat"
     assert payload["items"][0]["members"][0]["gear_score"] == 7
+
+
+@pytest.mark.unit
+def test_generated_monsters_summary_route_returns_aggregate_counts(client) -> None:
+    class FakeService:
+        async def summary(self, *, family_id=None):
+            assert family_id == "rat_swarm"
+            return {"clans": 6, "members": 72, "missing_images": 1}
+
+    from src.backend.app import app
+
+    app.dependency_overrides[get_generated_monster_view_service] = lambda: FakeService()
+    try:
+        response = client.get("/api/admin/monsters/generated/summary?family_id=rat_swarm")
+    finally:
+        app.dependency_overrides.pop(get_generated_monster_view_service, None)
+
+    assert response.status_code == 200
+    assert response.json() == {"clans": 6, "members": 72, "missing_images": 1}
 
 
 @pytest.mark.unit

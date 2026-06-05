@@ -80,6 +80,7 @@ def test_monster_clan_image_spec_uses_visual_contract() -> None:
     assert spec.entity_id == str(clan.id)
     assert spec.asset_hash == clan.metadata_["visual"]["asset_hash"]
     assert spec.storage_prefix == "monsters/generated/clans"
+    assert spec.max_attempts == 5
     assert spec.input_payload["visual"]["storage_key"] == clan.metadata_["visual"]["storage_key"]
 
 
@@ -268,6 +269,7 @@ def test_monster_member_image_spec_uses_generation_meta_visual_contract() -> Non
     assert spec.entity_id == str(member.id)
     assert spec.asset_hash == member.metadata_["visual"]["asset_hash"]
     assert spec.storage_prefix == "monsters/generated/members"
+    assert spec.max_attempts == 5
     assert spec.input_payload["visual"]["storage_key"] == member.metadata_["visual"]["storage_key"]
 
 

@@ -88,7 +88,7 @@ async def _overview_provider(request: Request) -> ListWidgetMap:
 
 async def _monster_count_provider(request: Request) -> MetricWidgetMap:
     try:
-        clans = await _api(request).list_generated(limit=100)
+        summary = await _api(request).get_generated_summary()
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError):
         return MetricWidgetMap(
             key="content_ops_monsters",
@@ -96,13 +96,11 @@ async def _monster_count_provider(request: Request) -> MetricWidgetMap:
             value="—",
             subtitle="backend недоступен",
         )
-    member_count = sum(len(clan.members) for clan in clans)
-    missing = sum(1 for clan in clans if _has_missing_image(clan))
     return MetricWidgetMap(
         key="content_ops_monsters",
         title="Сгенерированные монстры",
-        value=str(len(clans)),
-        subtitle=f"участников {member_count} / без изображения {missing}",
+        value=str(summary.clans),
+        subtitle=f"участников {summary.members} / без изображения {summary.missing_images}",
     )
 
 
@@ -112,6 +110,7 @@ async def _monster_table_provider(request: Request) -> TableWidgetMap:
         clans = await _api(request).list_generated(
             family_id=params.get("family_id") or None,
             missing_image=params.get("missing_image") == "1",
+            light=True,
             limit=100,
         )
         clans = _filter_monster_clans(
@@ -161,7 +160,7 @@ async def _load_monster_browser_context(request: Request) -> MonsterBrowserConte
         "missing_image": "1" if params.get("missing_image") == "1" else "",
     }
     try:
-        source = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT)
+        source = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT, light=True)
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
         return MonsterBrowserContext(
             clans=[],
@@ -484,7 +483,7 @@ async def _render_monster_maintenance(
     form: Any | None = None,
 ) -> Response:
     try:
-        clans = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT)
+        clans = await _api(request).list_generated(limit=_GENERATED_MONSTER_PAGE_LIMIT, light=True)
         error = ""
     except (AttributeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
         clans = []

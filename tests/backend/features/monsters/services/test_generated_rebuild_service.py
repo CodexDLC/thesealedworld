@@ -21,63 +21,68 @@ class FakeSession:
         self.deleted.append(item)
 
 
+class FakeActorRepo:
+    def __init__(self) -> None:
+        self.documents = []
+
+    async def upsert_actor_document(self, document):
+        self.documents.append(dict(document))
+        return str(document["mongo_actor_key"])
+
+
 @pytest.mark.unit
 async def test_generated_rebuild_updates_mechanics_and_preserves_existing_visual() -> None:
+    clan_id = uuid.uuid4()
     clan = GeneratedClanORM(
-        id=uuid.uuid4(),
+        id=clan_id,
         family_id="bandit_gang",
-        tier=1,
-        zone_id="zone-a",
-        biome_id="city_ruins",
+        identity_hash="b" * 32,
+        context_identity=_context_identity(tier=1),
         context_hash="a" * 32,
-        unique_hash="b" * 32,
-        raw_tags={"tags": ["bandit_gang"], "biome_id": "city_ruins", "difficulty": "mid"},
-        flavor_content={
-            "name_ru": "Bandits",
-            "description": "Bandits",
-            "variants_flavor": {},
+        selected_traits=[],
+        metadata_={
             "visual": {"image_url": "/static/generated-assets/clan.webp"},
+            "flavor_content": {"name_ru": "Bandits", "description": "Bandits", "variants_flavor": {}},
         },
-        name_ru="Bandits",
+        title="Bandits",
         description="Bandits",
+        encounter_texts={},
     )
     member_id = uuid.uuid4()
     member = GeneratedMonsterORM(
         id=member_id,
         clan_id=clan.id,
-        variant_key="bandit_thug",
+        variant_id="bandit_thug",
+        member_hash=str(member_id),
         role="minion",
-        member_tier=1,
-        threat_rating=1,
-        name_ru="Existing thug",
-        description="Existing text",
-        text_content={"appearance_ru": "Existing appearance"},
-        scaled_attributes={"strength": 1},
-        scaled_skills={},
-        items={"layout": {"equipment": {}}, "by_id": {}},
-        vitals={},
-        ai_profile={},
-        generation_meta={
+        title="Existing thug",
+        short_description="Existing text",
+        min_tier=1,
+        max_tier=7,
+        mongo_actor_key=f"actor:{clan_id}:bandit_thug:{member_id}",
+        metadata_={
             "owner_key": str(member_id),
             "visual": {"image_url": "/static/generated-assets/member.webp", "asset_hash": "old"},
         },
-        combat_actor_snapshot={},
     )
     clan.members.append(member)
     session = FakeSession()
     service = MonsterGeneratedRebuildService(session=session)
+    service.actor_repo = FakeActorRepo()
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO(force=True))
     await service._apply_clan(clan, outcome, remove_obsolete_members=True)
 
     assert member.id == member_id
-    assert member.scaled_skills
-    assert member.generation_meta["visual"] == {
+    assert member.metadata_["combat_math_version"]
+    assert member.metadata_["visual"] == {
         "image_url": "/static/generated-assets/member.webp",
         "asset_hash": "old",
     }
-    assert clan.flavor_content["visual"]["image_url"] == "/static/generated-assets/clan.webp"
-    assert session.added
+    assert member.title == "Existing thug"
+    assert clan.metadata_["visual"]["image_url"] == "/static/generated-assets/clan.webp"
+    assert clan.context_identity["gear_score_summary"]["count"] > 0
+    assert service.actor_repo.documents
 
 
 @pytest.mark.unit
@@ -87,19 +92,7 @@ async def test_generated_rebuild_uses_family_resource_version_instead_of_runtime
     initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
     clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
     changed_member = clan.members[0]
-    changed_member.items = {
-        **changed_member.items,
-        "by_id": {
-            item_id: {
-                **item,
-                "generation": {
-                    **item["generation"],
-                    "affixes": [{"affix_id": "different_runtime_roll"}],
-                },
-            }
-            for item_id, item in changed_member.items["by_id"].items()
-        },
-    }
+    changed_member.metadata_ = {**changed_member.metadata_, "runtime_noise": {"affix_id": "different_runtime_roll"}}
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
 
@@ -113,13 +106,13 @@ async def test_generated_rebuild_marks_missing_family_resource_version_as_stale(
     initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
     clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
     stale_member = clan.members[0]
-    stale_member.generation_meta = {
-        key: value for key, value in stale_member.generation_meta.items() if key != "family_resource_version"
+    stale_member.metadata_ = {
+        key: value for key, value in stale_member.metadata_.items() if key != "family_resource_version"
     }
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
 
-    assert stale_member.variant_key in outcome.changed
+    assert stale_member.variant_id in outcome.changed
 
 
 @pytest.mark.unit
@@ -129,13 +122,13 @@ async def test_generated_rebuild_marks_missing_combat_math_version_as_stale() ->
     initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
     clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
     stale_member = clan.members[0]
-    stale_member.generation_meta = {
-        key: value for key, value in stale_member.generation_meta.items() if key != "combat_math_version"
+    stale_member.metadata_ = {
+        key: value for key, value in stale_member.metadata_.items() if key != "combat_math_version"
     }
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
 
-    assert stale_member.variant_key in outcome.changed
+    assert stale_member.variant_id in outcome.changed
 
 
 @pytest.mark.unit
@@ -145,14 +138,14 @@ async def test_generated_rebuild_marks_integer_family_resource_version_as_stale_
     initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
     clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
     stale_member = clan.members[0]
-    stale_member.generation_meta = {
-        **stale_member.generation_meta,
+    stale_member.metadata_ = {
+        **stale_member.metadata_,
         "family_resource_version": 1,
     }
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
 
-    assert stale_member.variant_key in outcome.changed
+    assert stale_member.variant_id in outcome.changed
 
 
 @pytest.mark.unit
@@ -162,34 +155,31 @@ async def test_generated_rebuild_marks_previous_minor_family_resource_version_as
     initial = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
     clan.members.extend(_member_orm(member) for member in initial.expected_by_variant.values())
     stale_member = clan.members[0]
-    stale_member.generation_meta = {
-        **stale_member.generation_meta,
+    stale_member.metadata_ = {
+        **stale_member.metadata_,
         "family_resource_version": 1.1,
     }
 
     outcome = await service._plan_clan(clan, MonsterDataRebuildRequestDTO())
 
-    assert stale_member.variant_key in outcome.changed
+    assert stale_member.variant_id in outcome.changed
 
 
 def _clan(*, family_id: str, tier: int) -> GeneratedClanORM:
     return GeneratedClanORM(
         id=uuid.uuid4(),
         family_id=family_id,
-        tier=tier,
-        zone_id="zone-a",
-        biome_id="city_ruins",
+        identity_hash="b" * 32,
+        context_identity=_context_identity(tier=tier),
         context_hash="a" * 32,
-        unique_hash="b" * 32,
-        raw_tags={"tags": [family_id], "biome_id": "city_ruins", "difficulty": "mid"},
-        flavor_content={
-            "name_ru": "Generated clan",
-            "description": "Generated clan",
-            "variants_flavor": {},
+        selected_traits=[],
+        metadata_={
             "visual": {"image_url": "/static/generated-assets/clan.webp"},
+            "flavor_content": {"name_ru": "Generated clan", "description": "Generated clan", "variants_flavor": {}},
         },
-        name_ru="Generated clan",
+        title="Generated clan",
         description="Generated clan",
+        encounter_texts={},
     )
 
 
@@ -197,18 +187,28 @@ def _member_orm(member) -> GeneratedMonsterORM:
     return GeneratedMonsterORM(
         id=member.id,
         clan_id=member.clan_id,
-        variant_key=member.variant_key,
+        variant_id=member.variant_id,
+        member_hash=member.member_hash,
         role=member.role,
-        member_tier=member.member_tier,
-        threat_rating=member.threat_rating,
-        name_ru=member.name_ru,
-        description=member.description,
-        text_content=dict(member.text_content),
-        scaled_attributes=dict(member.scaled_attributes),
-        scaled_skills=dict(member.scaled_skills),
-        items=dict(member.items),
-        vitals=dict(member.vitals),
-        ai_profile=dict(member.ai_profile),
-        generation_meta=dict(member.generation_meta),
-        combat_actor_snapshot=dict(member.combat_actor_snapshot),
+        title=member.title,
+        short_description=member.short_description,
+        min_tier=member.min_tier,
+        max_tier=member.max_tier,
+        mongo_actor_key=member.mongo_actor_key,
+        metadata_=dict(member.metadata_),
     )
+
+
+def _context_identity(*, tier: int) -> dict[str, object]:
+    return {
+        "schema_version": 2,
+        "combat_math_version": "old",
+        "family_resource_version": 1,
+        "tags": ["bandit_gang"],
+        "biome_id": "city_ruins",
+        "difficulty": "mid",
+        "habitat": {"biome": "city_ruins", "keys": ["bandit_gang"]},
+        "context_meta": {},
+        "tier": tier,
+        "zone_id": "zone-a",
+    }

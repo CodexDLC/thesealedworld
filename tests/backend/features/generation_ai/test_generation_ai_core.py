@@ -51,6 +51,19 @@ class FakeRepository:
     async def find_by_identity_key(self, identity_key: str) -> FakeTask | None:
         return self.by_identity.get(identity_key)
 
+    async def prepare_existing_for_enqueue(self, task: FakeTask, *, max_attempts: int) -> FakeTask:
+        if task.status in {"failed", "cancelled"}:
+            task.status = "pending"
+            task.attempts = 0
+            task.max_attempts = max(task.max_attempts, max_attempts)
+            task.error = {}
+            task.last_error_type = None
+            task.last_error_message = None
+            self.payload_documents[task.id]["error"] = {}
+        elif task.status in {"pending", "cooldown"} and task.max_attempts < max_attempts:
+            task.max_attempts = max_attempts
+        return task
+
     async def create(self, spec: AIGenerationTaskSpecDTO, *, batch_id: str, identity_key: str) -> FakeTask:
         task_id = f"task-{len(self.by_id) + 1}"
         task = FakeTask(
@@ -389,6 +402,37 @@ async def test_enqueue_many_can_defer_arq_schedule_until_manual_commit_boundary(
 
     assert scheduled == 1
     assert arq.jobs == [(GENERATION_AI_ARQ_TASK, result.task_ids[0])]
+
+
+@pytest.mark.asyncio
+async def test_enqueue_many_requeues_failed_existing_task_with_new_attempt_budget() -> None:
+    registry = AIGenerationTaskRegistry()
+    registry.register(FakeHandler())
+    repository = FakeRepository()
+    arq = FakeArq()
+    service = GenerationAIService(repository=repository, registry=registry, arq=arq)
+    spec = _spec()
+    first = await service.enqueue_many([spec])
+    task = repository.by_id[first.task_ids[0]]
+    task.status = "failed"
+    task.attempts = 3
+    task.max_attempts = 3
+    task.error = {"type": "JSONDecodeError", "message": "empty response"}
+    task.last_error_type = "JSONDecodeError"
+    task.last_error_message = "empty response"
+    retry_spec = spec.model_copy(update={"max_attempts": 5})
+
+    second = await service.enqueue_many([retry_spec])
+
+    assert second.created == 0
+    assert second.reused == 1
+    assert second.task_ids == first.task_ids
+    assert task.status == "pending"
+    assert task.attempts == 0
+    assert task.max_attempts == 5
+    assert task.error == {}
+    assert task.last_error_type is None
+    assert arq.jobs[-1] == (GENERATION_AI_ARQ_TASK, task.id)
 
 
 @pytest.mark.asyncio

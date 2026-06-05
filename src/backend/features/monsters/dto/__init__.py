@@ -3,6 +3,7 @@ from .generated_view import (
     GearScoreSummaryDTO,
     GeneratedClanViewDTO,
     GeneratedMonstersResponseDTO,
+    GeneratedMonstersSummaryDTO,
     GeneratedMonsterViewDTO,
     PaginationDTO,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "GeneratedClan",
     "GeneratedMonster",
     "GeneratedMonstersResponseDTO",
+    "GeneratedMonstersSummaryDTO",
     "GeneratedMonsterTemplateDTO",
     "GeneratedMonsterViewDTO",
     "HabitatClanPoolEntryDTO",

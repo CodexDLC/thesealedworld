@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 MONSTER_CLAN_FLAVOR_TASK = "monster.clan_flavor"
 MONSTER_CLAN_IMAGE_TASK = "monster.clan_image"
 MONSTER_MEMBER_IMAGE_TASK = "monster.member_image"
+MONSTER_IMAGE_MAX_ATTEMPTS = 5
 
 
 class MonsterClanFlavorTaskHandler:
@@ -242,7 +243,7 @@ def build_monster_clan_image_task_spec_from_orm(clan: GeneratedClanORM) -> AIGen
         asset_hash=asset_hash,
         storage_prefix="monsters/generated/clans",
         priority=70,
-        max_attempts=3,
+        max_attempts=MONSTER_IMAGE_MAX_ATTEMPTS,
         metadata={
             "family_id": clan.family_id,
             "zone_id": (clan.context_identity or {}).get("zone_id"),
@@ -285,7 +286,7 @@ def build_monster_member_image_task_spec_from_orm(
         asset_hash=asset_hash,
         storage_prefix="monsters/generated/members",
         priority=80,
-        max_attempts=3,
+        max_attempts=MONSTER_IMAGE_MAX_ATTEMPTS,
         metadata={
             "family_id": family_id,
             "clan_id": str(member.clan_id),

@@ -18,6 +18,7 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from loguru import logger
 
 from fastapi_cabinet import include_cabinet
+from src.frontend.integrations.generated_assets import configure_generated_asset_serving
 from src.shared.infrastructure.logging_config import setup_logging
 from src.studio.cabinet import CABINET_MODULES
 from src.studio.features.shell.routes import router as shell_router
@@ -120,6 +121,10 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+
+# Generated assets must be registered before the broad /static mount. Studio
+# renders backend visual URLs directly, including S3-backed generated content.
+configure_generated_asset_serving(app, config=settings)
 
 # Mount the frontend's static dir at /static so base_cabinet.html (fonts, CSS,
 # Alpine, etc.) resolves identically to prod.

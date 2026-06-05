@@ -121,7 +121,7 @@ async def test_generation_ai_image_does_not_duplicate_no_text_contract() -> None
 
 
 @pytest.mark.asyncio
-async def test_generation_ai_image_rejects_visible_text_before_upload() -> None:
+async def test_generation_ai_image_records_visible_text_without_rejecting_upload() -> None:
     ai = _ai_with_image_result((_tiny_png(), "image/png"), visible_text=True)
     storage = FakeAssetStorage()
     executor = CodexAIExecutor(ai, asset_storage=storage)
@@ -132,20 +132,57 @@ async def test_generation_ai_image_rejects_visible_text_before_upload() -> None:
         output_kind="image",
     )
 
-    with pytest.raises(RuntimeError, match="visible text"):
-        await executor.generate(
-            task,
-            {
-                "kind": "image",
-                "prompt": "Create monster image",
-                "model": "gemini-2.5-flash-image",
-                "content_type": "image/webp",
-                "storage_key": "monsters/generated/clans/hash.webp",
-            },
-        )
+    result = await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": "Create monster image",
+            "model": "gemini-2.5-flash-image",
+            "content_type": "image/webp",
+            "storage_key": "monsters/generated/clans/hash.webp",
+        },
+    )
 
     ai.validate_generated_image_no_text.assert_awaited_once()
-    storage.put_bytes.assert_not_awaited()
+    storage.put_bytes.assert_awaited_once()
+    metadata = storage.put_bytes.await_args.kwargs["metadata"]
+    assert metadata["image_text_checked"] is True
+    assert metadata["image_text_visible"] is True
+    assert metadata["image_text_reason"] == "visible labels"
+    assert metadata["image_text_detected"] == "label"
+    assert result.storage_key == "monsters/generated/clans/hash.webp"
+
+
+@pytest.mark.asyncio
+async def test_generation_ai_image_records_text_inspection_error_without_rejecting_upload() -> None:
+    ai = _ai_with_image_result((_tiny_png(), "image/png"))
+    ai.validate_generated_image_no_text = AsyncMock(side_effect=RuntimeError("empty response"))
+    storage = FakeAssetStorage()
+    executor = CodexAIExecutor(ai, asset_storage=storage)
+    task = SimpleNamespace(
+        task_type="monster.clan_image",
+        entity_type="monster_clan",
+        entity_id="clan-1",
+        output_kind="image",
+    )
+
+    result = await executor.generate(
+        task,
+        {
+            "kind": "image",
+            "prompt": "Create monster image",
+            "model": "gemini-2.5-flash-image",
+            "content_type": "image/webp",
+            "storage_key": "monsters/generated/clans/hash.webp",
+        },
+    )
+
+    storage.put_bytes.assert_awaited_once()
+    metadata = storage.put_bytes.await_args.kwargs["metadata"]
+    assert metadata["image_text_checked"] is False
+    assert metadata["image_text_error_type"] == "RuntimeError"
+    assert metadata["image_text_error_message"] == "empty response"
+    assert result.storage_key == "monsters/generated/clans/hash.webp"
 
 
 @pytest.mark.asyncio

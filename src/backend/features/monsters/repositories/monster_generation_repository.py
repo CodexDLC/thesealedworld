@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger as log
-from sqlalchemy import delete, func, select, tuple_
+from sqlalchemy import delete, exists, func, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
+from src.backend.features.generation_ai.models import AIGenerationTask
 from src.backend.features.monsters.dto.generation import GeneratedClan, GeneratedMonster, HabitatClanPoolEntryDTO
 from src.backend.infrastructure.monsters import GeneratedClanORM, GeneratedMonsterORM, HabitatClanPoolEntryORM, Monster
 from src.backend.infrastructure.monsters.actor_documents import (  # type: ignore
@@ -151,6 +152,44 @@ class MonsterGenerationRepository:
         stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
         return int(await self.session.scalar(stmt) or 0)
 
+    async def generated_monsters_summary(self, *, family_id: str | None = None) -> dict[str, int]:
+        clan_count_stmt = select(func.count(GeneratedClanORM.id))
+        clan_count_stmt = self._filter_clans(clan_count_stmt, family_id=family_id, clan_id=None)
+        member_count_stmt = select(func.count(GeneratedMonsterORM.id))
+        if family_id:
+            member_count_stmt = member_count_stmt.join(GeneratedClanORM).where(GeneratedClanORM.family_id == family_id)
+
+        clan_image_missing = (
+            func.coalesce(
+                GeneratedClanORM.metadata_["visual"]["image_url"].as_string(),
+                "",
+            )
+            == ""
+        )
+        member_image_missing = (
+            func.coalesce(
+                GeneratedMonsterORM.metadata_["visual"]["image_url"].as_string(),
+                "",
+            )
+            == ""
+        )
+        missing_member_exists = exists(
+            select(GeneratedMonsterORM.id).where(
+                GeneratedMonsterORM.clan_id == GeneratedClanORM.id,
+                member_image_missing,
+            )
+        )
+        missing_clans_stmt = select(func.count(GeneratedClanORM.id)).where(
+            or_(clan_image_missing, missing_member_exists)
+        )
+        missing_clans_stmt = self._filter_clans(missing_clans_stmt, family_id=family_id, clan_id=None)
+
+        return {
+            "clans": int(await self.session.scalar(clan_count_stmt) or 0),
+            "members": int(await self.session.scalar(member_count_stmt) or 0),
+            "missing_images": int(await self.session.scalar(missing_clans_stmt) or 0),
+        }
+
     async def list_generated_clans_page(
         self,
         *,
@@ -158,17 +197,90 @@ class MonsterGenerationRepository:
         clan_id: uuid.UUID | str | None = None,
         limit: int = 25,
         offset: int = 0,
+        include_members: bool = True,
     ) -> list[GeneratedClan]:
         stmt = (
             select(GeneratedClanORM)
-            .options(selectinload(GeneratedClanORM.members))
             .order_by(GeneratedClanORM.family_id, GeneratedClanORM.identity_hash, GeneratedClanORM.id)
             .limit(limit)
             .offset(offset)
         )
+        if include_members:
+            stmt = stmt.options(selectinload(GeneratedClanORM.members))
         stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
         result = await self.session.scalars(stmt)
-        return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
+        if include_members:
+            return [await self._to_generated_clan_with_actors(clan) for clan in result.all()]
+        return [_to_generated_clan(clan) for clan in result.all()]
+
+    async def list_generated_clans_page_light(
+        self,
+        *,
+        family_id: str | None = None,
+        clan_id: uuid.UUID | str | None = None,
+        limit: int = 25,
+        offset: int = 0,
+        include_members: bool = True,
+    ) -> list[GeneratedClan]:
+        stmt = (
+            select(GeneratedClanORM)
+            .order_by(GeneratedClanORM.family_id, GeneratedClanORM.identity_hash, GeneratedClanORM.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        if include_members:
+            stmt = stmt.options(selectinload(GeneratedClanORM.members))
+        stmt = self._filter_clans(stmt, family_id=family_id, clan_id=clan_id)
+        result = await self.session.scalars(stmt)
+        rows = list(result.all())
+        clans = [_to_generated_clan(clan) for clan in rows]
+        if not include_members:
+            return clans
+        rows_by_id = {row.id: row for row in rows}
+        for clan in clans:
+            row_members = list(getattr(rows_by_id[clan.id], "members", []) or [])
+            clan.members.extend([_to_generated_monster_light(member, clan=clan) for member in row_members])
+        return clans
+
+    async def list_latest_visual_generation_tasks(
+        self,
+        *,
+        entity_ids: set[str],
+        asset_hashes: set[str],
+    ) -> dict[str, dict[str, Any]]:
+        if not entity_ids and not asset_hashes:
+            return {}
+        conditions = []
+        if entity_ids:
+            conditions.append(AIGenerationTask.entity_id.in_(entity_ids))
+        if asset_hashes:
+            conditions.append(AIGenerationTask.asset_hash.in_(asset_hashes))
+        stmt = (
+            select(AIGenerationTask)
+            .where(
+                AIGenerationTask.task_type.in_(("monster.clan_image", "monster.member_image")),
+                or_(*conditions),
+            )
+            .order_by(AIGenerationTask.created_at.desc())
+        )
+        result = await self.session.scalars(stmt)
+        tasks: dict[str, dict[str, Any]] = {}
+        for task in result.all():
+            payload = {
+                "task_id": task.id,
+                "status": task.status,
+                "attempts": int(task.attempts or 0),
+                "max_attempts": int(task.max_attempts or 0),
+                "storage_key": task.storage_key or "",
+                "generated_url": task.generated_url or "",
+                "asset_hash": task.asset_hash or "",
+                "error_type": task.last_error_type or "",
+                "error_message": task.last_error_message or "",
+            }
+            tasks.setdefault(f"entity:{task.entity_id}", payload)
+            if task.asset_hash:
+                tasks.setdefault(f"asset:{task.asset_hash}", payload)
+        return tasks
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         stmt = (
@@ -363,6 +475,37 @@ def _to_generated_monster(
         mongo_actor_key=monster.mongo_actor_key,
         actor_document=dict(actor_document),
         active_snapshot=active_snapshot,
+        metadata_=dict(monster.metadata_ or {}),
+        context=dict(monster.context or {}),
+        source_context=dict(monster.source_context or {}),
+        lifecycle_status=str(monster.lifecycle_status or "active"),
+        archived_at=monster.archived_at,
+        expires_at=monster.expires_at,
+        schema_version=int(monster.schema_version or 1),
+        created_at=monster.created_at,
+        updated_at=monster.updated_at,
+        clan=clan,
+    )
+
+
+def _to_generated_monster_light(
+    monster: GeneratedMonsterORM,
+    *,
+    clan: GeneratedClan | None = None,
+) -> GeneratedMonster:
+    return GeneratedMonster(
+        id=monster.id,
+        clan_id=monster.clan_id,
+        variant_id=monster.variant_id,
+        member_hash=monster.member_hash,
+        role=monster.role,
+        title=monster.title,
+        short_description=monster.short_description,
+        min_tier=int(monster.min_tier),
+        max_tier=int(monster.max_tier),
+        mongo_actor_key=monster.mongo_actor_key,
+        actor_document={},
+        active_snapshot={},
         metadata_=dict(monster.metadata_ or {}),
         context=dict(monster.context or {}),
         source_context=dict(monster.source_context or {}),

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from src.backend.core.database import get_db
 from src.backend.features.monsters.dto.generated_view import (
     GeneratedMonstersResponseDTO,
+    GeneratedMonstersSummaryDTO,
     MonsterAIRegenerationResponseDTO,
     MonsterDataRebuildRequestDTO,
     MonsterDataRebuildResponseDTO,
@@ -58,6 +59,7 @@ async def get_generated_monsters(
     clan_id: str | None = None,
     role: str | None = None,
     include_members: bool = True,
+    light: bool = False,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GeneratedMonstersResponseDTO:
@@ -66,9 +68,18 @@ async def get_generated_monsters(
         clan_id=clan_id,
         role=role,
         include_members=include_members,
+        light=light,
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/generated/summary", response_model=GeneratedMonstersSummaryDTO)
+async def get_generated_monsters_summary(
+    service: Annotated[GeneratedMonsterViewService, Depends(get_generated_monster_view_service)],
+    family_id: str | None = None,
+) -> GeneratedMonstersSummaryDTO:
+    return await service.summary(family_id=family_id)
 
 
 @router.post("/generated/rebuild/plan", response_model=MonsterDataRebuildResponseDTO)

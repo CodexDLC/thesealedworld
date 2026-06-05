@@ -16,6 +16,12 @@ Full layer changelogs live in:
 
 - Prepares the `0.3.0` rollout for a clean game/chat persistence reset: production infra now includes authenticated MongoDB and generated monster content can be restored from a backend snapshot without regenerating S3 images.
 
+### Release Readiness
+
+- Restores the full CI gate for the `0.3.0` migration branch, including updated generated-monster DTO compatibility, current combat catalog expectations, and cabinet route compatibility.
+- Makes Dockerfile linting resilient on local machines without a running Docker daemon while preserving hadolint execution when Docker is available.
+- Cleans MkDocs navigation and repository-link warnings so the documentation build only reports third-party deprecation notices.
+
 ## [v0.2.1a2] - Alpha 0.2.1a2
 
 ### Runtime

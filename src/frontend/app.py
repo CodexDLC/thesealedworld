@@ -23,6 +23,7 @@ from starlette.requests import Request
 from fastapi_cabinet import include_cabinet
 from src.frontend.cabinet import CABINET_MODULES
 from src.frontend.config.settings import settings
+from src.frontend.core.csrf import CsrfMiddleware
 from src.frontend.core.database.session import close_db_engine, create_db_tables
 from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddleware
 from src.frontend.core.renderer import get_ui_renderer
@@ -185,6 +186,7 @@ if settings.frontend_surface in PLAY_SURFACES:
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CsrfMiddleware)
 include_frontend_routers(app, surface=settings.frontend_surface)
 if settings.frontend_surface in SITE_SURFACES:
     include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")

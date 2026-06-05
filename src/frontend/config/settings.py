@@ -34,6 +34,9 @@ class FrontendSettings(BaseCommonSettings):
     auth_cookie_secure: bool = False
     auth_user_cache_ttl_seconds: int = 30 * 60
     enable_email_verification: bool = False
+    csrf_cookie_name: str = "tbmmorpg_csrf"
+    csrf_header_name: str = "X-CSRF-Token"
+    csrf_field_name: str = "csrf_token"
     site_database_url: str = (
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_site"  # pragma: allowlist secret
     )

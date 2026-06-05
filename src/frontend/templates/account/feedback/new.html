@@ -10,6 +10,7 @@
             {% endif %}
 
             <form method="post" action="/account/feedback/new" class="feedback-form">
+                {% include "site/includes/csrf_field.html" %}
                 <div class="feedback-field">
                     <label class="account-profile-label">Тип</label>
                     <select name="type" required>

@@ -10,6 +10,7 @@
             {% endif %}
 
             <form method="post" action="/survey/{{ token }}" class="feedback-form">
+                {% include "site/includes/csrf_field.html" %}
                 {% for q in questions %}
                 <div class="feedback-field">
                     <label class="account-profile-label">{{ q.text }}</label>

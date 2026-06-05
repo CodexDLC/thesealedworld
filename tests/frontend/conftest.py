@@ -26,5 +26,13 @@ def app(monkeypatch: pytest.MonkeyPatch) -> Any:
 def client(app: Any) -> Any:
     from fastapi.testclient import TestClient
 
+    from src.frontend.config.settings import settings
+
     with TestClient(app) as c:
+        # Bootstrap a CSRF cookie once; CsrfMiddleware will validate the same
+        # token on every unsafe request, so we mirror it into the default header.
+        c.get("/health")
+        token = c.cookies.get(settings.csrf_cookie_name) or ""
+        if token:
+            c.headers[settings.csrf_header_name] = token
         yield c

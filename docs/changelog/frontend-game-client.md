@@ -14,6 +14,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 - Refresh tokens are stored only as `sha256` hashes (`site.auth_refresh_tokens.token_hash`); plaintext column was removed in migration `0002_security_baseline`.
 - Frontend now sends baseline security headers on every response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`).
 - `/account` redirect to `/account/profile` now returns `303 See Other` instead of `307`, so any future POST traffic is not silently replayed.
+- Every browser request now goes through a double-submit CSRF middleware: an `X-CSRF-Token` cookie is issued on first response, mirrored in a `<meta name="csrf-token">` tag and a hidden `csrf_token` field in every POST form, and validated on unsafe methods against either the header or the form field. The `/static`, `/auth`, `/metrics`, `/health` and `/favicon.ico` paths are exempt because they either serve assets or use Bearer-token auth.
+- A small `/static/js/csrf.js` shim auto-attaches the token to `fetch` and HTMX requests so SPA-style AJAX needs no per-call changes.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

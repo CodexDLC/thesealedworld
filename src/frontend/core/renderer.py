@@ -35,11 +35,16 @@ class UIRenderer:
             "access_token": get_game_access_token(self.request) or get_access_token(self.request) or "",
             "site_access_token": get_access_token(self.request) or "",
             "game_access_token": get_game_access_token(self.request) or "",
+            "site_home_url": _absolute_url("/", _site_base_url(self.request)),
+            "site_close_url": _site_close_url(self.request),
             "static_version": _static_version(),
             "is_htmx": "HX-Request" in self.request.headers,
             "google_tag_manager_id": settings.google_tag_manager_id,
             "google_analytics_id": settings.google_analytics_id,
             "google_site_verification": settings.google_site_verification,
+            "csrf_token": getattr(self.request.state, "csrf_token", ""),
+            "csrf_field_name": settings.csrf_field_name,
+            "csrf_header_name": settings.csrf_header_name,
         }
 
         # 2. Dynamic Game Menu (if domain is provided in context)
@@ -135,6 +140,13 @@ def _site_base_url(request: Request) -> str:
         domain_name=str(getattr(settings, "domain_name", "") or ""),
         request_base_url=str(getattr(request, "base_url", "http://testserver/")),
     )
+
+
+def _site_close_url(request: Request) -> str:
+    host = str(getattr(getattr(request, "url", None), "hostname", "") or "")
+    if host.startswith("play."):
+        return _absolute_url("/", _site_base_url(request))
+    return "/"
 
 
 def _request_path(request: Request) -> str:

@@ -9,6 +9,7 @@
     </label>
 
     <form id="character-creation-form" class="creation-center" action="/game-lobby/start" method="post" @submit.prevent="submitCreation($event)">
+        {% include "site/includes/csrf_field.html" %}
         <label class="creation-field">
             <span>Имя персонажа</span>
             <input

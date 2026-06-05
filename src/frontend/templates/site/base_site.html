@@ -17,13 +17,18 @@
     <style>[x-cloak] { display: none !important; }</style>
 
     <!-- Site state factories must load before Alpine initializes x-data. -->
+    <script src="/static/js/csrf.js?v={{ static_version }}" defer></script>
     <script src="/static/js/site.js?v={{ static_version }}" defer></script>
     <script src="/static/js/vendor/alpine.js" defer></script>
 </head>
 <body class="site-body {% block body_class %}{% endblock body_class %}">
     {% include "shared/analytics_body.html" %}
     <div x-data="{ authModal: null }" style="display: contents;">
-        {% include "site/includes/login_modal.html" %}
+        {% block auth_modal %}
+        {% if not auth_overlay_open %}
+            {% include "site/includes/login_modal.html" %}
+        {% endif %}
+        {% endblock auth_modal %}
 
         <div id="app-viewport">
             {% block header %}

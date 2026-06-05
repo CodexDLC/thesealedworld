@@ -26,7 +26,7 @@
                 <a href="/news" class="nav-link {% if request.path == '/news' %}active{% endif %}">Новости</a>
                 <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">О проекте</a>
                 {% if user %}
-                    <a href="/game-lobby" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Лобби</a>
+                    <a href="/play" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Лобби</a>
                 {% endif %}
             </div>
         </nav>
@@ -57,13 +57,14 @@
                             <span>Admin</span>
                         </a>
                         {% endif %}
-                        <a href="/game-lobby" class="site-account-item">
+                        <a href="/play" class="site-account-item">
                             <span class="site-account-item-icon" aria-hidden="true">
                                 <img src="/static/images/ui/service-icons/portal.svg" alt="">
                             </span>
                             <span>Лобби</span>
                         </a>
                         <form action="/logout" method="post">
+                            {% include "site/includes/csrf_field.html" %}
                             <button type="submit" class="site-account-item site-account-item--danger">
                                 <span class="site-account-item-icon" aria-hidden="true">↯</span>
                                 <span>Выйти</span>
@@ -90,7 +91,7 @@
         <a href="/about">О проекте</a>
         {% if user %}
             <span class="site-mobile-identity">{{ user.email }}</span>
-            <a href="/game-lobby">Лобби</a>
+            <a href="/play">Лобби</a>
         {% else %}
             <button type="button" @click="authModal = 'login'; menuOpen = false">Войти</button>
         {% endif %}

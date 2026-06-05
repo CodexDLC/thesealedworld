@@ -18,6 +18,7 @@
 
     {% block extra_head %}{% endblock extra_head %}
     <style>[x-cloak] { display: none !important; }</style>
+    <script src="/static/js/csrf.js?v={{ static_version }}" defer></script>
 </head>
 <body class="cabinet-body account-body">
     <div id="app-viewport">
@@ -31,8 +32,9 @@
                     {% endif %}
                 </nav>
                 <div class="account-header-actions">
-                    <a href="/game-lobby" class="btn-node sm"><span>В игру</span></a>
+                    <a href="/play" class="btn-node sm"><span>В игру</span></a>
                     <form method="post" action="/logout" style="display:inline">
+                        {% include "site/includes/csrf_field.html" %}
                         <button type="submit" class="btn-node ghost sm"><span>Выйти</span></button>
                     </form>
                 </div>

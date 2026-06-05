@@ -72,6 +72,7 @@
             </div>
             <div class="lobby-slot-actions">
                 <form action="/game-lobby/enter" method="post">
+                    {% include "site/includes/csrf_field.html" %}
                     <input type="hidden" name="character_id" value="{{ initial.slot.character_id if initial.slot else '' }}" :value="selectedCharacterId">
                     <button class="btn-node" type="submit" :disabled="selectedSlot === null || selectedEmpty">
                         <span>Играть</span>
@@ -86,6 +87,7 @@
                     <span>Создать</span>
                 </button>
                 <form action="/game-lobby/delete" method="post" x-ref="deleteForm" @submit.prevent="confirmDelete()">
+                    {% include "site/includes/csrf_field.html" %}
                     <input type="hidden" name="character_id" value="{{ initial.slot.character_id if initial.slot else '' }}" :value="selectedCharacterId">
                     <input type="hidden" name="confirm_name" x-ref="confirmName">
                     <button

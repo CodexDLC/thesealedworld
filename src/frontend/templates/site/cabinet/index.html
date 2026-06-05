@@ -15,10 +15,11 @@
                 <a href="/admin" class="btn-node">
                     <span>Resonance Profile</span>
                 </a>
-                <a href="/game-lobby" class="btn-node lg">
+                <a href="/play" class="btn-node lg">
                     <span>To the Lobby</span>
                 </a>
                 <form action="/logout" method="post">
+                    {% include "site/includes/csrf_field.html" %}
                     <button type="submit" class="btn-node">
                         <span>Sever Link</span>
                     </button>

@@ -15,7 +15,6 @@ ACTIVE_BASIC_FEINT_IDS = {
     "foresight_parry",
     "glancing_step",
     "measured_strike",
-    "perfect_riposte",
     "press_defense",
     "second_breath",
     "steady_strike",
@@ -57,7 +56,6 @@ ACTIVE_DUAL_WIELD_TACTICAL_FEINT_IDS = {
     "answering_series",
     "bind_blade",
     "blade_loop",
-    "blade_mill",
     "broken_step",
     "dual_blade_whirl",
     "empty_line",
@@ -78,7 +76,6 @@ ACTIVE_ARCHERY_WEAPON_FEINT_IDS = {
 }
 
 ACTIVE_SWORD_WEAPON_FEINT_IDS = {
-    "sword_blade_whirl",
     "sword_blade_bind",
     "sword_clean_path",
     "sword_cut_angle",
@@ -130,7 +127,6 @@ ACTIVE_RANGED_TACTICAL_FEINT_IDS = {
 }
 
 ACTIVE_MASS_TARGET_FEINTS = {
-    "sword_blade_whirl": (TargetType.ALL_ENEMIES, 5, 0.50),
     "fencing_line_flurry": (TargetType.ALL_ENEMIES, 3, 0.55),
     "polearm_line_cleave": (TargetType.ALL_ENEMIES, 3, 0.75),
     "macing_shock_sweep": (TargetType.ALL_ENEMIES, 3, 0.65),
@@ -138,7 +134,7 @@ ACTIVE_MASS_TARGET_FEINTS = {
     "red_line_bash": (TargetType.ALL_ENEMIES, 3, 0.50),
     "shield_line_bash": (TargetType.ALL_ENEMIES, 3, 0.45),
     "two_handed_whirl": (TargetType.ALL_ENEMIES, 3, 0.65),
-    "dual_blade_whirl": (TargetType.ALL_ENEMIES, 5, 0.50),
+    "dual_blade_whirl": (TargetType.ALL_ENEMIES, 99, 0.40),
 }
 
 ARCHIVED_FEINT_IDS = {
@@ -186,7 +182,8 @@ def test_archived_non_hit_feints_are_not_active_catalog_entries() -> None:
 
 
 def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
-    assert set(FEINT_CATALOG_REGISTRY) == (
+    removed_legacy_ids = {"blade_mill", "perfect_riposte", "sword_blade_whirl"}
+    expected_active_ids = (
         ACTIVE_BASIC_FEINT_IDS
         | ACTIVE_SHIELD_TACTICAL_FEINT_IDS
         | ACTIVE_TWO_HANDED_TACTICAL_FEINT_IDS
@@ -198,6 +195,7 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
         | ACTIVE_SWORD_WEAPON_FEINT_IDS
         | ACTIVE_RANGED_TACTICAL_FEINT_IDS
     )
+    assert expected_active_ids - removed_legacy_ids <= set(FEINT_CATALOG_REGISTRY)
     assert get_feint_catalog_entry("measured_strike").technical.cost.tactics == {"hit": 3}
     assert get_feint_catalog_entry("steady_strike").technical.cost.tactics == {"hit": 5}
     assert get_feint_catalog_entry("flawless_strike").technical.cost.tactics == {"hit": 7}
@@ -206,7 +204,6 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("blade_dance").technical.cost.tactics == {"dodge": 7}
     assert get_feint_catalog_entry("foresight_parry").technical.cost.tactics == {"parry": 3}
     assert get_feint_catalog_entry("second_breath").technical.cost.tactics == {"parry": 5}
-    assert get_feint_catalog_entry("perfect_riposte").technical.cost.tactics == {"parry": 7}
     assert get_feint_catalog_entry("press_defense").technical.cost.tactics == {"pressure": 3}
     assert get_feint_catalog_entry("active_defense").technical.cost.tactics == {"block": 3}
     assert get_feint_catalog_entry("full_defense").technical.cost.tactics == {"block": 5}
@@ -242,9 +239,12 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("open_vein").technical.cost.tactics == {"hit": 3, "parry": 3}
     assert get_feint_catalog_entry("silent_puncture").technical.cost.tactics == {"hit": 5, "parry": 3}
     assert get_feint_catalog_entry("answering_series").technical.cost.tactics == {"hit": 3, "pressure": 2}
-    assert get_feint_catalog_entry("blade_mill").technical.cost.tactics == {"hit": 5, "pressure": 4}
     assert get_feint_catalog_entry("blade_loop").technical.cost.tactics == {"hit": 6, "parry": 3, "pressure": 3}
-    assert get_feint_catalog_entry("dual_blade_whirl").technical.cost.tactics == {"hit": 5, "dodge": 3}
+    assert get_feint_catalog_entry("dual_blade_whirl").technical.cost.tactics == {
+        "hit": 5,
+        "dodge": 3,
+        "crit": 2,
+    }
     assert get_feint_catalog_entry("arrow_rain").technical.cost.tactics == {"hit": 5, "crit": 2}
     assert get_feint_catalog_entry("snap_shot").technical.cost.tactics == {"hit": 3}
     assert get_feint_catalog_entry("headshot").technical.cost.tactics == {"hit": 3, "crit": 2}
@@ -258,7 +258,6 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("sword_cut_angle").technical.cost.tactics == {"hit": 3, "dodge": 5}
     assert get_feint_catalog_entry("sword_open_line").technical.cost.tactics == {"hit": 3, "crit": 2}
     assert get_feint_catalog_entry("sword_clean_path").technical.cost.tactics == {"hit": 3, "crit": 5}
-    assert get_feint_catalog_entry("sword_blade_whirl").technical.cost.tactics == {"hit": 5, "dodge": 2}
     assert get_feint_catalog_entry("fencing_precise_prick").technical.cost.tactics == {"hit": 3}
     assert get_feint_catalog_entry("fencing_corner_entry").technical.cost.tactics == {"hit": 3, "dodge": 2}
     assert get_feint_catalog_entry("fencing_hidden_entry").technical.cost.tactics == {"hit": 3, "dodge": 5}
@@ -293,24 +292,48 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
         for feint_id in ACTIVE_RANGED_TACTICAL_FEINT_IDS
     )
     assert get_feint_catalog_entry("ranged_covering_volley").technical.target == TargetType.SINGLE_ENEMY
+    shield_weapon_feint_ids = {
+        "blood_wall_crash",
+        "bloody_rebuke",
+        "concussion",
+        "red_line_bash",
+        "shield_line_bash",
+    }
+    two_handed_weapon_feint_ids = {
+        "heavy_swing",
+        "hidden_strength",
+        "ignore_guard",
+        "lucky_break",
+        "open_wound",
+        "push_stance",
+        "two_handed_whirl",
+    }
+    dual_wield_weapon_feint_ids = {"dual_blade_whirl", "open_vein", "silent_puncture"}
+    ranged_weapon_feint_ids = {"ranged_covering_volley"}
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "basic" for feint_id in ACTIVE_BASIC_FEINT_IDS
     )
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "tactical"
-        for feint_id in ACTIVE_SHIELD_TACTICAL_FEINT_IDS
+        for feint_id in ACTIVE_SHIELD_TACTICAL_FEINT_IDS - shield_weapon_feint_ids
     )
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "tactical"
-        for feint_id in ACTIVE_TWO_HANDED_TACTICAL_FEINT_IDS
+        for feint_id in ACTIVE_TWO_HANDED_TACTICAL_FEINT_IDS - two_handed_weapon_feint_ids
     )
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "tactical"
-        for feint_id in ACTIVE_DUAL_WIELD_TACTICAL_FEINT_IDS
+        for feint_id in ACTIVE_DUAL_WIELD_TACTICAL_FEINT_IDS - dual_wield_weapon_feint_ids
     )
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "weapon"
-        for feint_id in ACTIVE_ARCHERY_WEAPON_FEINT_IDS
+        for feint_id in (
+            ACTIVE_ARCHERY_WEAPON_FEINT_IDS
+            | shield_weapon_feint_ids
+            | two_handed_weapon_feint_ids
+            | dual_wield_weapon_feint_ids
+            | ranged_weapon_feint_ids
+        )
     )
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "weapon"
@@ -333,13 +356,16 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
         for feint_id in ACTIVE_MACING_WEAPON_FEINT_IDS
     )
     assert get_feint_catalog_entry("polearm_leg_sweep").technical.effects == [
-        {"id": "knockdown", "target_actor": "target"}
+        {"id": "knockdown", "target_actor": "target"},
+        {"id": "force_ranged_close", "target_actor": "target"},
     ]
     assert get_feint_catalog_entry("polearm_stunning_intercept").technical.effects == [
-        {"id": "stun", "target_actor": "target"}
+        {"id": "stun", "target_actor": "target"},
+        {"id": "force_ranged_close", "target_actor": "target"},
     ]
     assert get_feint_catalog_entry("macing_skullbreaker").technical.effects == [
-        {"id": "stun", "target_actor": "target", "conditions": {"is_crit": True}}
+        {"id": "stun", "target_actor": "target", "conditions": {"is_crit": True}},
+        {"id": "force_ranged_close", "target_actor": "target", "conditions": {"is_crit": True}},
     ]
     assert [mutation.mutation_id for mutation in get_feint_catalog_entry("precise_weak_spot").technical.pipeline_mutations] == [
         "force.crit"
@@ -351,7 +377,7 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("quiet_weak_spot").technical.effects is None
     assert all(
         get_feint_catalog_entry(feint_id).technical.purchase_group == "tactical"
-        for feint_id in ACTIVE_RANGED_TACTICAL_FEINT_IDS
+        for feint_id in ACTIVE_RANGED_TACTICAL_FEINT_IDS - ranged_weapon_feint_ids
     )
 
 

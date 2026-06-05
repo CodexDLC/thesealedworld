@@ -317,6 +317,46 @@ class GeneratedMonster:
     def family_id(self) -> str | None:
         return self.clan.family_id if self.clan else None
 
+    @property
+    def variant_key(self) -> str:
+        return self.variant_id
+
+    @property
+    def name_ru(self) -> str:
+        return self.title
+
+    @property
+    def description(self) -> str:
+        return self.short_description
+
+    @property
+    def scaled_attributes(self) -> dict[str, Any]:
+        return dict(self.active_snapshot.get("scaled_attributes") or {})
+
+    @property
+    def scaled_skills(self) -> dict[str, Any]:
+        return dict(self.active_snapshot.get("scaled_skills") or {})
+
+    @property
+    def threat_rating(self) -> int:
+        return _int(self.active_snapshot.get("threat_rating"), default=1)
+
+    @property
+    def items(self) -> dict[str, Any]:
+        return dict(self.active_snapshot.get("items") or {})
+
+    @property
+    def vitals(self) -> dict[str, Any]:
+        return dict(self.active_snapshot.get("vitals") or {})
+
+    @property
+    def ai_profile(self) -> dict[str, Any]:
+        return dict(self.active_snapshot.get("ai_profile") or {})
+
+    @property
+    def generation_meta(self) -> dict[str, Any]:
+        return dict(self.metadata_)
+
 
 @dataclass(slots=True)
 class GeneratedClan:
@@ -342,11 +382,37 @@ class GeneratedClan:
     updated_at: datetime | None = None
     members: list[GeneratedMonster] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        for member in self.members:
+            member.clan = self
+
     @property
-    def zone_id(self) -> str | None:
-        value = self.context_identity.get("zone_id")
-        return str(value) if value else None
+    def tier(self) -> int:
+        return _int(self.context_identity.get("tier"))
+
+    @property
+    def zone_id(self) -> str:
+        return str(self.context_identity.get("zone_id") or "")
 
     @property
     def unique_hash(self) -> str:
         return self.identity_hash
+
+    @property
+    def raw_tags(self) -> dict[str, Any]:
+        return dict(self.context_identity)
+
+    @property
+    def flavor_content(self) -> dict[str, Any]:
+        return dict(self.metadata_.get("flavor_content") or {})
+
+    @property
+    def name_ru(self) -> str:
+        return self.title
+
+
+def _int(value: Any, *, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default

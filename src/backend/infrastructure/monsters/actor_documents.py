@@ -30,6 +30,10 @@ class UnsupportedGeneratedMonsterActorSchemaError(GeneratedMonsterActorDocumentE
     pass
 
 
+MissingGeneratedMonsterActorDocument = MissingGeneratedMonsterActorDocumentError
+MissingGeneratedMonsterTierSnapshot = MissingGeneratedMonsterTierSnapshotError
+
+
 class GeneratedMonsterActorRepository:
     """Mongo repository for generated monster actor documents and tier snapshots."""
 
@@ -170,7 +174,9 @@ __all__ = [
     "GENERATED_MONSTER_ACTORS_COLLECTION",
     "GeneratedMonsterActorDocumentError",
     "GeneratedMonsterActorRepository",
+    "MissingGeneratedMonsterActorDocument",
     "MissingGeneratedMonsterActorDocumentError",
+    "MissingGeneratedMonsterTierSnapshot",
     "MissingGeneratedMonsterTierSnapshotError",
     "UnsupportedGeneratedMonsterActorSchemaError",
 ]

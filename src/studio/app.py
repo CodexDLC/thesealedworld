@@ -9,6 +9,7 @@ analytical modules are added one PR at a time per the migration plan.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI
@@ -124,7 +125,7 @@ app = FastAPI(
 
 # Generated assets must be registered before the broad /static mount. Studio
 # renders backend visual URLs directly, including S3-backed generated content.
-configure_generated_asset_serving(app, config=settings)
+configure_generated_asset_serving(app, config=cast("Any", settings))
 
 # Mount the frontend's static dir at /static so base_cabinet.html (fonts, CSS,
 # Alpine, etc.) resolves identically to prod.

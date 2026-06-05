@@ -126,7 +126,7 @@ class FamilyPressureSimulator:
     ) -> None:
         self.imprint_builder = imprint_builder or StartingImprintSimulationActorBuilder()
         self.monster_builder = monster_builder or MonsterCombatActorInputBuilder()
-        self.gear_scores = gear_scores or MonsterGearScoreService(self.monster_builder)
+        self.gear_scores = gear_scores or MonsterGearScoreService()
         self.simulator = simulator or LiveInMemoryCombatSimulator(
             timing=LiveSimulationTiming(tick_interval_seconds=0, timeout_ticks=8)
         )

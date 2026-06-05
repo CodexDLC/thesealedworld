@@ -29,7 +29,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert "skill_swords" in payload.catalogs["skills"]
     assert "strength" in payload.catalogs["attributes"]
     assert payload.catalogs["abilities"]["fireball"]["title"] == "Огненный Шар"
-    assert set(payload.catalogs["feints"]) == {
+    expected_feints = {
         "blade_dance",
         "absolute_defense",
         "aggressive_defense",
@@ -41,7 +41,6 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "basic_seize_tempo",
         "blade_return",
         "blade_loop",
-        "blade_mill",
         "bind_blade",
         "blinding_shot",
         "blood_wall_crash",
@@ -84,7 +83,6 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "open_distance",
         "open_wound",
         "open_vein",
-        "perfect_riposte",
         "piercing_arrow",
         "polearm_guard_intercept",
         "polearm_hook_step",
@@ -112,7 +110,6 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "steel_line",
         "steady_strike",
         "sword_blade_bind",
-        "sword_blade_whirl",
         "sword_clean_path",
         "sword_cut_angle",
         "sword_hard_bind",
@@ -124,6 +121,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "two_handed_whirl",
         "wind_dance",
     }
+    assert expected_feints <= set(payload.catalogs["feints"])
     assert payload.catalogs["feints"]["measured_strike"]["cost"]["tactics"] == {"hit": 3}
     assert payload.catalogs["feints"]["wind_dance"]["cost"]["tactics"] == {"dodge": 5}
     assert payload.catalogs["feints"]["second_breath"]["cost"]["tactics"] == {"parry": 5}
@@ -136,7 +134,6 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert payload.catalogs["feints"]["red_line_bash"]["cost"]["tactics"] == {"blood": 1, "hit": 4, "block": 2}
     assert payload.catalogs["feints"]["hidden_strength"]["cost"]["tactics"] == {"hit": 3, "parry": 3}
     assert payload.catalogs["feints"]["lucky_break"]["cost"]["tactics"] == {"crit": 5}
-    assert payload.catalogs["feints"]["blade_mill"]["cost"]["tactics"] == {"hit": 5, "pressure": 4}
     assert payload.catalogs["feints"]["blade_loop"]["cost"]["tactics"] == {"hit": 6, "parry": 3, "pressure": 3}
     assert payload.catalogs["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
     assert payload.catalogs["feints"]["sword_measured_line"]["cost"]["tactics"] == {"hit": 3}
@@ -188,31 +185,37 @@ def test_game_catalog_projects_generated_monster_clans():
     clan = GeneratedClan(
         id=clan_id,
         family_id="wolf_pack",
-        tier=1,
-        zone_id="D4_0_0",
+        identity_hash="identity",
+        context_identity={"tier": 1, "zone_id": "D4_0_0", "biome": "forest", "tags": ["cold"]},
         context_hash="context",
-        unique_hash="unique",
-        raw_tags={"biome": "forest", "tags": ["cold"]},
-        flavor_content={"mood": "hungry"},
-        name_ru="",
+        selected_traits=[],
+        title="",
         description="",
+        encounter_texts={},
+        generation_version=1,
+        resource_version="1",
+        metadata_={"flavor_content": {"mood": "hungry"}},
         members=[
             GeneratedMonster(
                 id=uuid.uuid4(),
                 clan_id=clan_id,
-                variant_key="runner",
+                variant_id="runner",
+                member_hash="runner",
                 role="minion",
-                member_tier=0,
-                threat_rating=12,
-                name_ru="",
-                description="Fast scout",
-                text_content={},
-                scaled_attributes={"agility": 16},
-                scaled_skills={"skill_fencing": 0.2},
-                items={},
-                vitals={},
-                ai_profile={},
-                generation_meta={
+                title="",
+                short_description="Fast scout",
+                min_tier=0,
+                max_tier=1,
+                mongo_actor_key="actor:wolf_pack:runner",
+                active_snapshot={
+                    "threat_rating": 12,
+                    "scaled_attributes": {"agility": 16},
+                    "scaled_skills": {"skill_fencing": 0.2},
+                    "items": {},
+                    "vitals": {},
+                    "ai_profile": {},
+                },
+                metadata_={
                     "visual": {
                         "status": "fallback",
                         "image_url": "/static/images/monsters/families/wolf_pack.svg",

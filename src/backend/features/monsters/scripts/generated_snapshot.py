@@ -130,20 +130,20 @@ async def export_snapshot(root: Path) -> dict[str, Any]:
 
     counts: dict[str, int] = {}
     async with get_manual_session_context() as session:
-        for spec in SQL_TABLES:
-            rows = await session.scalars(select(spec.model).order_by(*_order_columns(spec)))
+        for sql_spec in SQL_TABLES:
+            rows = await session.scalars(select(sql_spec.model).order_by(*_order_columns(sql_spec)))
             payloads = [_model_to_payload(row) for row in rows.all()]
-            _write_jsonl(root / SQL_DIR / f"{spec.name}.jsonl", payloads)
-            counts[f"sql.{spec.name}"] = len(payloads)
+            _write_jsonl(root / SQL_DIR / f"{sql_spec.name}.jsonl", payloads)
+            counts[f"sql.{sql_spec.name}"] = len(payloads)
 
     database = get_mongo_provider().database()
-    for spec in MONGO_COLLECTIONS:
+    for mongo_spec in MONGO_COLLECTIONS:
         documents: list[dict[str, Any]] = []
-        cursor = database[spec.name].find({}).sort("_id", 1)
+        cursor = database[mongo_spec.name].find({}).sort("_id", 1)
         async for document in cursor:
             documents.append(dict(document))
-        _write_jsonl(root / MONGO_DIR / f"{spec.name}.jsonl", documents)
-        counts[f"mongo.{spec.name}"] = len(documents)
+        _write_jsonl(root / MONGO_DIR / f"{mongo_spec.name}.jsonl", documents)
+        counts[f"mongo.{mongo_spec.name}"] = len(documents)
 
     manifest = {
         "snapshot_version": SNAPSHOT_VERSION,
@@ -164,44 +164,46 @@ async def import_snapshot(root: Path, *, dry_run: bool = False) -> ImportReport:
     mongo_inserts: list[tuple[MongoCollectionSpec, dict[str, Any]]] = []
 
     async with get_manual_session_context() as session:
-        for spec in SQL_TABLES:
-            for payload in _read_jsonl(root / SQL_DIR / f"{spec.name}.jsonl"):
-                existing = await _find_existing_sql_row(session, spec, payload)
+        for sql_spec in SQL_TABLES:
+            for payload in _read_jsonl(root / SQL_DIR / f"{sql_spec.name}.jsonl"):
+                existing = await _find_existing_sql_row(session, sql_spec, payload)
                 if existing is None:
-                    sql_inserts.append((spec, payload))
-                    report.record_inserted(f"sql.{spec.name}")
+                    sql_inserts.append((sql_spec, payload))
+                    report.record_inserted(f"sql.{sql_spec.name}")
                     continue
                 if _same_payload(_model_to_payload(existing), payload):
-                    report.record_skipped(f"sql.{spec.name}")
+                    report.record_skipped(f"sql.{sql_spec.name}")
                     continue
-                report.conflicts.append(_conflict_message("sql", spec.name, spec.identity_fields, payload))
+                report.conflicts.append(_conflict_message("sql", sql_spec.name, sql_spec.identity_fields, payload))
 
         database = get_mongo_provider().database()
-        for spec in MONGO_COLLECTIONS:
-            collection = database[spec.name]
-            for payload in _read_jsonl(root / MONGO_DIR / f"{spec.name}.jsonl"):
+        for mongo_spec in MONGO_COLLECTIONS:
+            collection = database[mongo_spec.name]
+            for payload in _read_jsonl(root / MONGO_DIR / f"{mongo_spec.name}.jsonl"):
                 document = _decode_payload(payload)
-                existing = await _find_existing_mongo_document(collection, spec, document)
+                existing = await _find_existing_mongo_document(collection, mongo_spec, document)
                 if existing is None:
-                    mongo_inserts.append((spec, document))
-                    report.record_inserted(f"mongo.{spec.name}")
+                    mongo_inserts.append((mongo_spec, document))
+                    report.record_inserted(f"mongo.{mongo_spec.name}")
                     continue
                 if _same_payload(existing, document):
-                    report.record_skipped(f"mongo.{spec.name}")
+                    report.record_skipped(f"mongo.{mongo_spec.name}")
                     continue
-                report.conflicts.append(_conflict_message("mongo", spec.name, spec.identity_fields, document))
+                report.conflicts.append(
+                    _conflict_message("mongo", mongo_spec.name, mongo_spec.identity_fields, document)
+                )
 
         if report.conflicts or dry_run:
             await session.rollback()
             return report
 
-        for spec, payload in sql_inserts:
-            session.add(spec.model(**_decode_payload(payload)))
+        for sql_spec, payload in sql_inserts:
+            session.add(sql_spec.model(**_decode_payload(payload)))
         await session.commit()
 
     database = get_mongo_provider().database()
-    for spec, document in mongo_inserts:
-        await database[spec.name].insert_one(document)
+    for mongo_spec, document in mongo_inserts:
+        await database[mongo_spec.name].insert_one(document)
     return report
 
 

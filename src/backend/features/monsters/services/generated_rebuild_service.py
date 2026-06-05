@@ -19,6 +19,7 @@ from src.backend.features.monsters.dto.generated_view import (
 from src.backend.features.monsters.dto.generation import (
     GeneratedClan,
     GeneratedMonster,
+    HabitatClanPoolEntryDTO,
     MonsterGenerationContext,
     MonsterHabitatDTO,
 )
@@ -253,7 +254,7 @@ class _ClanRebuildOutcome:
 
 
 class _NoopMonsterRepository:
-    async def get_clan_by_unique_hash(self, unique_hash: str) -> GeneratedClan | None:
+    async def get_clan_by_identity_hash(self, identity_hash: str) -> GeneratedClan | None:
         return None
 
     async def get_clans_by_context_hash(self, context_hash: str) -> list[GeneratedClan]:
@@ -264,6 +265,18 @@ class _NoopMonsterRepository:
 
     async def get_clan_members(self, clan_id: uuid.UUID | str) -> list[GeneratedMonster]:
         return []
+
+    async def list_habitat_clan_pool_entries(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+        enabled_only: bool = True,
+    ) -> list[HabitatClanPoolEntryDTO]:
+        return []
+
+    async def upsert_habitat_clan_pool_entry(self, entry: HabitatClanPoolEntryDTO) -> HabitatClanPoolEntryDTO:
+        return entry
 
     async def delete_generated_clans_outside_zone_contexts(
         self,
@@ -283,7 +296,7 @@ class _NoopMonsterRepository:
     async def create_clan_with_members(self, clan: GeneratedClan, members: list[GeneratedMonster]) -> GeneratedClan:
         raise RuntimeError("Rebuild service must not create clans through the generation repository")
 
-    async def update_clan_flavor(self, clan: GeneratedClan) -> GeneratedClan:
+    async def update_clan_narrative(self, clan: GeneratedClan) -> GeneratedClan:
         return clan
 
 

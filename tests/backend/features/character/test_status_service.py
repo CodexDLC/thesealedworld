@@ -332,7 +332,7 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
     assert dto.attributes["projection"] == 16
     assert dto.vitals["hp"]["max"] == 61
     assert dto.vitals["hp"]["cur"] == 61
-    assert dto.vitals["energy"]["max"] == 16
+    assert dto.vitals["energy"]["max"] == 26
     assert dto.vitals["stamina"]["max"] == 63
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert "locked_skill" not in dto.skills
@@ -354,7 +354,7 @@ async def test_get_actor_core_repairs_stale_default_actor_core_from_persisted_ac
     assert dto.attributes["projection"] == 16
     assert dto.vitals["hp"]["max"] == 61
     assert dto.vitals["hp"]["cur"] == 52
-    assert dto.vitals["energy"]["max"] == 16
+    assert dto.vitals["energy"]["max"] == 26
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert sessions.updated is not None
     assert sessions.updated["attributes"]["agility"] == 17

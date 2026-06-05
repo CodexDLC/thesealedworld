@@ -11,50 +11,49 @@ def _monster(
     role: str = "minion",
     strength: int = 4,
     endurance: int = 6,
+    gear_score: int = 20,
+    raw_gear_score: int | None = None,
 ) -> GeneratedMonster:
     return GeneratedMonster(
         id=uuid.uuid4(),
         clan_id=clan_id,
-        variant_key=f"{role}_{strength}",
+        variant_id=f"{role}_{strength}",
+        member_hash=f"{role}_{strength}",
         role=role,
-        member_tier=1,
-        threat_rating=20,
-        name_ru=role,
-        description=role,
-        text_content={},
-        scaled_attributes={
-            "strength": strength,
-            "agility": 4,
-            "endurance": endurance,
-            "intellect": 1,
-            "memory": 1,
-            "mental": 2,
-            "perception": 3,
-            "projection": 1,
-            "prediction": 2,
-        },
-        scaled_skills={"skill_unarmed": 0.2},
-        items={},
-        vitals={},
-        ai_profile={},
-        generation_meta={
-            "schema_version": 2,
-            "balance": {
-                "base_cost": 20,
-                "effective_cost": 4,
-                "threat_rating": 20,
-                "organization_divisor": 4,
+        title=role,
+        short_description=role,
+        min_tier=1,
+        max_tier=1,
+        mongo_actor_key=f"monster:{role}:{strength}",
+        active_snapshot={
+            "gear_score": gear_score,
+            "raw_gear_score": raw_gear_score if raw_gear_score is not None else gear_score,
+            "threat_rating": gear_score,
+            "scaled_attributes": {
+                "strength": strength,
+                "agility": 4,
+                "endurance": endurance,
+                "intellect": 1,
+                "memory": 1,
+                "mental": 2,
+                "perception": 3,
+                "projection": 1,
+                "prediction": 2,
             },
-            "meta": {"family_id": "rat_swarm", "archetype": "beast", "tags": ["rat"]},
+            "scaled_skills": {"skill_unarmed": 0.2},
+            "items": {},
+            "vitals": {},
+            "ai_profile": {},
         },
+        metadata_={"family_id": "rat_swarm", "archetype": "beast", "tags": ["rat"]},
     )
 
 
 def _armed_monster(*, clan_id: uuid.UUID, skill_value: float) -> GeneratedMonster:
-    monster = _monster(clan_id=clan_id, strength=17, endurance=8)
-    monster.scaled_attributes["agility"] = 10
-    monster.scaled_skills = {"skill_fencing": skill_value}
-    monster.items = {
+    monster = _monster(clan_id=clan_id, strength=17, endurance=8, gear_score=20 + round(skill_value * 10))
+    monster.active_snapshot["scaled_attributes"]["agility"] = 10
+    monster.active_snapshot["scaled_skills"] = {"skill_fencing": skill_value}
+    monster.active_snapshot["items"] = {
         "layout": {"equipment": {"main_hand": "weapon-1"}},
         "by_id": {
             "weapon-1": {
@@ -74,39 +73,30 @@ def _armed_monster(*, clan_id: uuid.UUID, skill_value: float) -> GeneratedMonste
     return monster
 
 
-def test_apply_monster_gear_score_persists_balance_snapshot() -> None:
+def test_apply_monster_gear_score_reads_prebuilt_snapshot_score() -> None:
     service = MonsterGearScoreService()
-    monster = _monster(clan_id=uuid.uuid4())
+    monster = _monster(clan_id=uuid.uuid4(), gear_score=37)
 
     score = service.apply_monster_gear_score(monster)
 
-    assert score > 0
-    assert monster.generation_meta["balance"]["gear_score"] == score
-    assert monster.generation_meta["balance"]["assembly_cost"] == score
-    assert monster.generation_meta["balance"]["raw_gear_score"] >= score
-    assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
-    assert monster.threat_rating == score
-    assert "base_cost" not in monster.generation_meta["balance"]
-    assert "effective_cost" not in monster.generation_meta["balance"]
-    assert "threat_rating" not in monster.generation_meta["balance"]
+    assert score == 37
 
 
-def test_monster_gear_score_is_divided_by_organization_divisor() -> None:
+def test_monster_gear_score_is_not_redivided_at_runtime() -> None:
     clan_id = uuid.uuid4()
     service = MonsterGearScoreService()
-    solitary = _monster(clan_id=clan_id)
-    solitary.generation_meta["balance"]["organization_divisor"] = 1
-    swarm = _monster(clan_id=clan_id)
-    swarm.generation_meta["balance"]["organization_divisor"] = 4
+    solitary = _monster(clan_id=clan_id, gear_score=80, raw_gear_score=80)
+    swarm = _monster(clan_id=clan_id, gear_score=20, raw_gear_score=80)
 
     solitary_score = service.apply_monster_gear_score(solitary)
     swarm_score = service.apply_monster_gear_score(swarm)
 
-    assert swarm_score == max(1, round(solitary_score / 4))
-    assert swarm.generation_meta["balance"]["raw_gear_score"] == solitary.generation_meta["balance"]["raw_gear_score"]
+    assert solitary_score == 80
+    assert swarm_score == 20
+    assert swarm.active_snapshot["raw_gear_score"] == solitary.active_snapshot["raw_gear_score"]
 
 
-def test_monster_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
+def test_monster_gear_score_uses_prebuilt_score_after_mastery() -> None:
     clan_id = uuid.uuid4()
     service = MonsterGearScoreService()
     novice = _armed_monster(clan_id=clan_id, skill_value=0.0)
@@ -115,29 +105,26 @@ def test_monster_gear_score_uses_assembled_weapon_power_after_mastery() -> None:
     assert service.calculate_monster_gear_score(master) > service.calculate_monster_gear_score(novice)
 
 
-def test_refresh_stale_monster_scores_replaces_old_balance_version() -> None:
+def test_refresh_stale_monster_scores_is_noop_for_prebuilt_snapshots() -> None:
     service = MonsterGearScoreService()
     monster = _monster(clan_id=uuid.uuid4())
-    monster.generation_meta["balance"]["gear_score"] = 999
-    monster.generation_meta["balance"]["gear_score_version"] = MonsterGearScoreService.VERSION - 1
+    monster.active_snapshot["gear_score"] = 999
 
     refreshed = service.refresh_stale_monster_scores([monster])
 
-    assert refreshed == 1
-    assert monster.generation_meta["balance"]["gear_score"] != 999
-    assert monster.generation_meta["balance"]["gear_score_version"] == MonsterGearScoreService.VERSION
+    assert refreshed == 0
+    assert monster.active_snapshot["gear_score"] == 999
 
 
 def test_refresh_stale_monster_scores_keeps_current_version() -> None:
     service = MonsterGearScoreService()
     monster = _monster(clan_id=uuid.uuid4())
-    service.apply_monster_gear_score(monster)
-    score = monster.generation_meta["balance"]["gear_score"]
+    score = service.apply_monster_gear_score(monster)
 
     refreshed = service.refresh_stale_monster_scores([monster])
 
     assert refreshed == 0
-    assert monster.generation_meta["balance"]["gear_score"] == score
+    assert service.apply_monster_gear_score(monster) == score
 
 
 def test_apply_clan_summary_groups_scores_by_role() -> None:
@@ -145,35 +132,29 @@ def test_apply_clan_summary_groups_scores_by_role() -> None:
     clan = GeneratedClan(
         id=clan_id,
         family_id="rat_swarm",
-        tier=1,
-        zone_id="zone-a",
+        identity_hash="unique",
+        context_identity={"tier": 1, "zone_id": "zone-a"},
         context_hash="context",
-        unique_hash="unique",
-        raw_tags={},
-        flavor_content={},
-        name_ru="Rats",
+        selected_traits=[],
+        title="Rats",
         description="Rats",
+        encounter_texts={},
+        generation_version=1,
+        resource_version="test",
         members=[
-            _monster(clan_id=clan_id, role="minion", strength=4),
-            _monster(clan_id=clan_id, role="veteran", strength=12),
+            _monster(clan_id=clan_id, role="minion", strength=4, gear_score=10, raw_gear_score=40),
+            _monster(clan_id=clan_id, role="veteran", strength=12, gear_score=30, raw_gear_score=120),
         ],
     )
     service = MonsterGearScoreService()
-    for member in clan.members:
-        service.apply_monster_gear_score(member)
 
     summary = service.apply_clan_summary(clan)
 
-    assert clan.raw_tags["gear_score_summary"] == summary
     assert summary["count"] == 2
     assert summary["min"] <= summary["avg"] <= summary["max"]
     assert summary["by_role"]["minion"]["count"] == 1
     assert summary["by_role"]["veteran"]["count"] == 1
-    assert summary["raw_count"] == 2
-    assert summary["raw_total"] >= summary["total"]
-    assert summary["raw_avg"] >= summary["avg"]
-    assert summary["raw_by_role"]["minion"]["count"] == 1
-    assert summary["raw_by_role"]["veteran"]["count"] == 1
+    assert summary["total"] == 40
 
 
 def test_family_expected_gear_score_uses_raw_average_and_ignores_assembly_cost() -> None:
@@ -186,16 +167,7 @@ def test_family_expected_gear_score_uses_raw_average_and_ignores_assembly_cost()
     ]
     raw_scores = [100, 200, 700, 1000]
     for member, raw_score in zip(members, raw_scores, strict=True):
-        member.generation_meta["balance"].update(
-            {
-                "organization_type": "swarm",
-                "organization_divisor": 4,
-                "raw_gear_score": raw_score,
-                "gear_score": 1,
-                "assembly_cost": 1,
-                "gear_score_version": MonsterGearScoreService.VERSION,
-            }
-        )
+        member.active_snapshot.update({"raw_gear_score": raw_score, "gear_score": 1, "assembly_cost": 1})
 
     expected = _family_expected_gear_score(members, tier=5)
 

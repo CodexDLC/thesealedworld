@@ -12,9 +12,9 @@ def test_project_cabinet_modules_render_engine_cabinet() -> None:
 
     response = TestClient(app).get("/admin")
     assert response.status_code == 200
-    # Admin cabinet redirects to the first registered project module; verify shared labels render.
-    assert "Гейм Сервер" in response.text
-    assert "Бой" in response.text
+    # Admin cabinet renders the first registered project module.
+    assert "Аналитика сайта" in response.text
+    assert "Активных боёв" in response.text
 
 
 def test_project_cabinet_module_route_renders() -> None:

@@ -546,6 +546,9 @@ class CharacterCombatMathModelBuilder:
             tags=tags,
         ):
             return
+        if mapped_key != "armor" and isinstance(value, str) and value.strip().startswith(("+", "*", "=")):
+            CharacterCombatMathModelBuilder._set_source_command(modifiers, key, source, value.strip())
+            return
         CharacterCombatMathModelBuilder._add_modifier(modifiers, key, source, value)
 
     @staticmethod

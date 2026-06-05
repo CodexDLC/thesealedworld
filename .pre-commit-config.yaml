@@ -49,9 +49,15 @@ repos:
           - "--ignore-vuln"
           - "CVE-2026-6357"  # New pip vulnerability
           - "--ignore-vuln"
+          - "PYSEC-2026-196"  # pip vulnerability pending environment upgrade
+          - "--ignore-vuln"
           - "PYSEC-2025-183"  # PyJWT advisory with no fix available yet
           - "--ignore-vuln"
           - "PYSEC-2026-89"  # Markdown advisory with no fix available yet
+          - "--ignore-vuln"
+          - "CVE-2026-34993"  # aiohttp held by aiogram <3.14 constraint
+          - "--ignore-vuln"
+          - "CVE-2026-47265"  # aiohttp held by aiogram <3.14 constraint
         additional_dependencies: ["pip-audit[toml]", "toml"]
 
   # 2. Поиск "забытых" секретов и паролей (усиленный)
@@ -66,9 +72,8 @@ repos:
     hooks:
       - id: hadolint-docker
         name: Lint Dockerfiles (Docker)
-        language: docker_image
-        entry: hadolint/hadolint:latest hadolint
-        args: ["--failure-threshold", "error"]
+        language: python
+        entry: python tools/dev/hadolint_docker.py
         files: ^deploy/.*/Dockerfile(\.local)?$
 
   # 4. Линтер и форматировщик HTML/Jinja2 шаблонов

@@ -34,4 +34,5 @@ class UserResponse(BaseResponse):
     tester_status: str = "none"
     tester_approved_at: datetime | None = None
     referral_code: str | None = None
+    email_verified_at: datetime | None = None
     created_at: datetime

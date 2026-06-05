@@ -1,0 +1,28 @@
+{% extends "account/base_account.html" %}
+{% block content %}
+<section class="account-profile">
+    <div class="ds-panel account-section">
+        <div class="ds-panel-header">Подтверждение email</div>
+        <div class="ds-panel-body">
+            {% if failed %}
+                <p>Ссылка недействительна или истекла. Попросите новую в кабинете.</p>
+                <a href="/account/profile?section=security" class="btn-node"><span>В кабинет</span></a>
+            {% elif row is none %}
+                <p>Эта ссылка уже использована или просрочена.</p>
+                <a href="/account/profile?section=security" class="btn-node"><span>В кабинет</span></a>
+            {% else %}
+                {% if purpose == "verify" %}
+                    <p>Подтвердить адрес для аккаунта The Sealed World?</p>
+                {% else %}
+                    <p>Подтвердить смену почты на <strong>{{ row.new_email }}</strong>?</p>
+                    <p class="account-muted">После подтверждения все активные сессии будут завершены.</p>
+                {% endif %}
+                <form method="post" action="{{ action_url }}">
+                    {% include "site/includes/csrf_field.html" %}
+                    <button type="submit" class="btn-node lg"><span>Подтвердить</span></button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock content %}

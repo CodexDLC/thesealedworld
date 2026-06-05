@@ -19,3 +19,6 @@ class AccountProfileVM:
     tester_approved_at: str | None
     is_tester: bool
     can_create_character: bool
+    email_verified: bool = False
+    email_verified_at: str | None = None
+    email_verification_enabled: bool = False

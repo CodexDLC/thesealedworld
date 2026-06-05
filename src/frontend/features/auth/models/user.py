@@ -23,6 +23,7 @@ class User(Base):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     tester_status: Mapped[str] = mapped_column(String(20), default="none")
     tester_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     referral_code: Mapped[str] = mapped_column(String(16), unique=True, index=True, nullable=False)
     referred_by_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("site.auth_users.id", ondelete="SET NULL"),

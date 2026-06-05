@@ -188,14 +188,55 @@
         </div>
     </div>
     {% elif active_section == "security" %}
-    <div class="ds-panel account-section account-section--locked">
+    <div class="ds-panel account-section{% if not profile.email_verification_enabled %} account-section--locked{% endif %}">
         <div class="ds-panel-header">Безопасность</div>
         <div class="ds-panel-body">
             <div class="account-section-title">
                 <h2>Защита аккаунта</h2>
-                <span class="tag sys">В разработке</span>
+                {% if profile.email_verification_enabled %}
+                    <span class="tag sys">Бета</span>
+                {% else %}
+                    <span class="tag sys">В разработке</span>
+                {% endif %}
             </div>
             <div class="account-profile-grid">
+                <div class="account-profile-row">
+                    <span class="account-profile-label">Email</span>
+                    <span class="account-profile-value">
+                        {{ profile.email }}
+                        {% if profile.email_verified %}
+                            <span class="ds-tag" style="margin-left:8px;">подтверждён {{ profile.email_verified_at }}</span>
+                        {% else %}
+                            <span class="ds-tag err" style="margin-left:8px;">не подтверждён</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if profile.email_verification_enabled %}
+                    <div class="account-profile-row">
+                        <span class="account-profile-label">Подтверждение</span>
+                        <span class="account-profile-value">
+                            {% if not profile.email_verified %}
+                                <form method="post" action="/account/security/email/verify" style="display:inline">
+                                    {% include "site/includes/csrf_field.html" %}
+                                    <button type="submit" class="btn-node sm"><span>Прислать ссылку</span></button>
+                                </form>
+                            {% else %}
+                                <span class="account-muted">Адрес подтверждён.</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="account-profile-row">
+                        <span class="account-profile-label">Смена email</span>
+                        <span class="account-profile-value">
+                            <form method="post" action="/account/security/email/change" class="feedback-form" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                {% include "site/includes/csrf_field.html" %}
+                                <input type="email" name="new_email" placeholder="new@example.com" required>
+                                <input type="password" name="current_password" placeholder="Текущий пароль" required autocomplete="current-password">
+                                <button type="submit" class="btn-node sm ghost"><span>Запросить смену</span></button>
+                            </form>
+                        </span>
+                    </div>
+                {% endif %}
                 <div class="account-profile-row">
                     <span class="account-profile-label">Пароль</span>
                     <span class="account-profile-value account-empty-value">Смена пароля будет добавлена</span>

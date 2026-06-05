@@ -43,7 +43,12 @@ async def account_profile(
     stats = await repo.get_referral_stats(user.id)
     site_base_url = str(request.base_url).rstrip("/")
     service = AccountService()
-    profile = service.build_profile_vm(user, site_base_url=site_base_url, referral_stats=stats)
+    profile = service.build_profile_vm(
+        user,
+        site_base_url=site_base_url,
+        referral_stats=stats,
+        email_verification_enabled=settings.enable_email_verification,
+    )
     applied = request.query_params.get("applied") == "1"
     active_section = request.query_params.get("section") or "overview"
     if active_section not in ACCOUNT_PROFILE_SECTIONS:

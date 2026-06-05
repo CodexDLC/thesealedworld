@@ -33,6 +33,7 @@ class AccountService:
         *,
         site_base_url: str = "",
         referral_stats: dict[str, int] | None = None,
+        email_verification_enabled: bool = False,
     ) -> AccountProfileVM:
         is_tester = user.tester_status == "approved"
         approved_at = user.tester_approved_at
@@ -44,6 +45,7 @@ class AccountService:
         base = site_base_url.rstrip("/") if site_base_url else ""
         link = f"{base}/register?ref={code}" if base else f"/register?ref={code}"
         stats = referral_stats or {}
+        verified_at = getattr(user, "email_verified_at", None)
         return AccountProfileVM(
             account_id=account_id,
             email=user.email,
@@ -59,6 +61,9 @@ class AccountService:
             tester_approved_at=approved_at.strftime("%d.%m.%Y") if approved_at else None,
             is_tester=is_tester,
             can_create_character=True,
+            email_verified=verified_at is not None,
+            email_verified_at=verified_at.strftime("%d.%m.%Y") if verified_at else None,
+            email_verification_enabled=email_verification_enabled,
         )
 
     async def apply_for_testing(self, user_id: uuid.UUID) -> None:

@@ -18,6 +18,7 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 - A small `/static/js/csrf.js` shim auto-attaches the token to `fetch` and HTMX requests so SPA-style AJAX needs no per-call changes.
 - Each user now owns a stable `referral_code` (`SEAL-XXXXXXXX`) and an optional `referred_by_id` link. `GET /register?ref=...` stores the code in a 30-day `tbmmorpg_ref` cookie, the register form has an optional REFERRAL_SIGIL field, and `AuthPersistence.register_user` attaches the referrer + writes a `ReferralReward(kind='signup')` row in the same transaction. Signups never fail because of an unknown referral code.
 - Account profile referrals panel now shows the real code, a copy-to-clipboard link, and live invited/active/bonus counts (active count is wired up later with email verification).
+- Email verification infrastructure is in place behind `enable_email_verification` (default `False`). When enabled, the security panel exposes "Send verification link" and "Change email" actions; tokens are stored as sha256 hashes in `auth_email_verification_tokens` and expire after 24h. The GET preview pages defend against email-prefetch by requiring an explicit POST confirm. Successful email change invalidates every refresh token for the user. On production the flag stays off until reply/info addresses exist on the domain — locally the Mailpit container catches all deliveries.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

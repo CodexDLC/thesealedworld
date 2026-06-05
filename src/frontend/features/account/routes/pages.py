@@ -13,10 +13,20 @@ from src.frontend.features.email.config import get_email_service
 
 router = APIRouter(prefix="/account", tags=["Account"])
 
+ACCOUNT_PROFILE_SECTIONS = {
+    "overview",
+    "profile",
+    "characters",
+    "referrals",
+    "payments",
+    "security",
+    "settings",
+}
+
 
 @router.get("", name="account_root")
 async def account_root():
-    return RedirectResponse(url="/account/profile", status_code=307)
+    return RedirectResponse(url="/account/profile", status_code=303)
 
 
 @router.get("/profile", name="account_profile")
@@ -31,10 +41,13 @@ async def account_profile(
     service = AccountService()
     profile = service.build_profile_vm(user)
     applied = request.query_params.get("applied") == "1"
+    active_section = request.query_params.get("section") or "overview"
+    if active_section not in ACCOUNT_PROFILE_SECTIONS:
+        active_section = "overview"
 
     return await ui.render(
         "account/profile.html",
-        context={"profile": profile, "applied": applied},
+        context={"profile": profile, "applied": applied, "active_section": active_section},
     )
 
 

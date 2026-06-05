@@ -24,11 +24,16 @@ class FrontendSettings(BaseCommonSettings):
     frontend_surface: Literal["all", "site", "play"] = "all"
     backend_base_url: str = "http://127.0.0.1:8001"
     realtime_ws_url: str = "ws://127.0.0.1:8002"
+    play_public_base_url: str = "/game-lobby"
+    play_internal_base_url: str = ""
+    play_health_timeout_seconds: float = 1.0
     backend_internal_service_key: str = "dev-site-to-game-service-key"  # pragma: allowlist secret
     backend_internal_service_header: str = "X-Internal-Service-Key"
     active_character_cookie_secure: bool = False
     game_token_cookie_secure: bool = False
+    auth_cookie_secure: bool = False
     auth_user_cache_ttl_seconds: int = 30 * 60
+    enable_email_verification: bool = False
     site_database_url: str = (
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_site"  # pragma: allowlist secret
     )
@@ -37,6 +42,7 @@ class FrontendSettings(BaseCommonSettings):
     secret_key: str = "change-me-in-env-change-me-in-env-32-bytes"  # pragma: allowlist secret
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
+    auth_cookie_domain: str = ""
     authx_jwt_algorithm: str = "HS256"
     authx_jwt_token_locations: list[str] = ["headers"]
     default_symbiote_name: str = "SYSTEM"
@@ -58,7 +64,7 @@ class FrontendSettings(BaseCommonSettings):
     site_meta_description: str = (
         "Browser-based turn-based MMORPG about dangerous expeditions beyond the wall, loot, and making it home alive."
     )
-    site_meta_image: str = "/static/images/site/the-sealed-world/hero-main.webp"
+    site_meta_image: str = "/static/images/site/the-sealed-world/news-covers/site-invitation.webp"
     google_tag_manager_id: str = ""
     google_analytics_id: str = ""
     google_site_verification: str = ""

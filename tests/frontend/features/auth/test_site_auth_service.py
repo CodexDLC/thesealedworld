@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.shared.exceptions import BusinessLogicException
 from src.frontend.features.auth.dto.user import UserCreate, UserResponse
 from src.frontend.features.auth.integrations import DuplicateEmailError
 from src.frontend.features.auth.services.site_auth_service import AuthService
+from src.shared.exceptions import BusinessLogicException
 
 
 @pytest.mark.unit
@@ -86,6 +86,23 @@ class TestAuthService:
         user = MagicMock(is_active=False)
         persistence.get_user_by_email = AsyncMock(return_value=user)
         assert await service.authenticate_user("test@example.com", "password") is None
+
+    async def test_authenticate_user_missing_still_runs_verify_password(self, service, persistence, mocker):
+        """Missing email must still trigger verify_password against a dummy hash to keep
+        timing parity and avoid email enumeration."""
+        verify_mock = mocker.patch(
+            "src.frontend.features.auth.services.site_auth_service.verify_password",
+            return_value=False,
+        )
+        persistence.get_user_by_email = AsyncMock(return_value=None)
+
+        result = await service.authenticate_user("ghost@example.com", "anything")
+
+        assert result is None
+        verify_mock.assert_called_once()
+        called_password, called_hash = verify_mock.call_args.args
+        assert called_password == "anything"  # pragma: allowlist secret
+        assert called_hash.startswith("pbkdf2_sha256$")
 
     async def test_create_tokens(self, service, persistence, mocker):
         mocker.patch("src.frontend.features.auth.services.site_auth_service.create_access_token", return_value="access")

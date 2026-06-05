@@ -121,14 +121,19 @@ class TestTokenRepository:
         assert result == "token"
         session.execute.assert_called_once()
 
-    async def test_create_token(self, repo, session):
+    async def test_create_token_stores_hash_not_plaintext(self, repo, session):
+        import hashlib
         from datetime import datetime
+
         user_id = uuid.uuid4()
         expires = datetime.now()
 
         result = await repo.create(user_id, "token_str", expires)
+        expected_hash = hashlib.sha256(b"token_str").hexdigest()
+
         assert result.user_id == user_id
-        assert result.token == "token_str"
+        assert result.token_hash == expected_hash
+        assert not hasattr(result, "token") or getattr(result, "token", None) is None
         session.add.assert_called_once()
         session.flush.assert_called_once()
 
@@ -143,3 +148,10 @@ class TestTokenRepository:
     async def test_commit(self, repo, session):
         await repo.commit()
         session.commit.assert_called_once()
+
+    async def test_hash_refresh_token_is_deterministic(self):
+        from src.frontend.features.auth.repositories.token_repository import hash_refresh_token
+
+        assert hash_refresh_token("abc") == hash_refresh_token("abc")
+        assert hash_refresh_token("abc") != hash_refresh_token("abd")
+        assert len(hash_refresh_token("abc")) == 64

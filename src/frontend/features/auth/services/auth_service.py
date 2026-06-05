@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import Response
 from loguru import logger
 
+from src.frontend.config.settings import settings
 from src.frontend.features.auth.dto.token import Token as TokenResponse
 from src.frontend.features.auth.dto.user import UserCreate, UserResponse
 from src.frontend.features.auth.security import decode_access_token
@@ -69,26 +70,30 @@ class FrontendAuthService:
         return user
 
     def attach_auth_cookies(self, response: Response, tokens: TokenResponse) -> None:
+        cookie_domain = settings.auth_cookie_domain or None
         response.set_cookie(
             self.access_cookie_name,
             tokens.access_token,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=settings.auth_cookie_secure,
             max_age=60 * 30,
+            domain=cookie_domain,
         )
         response.set_cookie(
             self.refresh_cookie_name,
             tokens.refresh_token,
             httponly=True,
-            samesite="lax",
-            secure=False,
+            samesite="strict",
+            secure=settings.auth_cookie_secure,
             max_age=60 * 60 * 24 * 30,
+            domain=cookie_domain,
         )
 
     def clear_auth_cookies(self, response: Response) -> None:
-        response.delete_cookie(self.access_cookie_name)
-        response.delete_cookie(self.refresh_cookie_name)
+        cookie_domain = settings.auth_cookie_domain or None
+        response.delete_cookie(self.access_cookie_name, domain=cookie_domain)
+        response.delete_cookie(self.refresh_cookie_name, domain=cookie_domain)
 
     async def _current_user_or_refresh(self, request: Request, access_token: str) -> UserResponse | None:
         try:

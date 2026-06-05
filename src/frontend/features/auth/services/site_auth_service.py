@@ -14,6 +14,10 @@ from src.frontend.features.auth.security import create_access_token
 from src.frontend.features.auth.security.passwords import get_password_hash, verify_password
 from src.shared.exceptions import AuthException, BusinessLogicException
 
+# Pre-computed hash of an unreachable random password. Used to keep authenticate_user
+# timing constant whether or not the email exists, mitigating user enumeration.
+_DUMMY_PASSWORD_HASH = get_password_hash(secrets.token_urlsafe(32))
+
 if TYPE_CHECKING:
     import uuid
 
@@ -41,7 +45,9 @@ class AuthService:
 
     async def authenticate_user(self, email: str, password: str) -> UserResponse | None:
         user = await self._persistence.get_user_by_email(email.strip().lower())
-        if not user or not verify_password(password, user.hashed_password) or not user.is_active:
+        hashed = user.hashed_password if user is not None else _DUMMY_PASSWORD_HASH
+        password_ok = verify_password(password, hashed)
+        if user is None or not password_ok or not user.is_active:
             logger.bind(reason="invalid_credentials_or_inactive_user").warning("AuthLoginRejected")
             return None
         logger.bind(user_id=str(user.id)).info("AuthLoginAccepted")

@@ -27,6 +27,7 @@ from src.frontend.core.database.session import close_db_engine, create_db_tables
 from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
+from src.frontend.core.security_headers import SecurityHeadersMiddleware
 from src.frontend.features.account.middleware.account_auth import AccountAuthMiddleware
 from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from src.frontend.features.cabinet.middleware.admin_auth import AdminAuthMiddleware
@@ -183,6 +184,7 @@ if settings.frontend_surface in PLAY_SURFACES:
     app.add_middleware(GameTokenRefreshMiddleware)
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 include_frontend_routers(app, surface=settings.frontend_surface)
 if settings.frontend_surface in SITE_SURFACES:
     include_cabinet(app, modules=CABINET_MODULES, mount_path="/admin", static_mount_path="/cabinet-assets")

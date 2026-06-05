@@ -1,22 +1,28 @@
 import uuid
 from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import EmailStr, Field, field_validator, model_validator
 
 from src.shared.schemas.base import BaseRequest, BaseResponse
 
+PASSWORD_MIN_LENGTH = 10
+
 
 class UserCreate(BaseRequest):
-    email: str
-    password: str = Field(..., min_length=8)
+    email: EmailStr
+    password: str = Field(..., min_length=PASSWORD_MIN_LENGTH)
 
-    @field_validator("email")
+    @field_validator("email", mode="before")
     @classmethod
-    def validate_email(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if "@" not in normalized or "." not in normalized.rsplit("@", maxsplit=1)[-1]:
-            raise ValueError("Invalid email address")
-        return normalized
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def reject_email_in_password(self) -> "UserCreate":
+        local = str(self.email).split("@", maxsplit=1)[0].lower()
+        if local and local in self.password.lower():
+            raise ValueError("Password must not contain the email local part")
+        return self
 
 
 class UserResponse(BaseResponse):

@@ -89,20 +89,22 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         tokens = getattr(request.state, "auth_tokens", None)
         if tokens is not None:
+            from src.frontend.config.settings import settings
+
             response.set_cookie(
                 FrontendAuthService.access_cookie_name,
                 tokens.access_token,
                 httponly=True,
                 samesite="lax",
-                secure=False,
+                secure=settings.auth_cookie_secure,
                 max_age=60 * 30,
             )
             response.set_cookie(
                 FrontendAuthService.refresh_cookie_name,
                 tokens.refresh_token,
                 httponly=True,
-                samesite="lax",
-                secure=False,
+                samesite="strict",
+                secure=settings.auth_cookie_secure,
                 max_age=60 * 60 * 24 * 30,
             )
         elif getattr(request.state, "clear_auth_cookies", False):

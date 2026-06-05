@@ -3,6 +3,8 @@ from urllib.parse import parse_qs
 
 from fastapi import Request
 
+from src.frontend.features.auth.dto.user import PASSWORD_MIN_LENGTH
+
 
 @dataclass
 class RegisterForm:
@@ -24,10 +26,13 @@ class RegisterForm:
     @property
     def is_valid(self) -> bool:
         self.errors.clear()
-        if not self.email or "@" not in self.email:
+        if not self.email or "@" not in self.email or "." not in self.email.rsplit("@", maxsplit=1)[-1]:
             self.errors.append("Valid email is required")
-        if len(self.password) < 8:
-            self.errors.append("Password must be at least 8 characters")
+        if len(self.password) < PASSWORD_MIN_LENGTH:
+            self.errors.append(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
         if self.password != self.password_confirm:
             self.errors.append("Passwords do not match")
+        local = self.email.split("@", maxsplit=1)[0].lower()
+        if local and self.password and local in self.password.lower():
+            self.errors.append("Password must not contain the email local part")
         return len(self.errors) == 0

@@ -47,7 +47,7 @@ class TestAccountRoutes:
         app = _make_app(user=_user_mock())
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/account", follow_redirects=False)
-        assert response.status_code == 307
+        assert response.status_code == 303
         assert "/account/profile" in response.headers["location"]
 
     def test_profile_page_returns_200_for_authenticated_user(self):
@@ -55,6 +55,29 @@ class TestAccountRoutes:
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/account/profile")
         assert response.status_code == 200
+        assert "Мой аккаунт" in response.text
+        assert "Персонажи" in response.text
+        assert "Рефералы" in response.text
+        assert "Платежи" in response.text
+        assert "Подать заявку на тестирование" not in response.text
+        assert "Хотите помочь с тестированием" not in response.text
+
+    def test_profile_page_renders_selected_section_only(self):
+        app = _make_app(user=_user_mock())
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/account/profile?section=payments")
+        assert response.status_code == 200
+        assert "Платежи и донат" in response.text
+        assert "Данные игрока" not in response.text
+        assert 'section=payments" class="account-sidebar-link is-active"' in response.text
+
+    def test_profile_page_falls_back_to_overview_for_unknown_section(self):
+        app = _make_app(user=_user_mock())
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/account/profile?section=unknown")
+        assert response.status_code == 200
+        assert "Личный кабинет" in response.text
+        assert 'section=overview" class="account-sidebar-link is-active"' in response.text
 
     def test_profile_page_redirects_anonymous_to_login(self):
         app = _make_app(user=None)

@@ -5,7 +5,15 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Combat UI now localizes archived stat labels, goblin archer names, and effect
+  markers instead of showing raw ids in visible battle surfaces.
 - Gameplay routes can now run as a dedicated play surface while the public site remains on its own route/middleware set.
+- Auth cookies now honor a `auth_cookie_secure` setting so production deploys can pin `Secure`; the refresh cookie is also pinned to `SameSite=Strict` since it is never needed during cross-site navigation.
+- Login now always runs the password hashing step against a constant dummy hash when the email is unknown, removing the timing signal that previously exposed user enumeration.
+- Registration now requires a 10+ character password that does not contain the email local part, and the email field is validated with `pydantic[email]` instead of the prior naive `@` check.
+- Refresh tokens are stored only as `sha256` hashes (`site.auth_refresh_tokens.token_hash`); plaintext column was removed in migration `0002_security_baseline`.
+- Frontend now sends baseline security headers on every response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`).
+- `/account` redirect to `/account/profile` now returns `303 See Other` instead of `307`, so any future POST traffic is not silently replayed.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

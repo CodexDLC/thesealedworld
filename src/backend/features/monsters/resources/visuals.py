@@ -262,12 +262,13 @@ def compute_visual_asset_hash(payload: dict[str, Any]) -> str:
 
 
 def version_generated_asset_url(url: str | None, visual: dict[str, Any] | None = None) -> str | None:
-    if not url or GENERATED_ASSET_URL_MARKER not in url:
-        return url
-    version = _visual_cache_version(url, visual or {})
+    canonical_url = _canonical_generated_asset_url(url)
+    if not canonical_url or GENERATED_ASSET_URL_MARKER not in canonical_url:
+        return canonical_url
+    version = _visual_cache_version(canonical_url, visual or {})
     if not version:
-        return url
-    return _with_query_param(url, "v", version)
+        return canonical_url
+    return _with_query_param(canonical_url, "v", version)
 
 
 def version_visual_image_urls(visual: dict[str, Any]) -> dict[str, Any]:
@@ -299,6 +300,15 @@ def _with_query_param(url: str, key: str, value: str) -> str:
     query = [(name, item) for name, item in parse_qsl(parts.query, keep_blank_values=True) if name != key]
     query.append((key, value))
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _canonical_generated_asset_url(url: str | None) -> str | None:
+    if not url:
+        return url
+    parts = urlsplit(url)
+    if GENERATED_ASSET_URL_MARKER not in parts.path:
+        return url
+    return urlunsplit(("", "", parts.path, parts.query, parts.fragment))
 
 
 def _visual_asset_payload(

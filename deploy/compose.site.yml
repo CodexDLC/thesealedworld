@@ -93,6 +93,7 @@ services:
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
       SITE_BASE_URL: ${SITE_BASE_URL:?SITE_BASE_URL is required}
+      REALTIME_WS_URL: ${REALTIME_WS_URL:-${PLAY_PUBLIC_BASE_URL:?PLAY_PUBLIC_BASE_URL is required}}
       AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:?AUTH_COOKIE_DOMAIN is required}
       PYTHONPATH: /app:/app/src
       DEBUG: "False"

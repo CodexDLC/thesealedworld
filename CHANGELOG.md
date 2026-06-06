@@ -16,6 +16,8 @@ Full layer changelogs live in:
 
 - Production deploy now runs the play frontend as a dedicated surface and routes
   `play.thesealedworld.com` through Nginx instead of relying on local-only wiring.
+- Generated monster image URLs now stay domain-relative for the play host, and
+  combat feint tooltips render their trusted catalog markup instead of raw HTML text.
 
 ## [v0.4.0] - Alpha 0.4.0
 

@@ -52,10 +52,6 @@
 
 <aside id="status-container"
        class="panel-dock panel-dock--framed panel-dock--scroll status-panel-root status-sidebar-surface status-dock"
-       hx-get="/game/character-status/panel?char_id={{ char_id }}"
-       hx-trigger="character-status-refresh from:body"
-       hx-target="this"
-       hx-swap="outerHTML"
        aria-label="Character status dock">
     {% set status_nav_label = 'Status actions' %}
     {% set status_nav_close_view = 'status' %}
@@ -79,11 +75,7 @@
                     {% if bio.get('name') %}<strong>{{ bio.get('name') }}</strong>{% endif %}
                     {% if status.state %}<span>{{ status.state }}</span>{% endif %}
                 </div>
-                <div class="status-widget-bars">
-                    {% if hp %}<div class="status-widget-bar status-widget-bar--hp" style="--status-fill: {{ (hp_cur / hp_max * 100) if hp_max else 0 }}%;"><span>HP</span><i></i><b>{{ hp_cur }} / {{ hp_max }}</b></div>{% endif %}
-                    {% if en %}<div class="status-widget-bar status-widget-bar--en" style="--status-fill: {{ (en_cur / en_max * 100) if en_max else 0 }}%;"><span>EN</span><i></i><b>{{ en_cur }} / {{ en_max }}</b></div>{% endif %}
-                    {% if sta %}<div class="status-widget-bar status-widget-bar--sta" style="--status-fill: {{ (sta_cur / sta_max * 100) if sta_max else 0 }}%;"><span>CONC</span><i></i><b>{{ sta_cur }} / {{ sta_max }}</b></div>{% endif %}
-                </div>
+                {% include "game/components/status/vitals_bars.html" %}
             </div>
         </section>
 

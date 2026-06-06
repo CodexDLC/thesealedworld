@@ -231,9 +231,10 @@ def test_game_tooltips_preserve_line_breaks_without_html() -> None:
     for source in (main_js, catalog_js):
         assert "replace(/\\\\n/g, '\\n')" in source
         assert "replace(/\\s+\\/\\/\\s+/g, '\\n')" in source
-        assert "allowHTML: false" in source
         assert "content(reference)" in source
 
+    assert "allowHTML: false" in main_js
+    assert "allowHTML: node.dataset.tippyHtml === '1'" in catalog_js
     assert "white-space: pre-line;" in css
 
 

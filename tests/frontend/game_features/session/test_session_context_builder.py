@@ -68,6 +68,8 @@ class FakeCharacterStatusApi:
     ("raw_url", "endpoint"),
     [
         ("ws://127.0.0.1:8002", "ws://127.0.0.1:8002/ws/realtime"),
+        ("http://play.thesealed.localhost:8080", "ws://play.thesealed.localhost:8080/ws/realtime"),
+        ("https://thesealedworld.com", "wss://thesealedworld.com/ws/realtime"),
         ("wss://thesealedworld.com", "wss://thesealedworld.com/ws/realtime"),
         ("wss://thesealedworld.com/ws/realtime", "wss://thesealedworld.com/ws/realtime"),
         ("wss://thesealedworld.com/ws/realtime/", "wss://thesealedworld.com/ws/realtime"),

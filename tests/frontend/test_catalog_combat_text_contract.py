@@ -51,3 +51,13 @@ def test_game_catalog_cache_appends_local_tooltip_extra() -> None:
         assert "const tooltipExtra = node.dataset.catalogTooltipExtra" in source
         assert "const tooltipParts = [tooltip, tooltipExtra].filter(Boolean)" in source
         assert "tooltipParts.join(' /' + '/ ')" in source
+
+
+def test_game_catalog_cache_allows_html_only_for_feint_tooltips() -> None:
+    catalog_js = GAME_CATALOG_JS.read_text(encoding="utf-8")
+    bundle_js = GAME_BUNDLE_JS.read_text(encoding="utf-8")
+
+    for source in (catalog_js, bundle_js):
+        assert "node.dataset.tippyHtml = '1'" in source
+        assert "if (node.dataset.tippyHtml === '1') return raw" in source
+        assert "allowHTML: node.dataset.tippyHtml === '1'" in source

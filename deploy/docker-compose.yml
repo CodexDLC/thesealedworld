@@ -226,6 +226,7 @@ services:
       FRONTEND_SURFACE: play
       BACKEND_BASE_URL: http://backend:8001
       SITE_BASE_URL: http://thesealed.localhost:8080
+      REALTIME_WS_URL: ws://127.0.0.1:8002
       AUTH_COOKIE_DOMAIN: .thesealed.localhost
       SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret

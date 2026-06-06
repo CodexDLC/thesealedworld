@@ -6,6 +6,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 - Production deploy now wires the site and play frontend surfaces separately,
   including Nginx host routing for the `play` domain and realtime websocket proxying.
+- Combat generated-image links are normalized back to `/static/generated-assets/...`
+  for the play domain, and feint tooltips render catalog HTML only on trusted entries.
 
 ## [v0.4.0] - Alpha 0.4.0
 

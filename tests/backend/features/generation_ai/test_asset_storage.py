@@ -80,6 +80,21 @@ def test_asset_public_url_encodes_path_segments() -> None:
     )
 
 
+def test_asset_public_url_strips_host_to_keep_generated_assets_domain_relative() -> None:
+    assert (
+        build_asset_public_url(
+            "https://thesealedworld.com/static/generated-assets",
+            "monsters/rat.webp",
+        )
+        == "/static/generated-assets/monsters/rat.webp"
+    )
+
+
+def test_asset_public_url_rejects_relative_base_without_leading_slash() -> None:
+    with pytest.raises(ValueError, match="absolute path"):
+        build_asset_public_url("static/generated-assets", "monsters/rat.webp")
+
+
 def test_storage_key_extension_tracks_actual_image_content_type() -> None:
     assert storage_key_with_content_type_extension("monsters/generated/clans/hash.webp", "image/png") == (
         "monsters/generated/clans/hash.png"

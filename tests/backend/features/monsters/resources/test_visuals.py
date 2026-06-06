@@ -78,6 +78,17 @@ def test_generated_visual_urls_are_versioned_for_browser_cache_busting() -> None
     )
 
 
+def test_generated_visual_urls_drop_absolute_host_before_versioning() -> None:
+    visual = {
+        "image_url": "https://thesealedworld.com/static/generated-assets/monsters/generated/members/rat.webp",
+        "asset_hash": "rat-image-bytes",
+    }
+
+    assert version_visual_image_urls(visual)["image_url"] == (
+        "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"
+    )
+
+
 def test_pending_visual_uses_previous_hash_for_previous_image_url() -> None:
     visual = {
         "image_url": "/static/generated-assets/monsters/generated/members/rat.webp",

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Literal, Protocol
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from src.backend.config.settings import BackendSettings, settings
 from src.backend.features.generation_ai.dto import AIGenerationTaskResultDTO
@@ -216,9 +216,19 @@ def storage_key_with_content_type_extension(storage_key: str, content_type: str)
 
 def build_asset_public_url(public_base_url: str, storage_key: str) -> str:
     safe_key = normalize_asset_storage_key(storage_key)
-    base = public_base_url.rstrip("/")
+    base = _asset_public_base_path(public_base_url)
     encoded_key = "/".join(quote(part) for part in safe_key.split("/"))
     return f"{base}/{encoded_key}"
+
+
+def _asset_public_base_path(public_base_url: str) -> str:
+    raw_base = public_base_url.strip()
+    parsed = urlsplit(raw_base)
+    base = parsed.path if parsed.scheme or parsed.netloc else raw_base
+    base = base.rstrip("/")
+    if not base.startswith("/"):
+        raise ValueError("Generated asset public base URL must be an absolute path")
+    return base
 
 
 def _extension_for_content_type(content_type: str) -> str | None:

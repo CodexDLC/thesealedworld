@@ -45,6 +45,10 @@ def _elapsed_ms(started_at: float) -> float:
 
 def _realtime_ws_endpoint(raw_url: str) -> str:
     base = raw_url.rstrip("/")
+    if base.startswith("https://"):
+        base = f"wss://{base.removeprefix('https://')}"
+    elif base.startswith("http://"):
+        base = f"ws://{base.removeprefix('http://')}"
     if base.endswith("/ws/realtime"):
         return base
     return f"{base}/ws/realtime"

@@ -593,6 +593,7 @@ def test_game_shell_responsive_uses_manifest_entrypoint():
 def test_status_main_uses_shared_compact_status_dock():
     template = Path("src/frontend/templates/game/components/status/main.html").read_text()
     compact = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
+    vitals = Path("src/frontend/templates/game/components/status/vitals_bars.html").read_text()
     status_nav = Path("src/frontend/templates/game/components/status/nav.html").read_text()
     status_shell_css = Path("src/frontend/static/css/game/domains/status/shell.css").read_text()
     status_avatar_css = Path("src/frontend/static/css/game/domains/status/avatar.css").read_text()
@@ -614,7 +615,8 @@ def test_status_main_uses_shared_compact_status_dock():
     assert "scenario-status-dock" not in compact
     assert "status-widget-card" in compact
     assert "status-widget-section" in compact
-    assert "status-widget-bar" in compact
+    assert "game/components/status/vitals_bars.html" in compact
+    assert "status-widget-bar" in vitals
     assert "dock-nav-button--close" in status_nav
     assert not any(path.exists() for path in obsolete_left_sidebars)
     assert ".sec {\n    font-size: 8px;\n    letter-spacing: .18em;" in status_shell_css
@@ -733,6 +735,7 @@ def test_game_shell_uses_right_panel_inventory_instead_of_floating_hud():
 def test_inventory_window_template_defines_frontend_contract():
     template = Path("src/frontend/templates/game/components/inventory/window.html").read_text()
     compact_status = Path("src/frontend/templates/game/components/status/compact_panel.html").read_text()
+    vitals_status = Path("src/frontend/templates/game/components/status/vitals_bars.html").read_text()
     status_nav = Path("src/frontend/templates/game/components/status/nav.html").read_text()
 
     assert "inventory_target_id" in template
@@ -794,10 +797,10 @@ def test_inventory_window_template_defines_frontend_contract():
     assert "row_valid_slots | tojson | forceescape" in template
     assert "INVENTORY_LINK_PENDING" not in template
     assert 'include "game/components/status/nav.html"' in compact_status
-    assert 'hx-get="/game/character-status/panel?char_id={{ char_id }}"' in status_nav
-    assert 'hx-trigger="character-status-refresh from:body"' in compact_status
-    assert 'hx-target="this"' in compact_status
-    assert 'hx-swap="outerHTML"' in compact_status
+    assert 'hx-get="/game/character-status/vitals?char_id={{ char_id }}"' in vitals_status
+    assert 'hx-trigger="character-status-refresh from:body"' in vitals_status
+    assert 'hx-target="this"' in vitals_status
+    assert 'hx-swap="outerHTML"' in vitals_status
     assert ">SYNC</button>" in status_nav
     assert 'hx-target="#status-container"' in status_nav
 

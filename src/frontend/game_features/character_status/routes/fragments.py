@@ -29,6 +29,22 @@ async def character_status_panel(
     )
 
 
+@router.get("/game/character-status/vitals", name="game_character_status_vitals")
+async def character_status_vitals(
+    request: Request,
+    ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+    service: Annotated[StatusPanelService, Depends(get_status_panel_service)],
+    char_id: Annotated[int, Query()],
+):
+    await auth_service.require_current_user(request)
+    actor_core = await service.get_panel(request, char_id=char_id)
+    return await ui.render(
+        "game/components/status/vitals_bars.html",
+        context={"char_id": char_id, "character_status": actor_core},
+    )
+
+
 @router.get("/api/game/character-status", name="api_game_character_status")
 async def character_status_json(
     request: Request,

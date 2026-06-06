@@ -91,7 +91,6 @@ async def support(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
 _ROBOTS_TXT = """\
 User-agent: *
 Allow: /
-Allow: /about
 Allow: /news
 Allow: /library
 Allow: /support
@@ -131,7 +130,6 @@ currently in pre-alpha testing.
 ## Pages
 
 - Landing: /
-- About: /about
 - News: /news
 - Library (game lore & bestiary): /library
 - Support and feedback: /support
@@ -153,7 +151,7 @@ async def llms_txt() -> PlainTextResponse:
     return PlainTextResponse(_LLMS_TXT)
 
 
-_SITEMAP_PATHS = ("/", "/about", "/news", "/library", "/support")
+_SITEMAP_PATHS = ("/", "/news", "/library", "/support")
 
 
 @router.get("/sitemap.xml", name="sitemap_xml")

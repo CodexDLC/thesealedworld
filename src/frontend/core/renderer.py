@@ -94,8 +94,7 @@ def get_ui_renderer(request: Request) -> UIRenderer:
 
 _RELEASE_STAGE_LABELS: dict[str, str] = {
     "alpha": "Альфа",
-    "closed-beta": "Закрытая бета",
-    "open-beta": "Открытая бета",
+    "beta": "Бета",
     "release": "Релиз",
 }
 

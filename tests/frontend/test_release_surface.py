@@ -39,8 +39,11 @@ def test_landing_has_stages_section_with_progress_policy(client) -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert 'id="stages"' in response.text
-    assert "может быть сброшен" in response.text  # alpha policy text
-    assert "Постоянный мир" in response.text  # release section copy
+    # New framing: active development with players as testers
+    assert "активной разработке" in response.text
+    assert "прогресс сохраняется" in response.text  # beta card
+    assert "может быть сброшен" in response.text  # alpha card
+    assert "Постоянный мир" in response.text  # release card
 
 
 @pytest.mark.unit

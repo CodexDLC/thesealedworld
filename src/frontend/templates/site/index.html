@@ -71,7 +71,7 @@
     <div class="tsw-wrap">
         <div class="tsw-section-head">
             <span class="tag sys">Состояние проекта</span>
-            <h2>Где мы сейчас<br><em>и что это значит для прогресса.</em></h2>
+            <h2>Активная разработка<br><em>с участием игроков-тестеров.</em></h2>
             <p>{{ release_progress_policy }}</p>
         </div>
 
@@ -79,15 +79,15 @@
             <article class="ds-panel tsw-card{% if release_stage == 'alpha' %} is-active{% endif %}">
                 <div class="ds-panel-header">Этап · Альфа{% if release_stage == 'alpha' %} · сейчас{% endif %}</div>
                 <div class="ds-panel-body">
-                    <h3>Открытое тестирование</h3>
-                    <p>Прогресс <strong>может быть сброшен</strong> при крупных изменениях логики, экономики или баланса. Заранее предупреждаем — но играем без обещаний сохранить персонажа.</p>
+                    <h3>Идёт разработка ядра</h3>
+                    <p>Игроки заходят и тестируют, отзывы влияют на решения. Прогресс <strong>может быть сброшен</strong> при крупных изменениях логики, экономики или баланса — но без сюрпризов, всегда заранее.</p>
                 </div>
             </article>
-            <article class="ds-panel tsw-card{% if release_stage in ['closed-beta', 'open-beta'] %} is-active{% endif %}">
-                <div class="ds-panel-header">Этап · Бета{% if release_stage in ['closed-beta', 'open-beta'] %} · сейчас{% endif %}</div>
+            <article class="ds-panel tsw-card{% if release_stage == 'beta' %} is-active{% endif %}">
+                <div class="ds-panel-header">Этап · Бета{% if release_stage == 'beta' %} · сейчас{% endif %}</div>
                 <div class="ds-panel-body">
                     <h3>Стабилизация мира</h3>
-                    <p>Возможен <strong>один объявленный вайп</strong> перед 1.0 — минимум за месяц до даты. Других сбросов не планируем.</p>
+                    <p>Разработка идёт, но <strong>прогресс сохраняется</strong>. Возможен только один объявленный вайп перед выходом 1.0 — минимум за месяц до даты.</p>
                 </div>
             </article>
             <article class="ds-panel tsw-card{% if release_stage == 'release' %} is-active{% endif %}">

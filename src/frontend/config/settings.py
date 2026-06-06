@@ -40,11 +40,12 @@ class FrontendSettings(BaseCommonSettings):
 
     # Public-facing release surface. Drives the footer build marker and the
     # landing hero stage chip. Override via env on each prod rollout.
-    release_stage: Literal["alpha", "closed-beta", "open-beta", "release"] = "alpha"
+    release_stage: Literal["alpha", "beta", "release"] = "alpha"
     release_version: str = "0.3.0"
     release_progress_policy: str = (
-        "Альфа: прогресс может быть сброшен при крупных изменениях логики. "
-        "Бета: возможен один объявленный вайп перед 1.0. После 1.0 прогресс не сбрасывается."
+        "Мы в активной разработке, игроки участвуют как тестеры и влияют на проект. "
+        "На альфе прогресс может быть сброшен при крупных изменениях. "
+        "С беты прогресс сохраняется — возможен только один объявленный вайп перед 1.0."
     )
     site_database_url: str = (
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_site"  # pragma: allowlist secret

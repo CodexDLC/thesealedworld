@@ -14,8 +14,45 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+## [v0.4.0] - Alpha 0.4.0
+
+### Product
+
+- Reworks the public site toward an honest alpha-facing launch surface: the
+  landing, footer, temporary library, support page, and retired `/about` route
+  now point players at the current product state instead of placeholder
+  marketing.
+- Refreshes account/profile, referral, play-entry, lobby, and news-cover
+  surfaces so the site can invite testers and route them into gameplay more
+  deliberately.
+
+### Security And Auth
+
+- Hardens browser auth with hashed refresh tokens, stricter registration
+  validation, constant-time unknown-email login handling, secure cookie
+  controls, baseline security headers, and double-submit CSRF protection for
+  unsafe browser requests.
+- Adds per-user referral codes and feature-flagged email verification/email
+  change infrastructure backed by site Alembic migrations.
+
+### Runtime And Deploy
+
+- Splits public-site and gameplay routing into separate rollout surfaces, with
+  local compose and Nginx test wiring updated for the new play-entry flow.
+- Splits startup content materialization from bootstrap AI scheduling so
+  production can keep static/world bootstrap enabled while preventing automatic
+  AI generation tasks on backend startup.
+
+### Release Process
+
+- Defines the project release flow around `alpha`, `beta`, and `release`
+  stages, SemVer bump rules, branch routing, and wipe-risk classification.
+
+## [v0.3.0] - Alpha 0.3.0
+
+### Runtime And Persistence
+
 - Prepares the `0.3.0` rollout for a clean game/chat persistence reset: production infra now includes authenticated MongoDB and generated monster content can be restored from a backend snapshot without regenerating S3 images.
-- Splits startup content materialization from bootstrap AI scheduling so production can keep static/world bootstrap enabled while preventing automatic AI generation tasks on backend startup.
 
 ### Release Readiness
 

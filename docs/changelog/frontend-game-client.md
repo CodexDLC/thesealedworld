@@ -5,20 +5,12 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+## [v0.4.0] - Alpha 0.4.0
+
+- Gameplay routes can now run as a dedicated play surface while the public site remains on its own route/middleware set.
+- The play-entry flow now handles unavailable gameplay explicitly and redirects lobby entry through the new character/game-token routing contract.
 - Combat UI now localizes archived stat labels, goblin archer names, and effect
   markers instead of showing raw ids in visible battle surfaces.
-- Gameplay routes can now run as a dedicated play surface while the public site remains on its own route/middleware set.
-- Auth cookies now honor a `auth_cookie_secure` setting so production deploys can pin `Secure`; the refresh cookie is also pinned to `SameSite=Strict` since it is never needed during cross-site navigation.
-- Login now always runs the password hashing step against a constant dummy hash when the email is unknown, removing the timing signal that previously exposed user enumeration.
-- Registration now requires a 10+ character password that does not contain the email local part, and the email field is validated with `pydantic[email]` instead of the prior naive `@` check.
-- Refresh tokens are stored only as `sha256` hashes (`site.auth_refresh_tokens.token_hash`); plaintext column was removed in migration `0002_security_baseline`.
-- Frontend now sends baseline security headers on every response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`).
-- `/account` redirect to `/account/profile` now returns `303 See Other` instead of `307`, so any future POST traffic is not silently replayed.
-- Every browser request now goes through a double-submit CSRF middleware: an `X-CSRF-Token` cookie is issued on first response, mirrored in a `<meta name="csrf-token">` tag and a hidden `csrf_token` field in every POST form, and validated on unsafe methods against either the header or the form field. The `/static`, `/auth`, `/metrics`, `/health` and `/favicon.ico` paths are exempt because they either serve assets or use Bearer-token auth.
-- A small `/static/js/csrf.js` shim auto-attaches the token to `fetch` and HTMX requests so SPA-style AJAX needs no per-call changes.
-- Each user now owns a stable `referral_code` (`SEAL-XXXXXXXX`) and an optional `referred_by_id` link. `GET /register?ref=...` stores the code in a 30-day `tbmmorpg_ref` cookie, the register form has an optional REFERRAL_SIGIL field, and `AuthPersistence.register_user` attaches the referrer + writes a `ReferralReward(kind='signup')` row in the same transaction. Signups never fail because of an unknown referral code.
-- Account profile referrals panel now shows the real code, a copy-to-clipboard link, and live invited/active/bonus counts (active count is wired up later with email verification).
-- Email verification infrastructure is in place behind `enable_email_verification` (default `False`). When enabled, the security panel exposes "Send verification link" and "Change email" actions; tokens are stored as sha256 hashes in `auth_email_verification_tokens` and expire after 24h. The GET preview pages defend against email-prefetch by requiring an explicit POST confirm. Successful email change invalidates every refresh token for the user. On production the flag stays off until reply/info addresses exist on the domain — locally the Mailpit container catches all deliveries.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

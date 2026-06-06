@@ -6,6 +6,7 @@ from src.backend.core.auth import User
 from src.backend.features.game_lobby.integrations import GameLobbyIntegration
 from src.shared.enums import CoreDomain
 from src.shared.schemas import (
+    CharacterInventorySummaryDTO,
     CoreResponseDTO,
     GameLobbyPayloadDTO,
     GameLobbyPopulationStatsDTO,
@@ -40,7 +41,7 @@ class GameLobbyService:
                 vitals=character.vitals or {},
                 attributes=character.attributes or {},
                 equipped_items=character.equipped_items or [],
-                inventory_summary=character.inventory_summary or {},
+                inventory_summary=character.inventory_summary or CharacterInventorySummaryDTO(),
                 skills=character.skills or [],
             )
             for index, character in enumerate(characters, start=1)

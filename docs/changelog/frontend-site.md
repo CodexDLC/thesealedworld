@@ -4,7 +4,48 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+## [v0.4.0] - Alpha 0.4.0
+
+### Auth And Security
+
+- Site auth now stores refresh tokens as `sha256` hashes, validates stronger
+  registration passwords and `pydantic[email]` addresses, uses a constant dummy
+  password hash for unknown-email login attempts, and exposes secure-cookie
+  controls for production deploys.
+- Every browser surface now receives baseline security headers and double-submit
+  CSRF protection, with shared meta/hidden-field rendering and a small
+  JavaScript shim for fetch/HTMX requests.
+- Site Alembic adds migrations for the security baseline, referral ownership,
+  and feature-flagged email verification tokens.
+
+### Accounts And Invitations
+
+- Each account now owns a stable referral code, registration accepts invite
+  codes through a 30-day cookie or explicit form field, and signup rewards are
+  recorded transactionally without failing unknown-code registrations.
+- Account profile now includes the refreshed security, referral, status, and
+  copy-to-clipboard surfaces, including masked email display and live referral
+  counters.
+- Email verification and email-change flows are implemented behind
+  `enable_email_verification`, with hashed 24-hour tokens, POST confirmation
+  pages, and refresh-token invalidation after successful email change.
+
+### Public Site And Cabinet
+
+- The public site now marks the product honestly as alpha, adds a support page,
+  replaces the standalone `/about` page with a `/library` redirect, and ships a
+  temporary library stub until the full lore/library surface is ready.
+- Landing, footer, navigation, auth modal, feedback, and play-unavailable pages
+  were refreshed for the current site idea and tester-entry flow.
+- News management now uses a deterministic local cover library with bundled
+  PNG/WebP assets instead of the removed generation-AI cover workflow, and the
+  shared cabinet article form styling was tightened.
+
+### Routing And Deployment
+
 - Frontend routing can now run the public site surface independently from gameplay routes for layer-specific production rollout.
+- Local compose and Nginx test configuration now cover the separated site/play
+  routing shape used by the release rollout.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

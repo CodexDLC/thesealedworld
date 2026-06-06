@@ -19,10 +19,10 @@ from src.backend.features.monsters.runtime import ClanFactory, MonsterClanGenera
 from src.backend.features.monsters.services import (
     AnchorProjectionBootstrapService,
     EncounterMonsterService,
-    HabitatClanPoolMaterializationResult,
-    HabitatClanPoolMaterializationService,
 )
 from src.backend.features.monsters.services.habitat_clan_pool_materialization_service import (
+    HabitatClanPoolMaterializationResult,
+    HabitatClanPoolMaterializationService,
     habitat_scope_config_from_population_profile,
 )
 from src.backend.features.rift.resources.loader import RiftResourceLoader

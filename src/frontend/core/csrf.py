@@ -47,7 +47,7 @@ def _is_form_content_type(content_type: str) -> bool:
 def _parse_cookie(cookie_header: str, name: str) -> str | None:
     if not cookie_header:
         return None
-    jar: http_cookies.SimpleCookie[str] = http_cookies.SimpleCookie()
+    jar = http_cookies.SimpleCookie()
     try:
         jar.load(cookie_header)
     except http_cookies.CookieError:

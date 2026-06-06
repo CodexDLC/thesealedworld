@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from loguru import logger
 
@@ -8,11 +10,12 @@ from src.frontend.features.account.view_models.profile_vm import AccountProfileV
 from src.shared.exceptions import BusinessLogicException
 
 if TYPE_CHECKING:
-    import uuid
-
     from src.frontend.features.auth.dto.user import UserResponse
+    from src.frontend.features.auth.models.user import User
     from src.frontend.features.auth.repositories.user_repository import UserRepository
     from src.frontend.features.email.services.email_service import EmailService
+
+    AccountProfileUser = UserResponse | User
 
 
 class AccountService:
@@ -29,11 +32,11 @@ class AccountService:
 
     def build_profile_vm(
         self,
-        user: UserResponse,
+        user: AccountProfileUser,
         *,
         site_base_url: str = "",
         referral_stats: dict[str, int] | None = None,
-        referral_users: list[UserResponse] | None = None,
+        referral_users: Sequence[AccountProfileUser] | None = None,
         email_verification_enabled: bool = False,
     ) -> AccountProfileVM:
         is_tester = user.tester_status == "approved"
@@ -68,7 +71,7 @@ class AccountService:
             referrals=[_build_referral_vm(referral) for referral in referral_users or []],
         )
 
-    async def apply_for_testing(self, user_id: uuid.UUID) -> None:
+    async def apply_for_testing(self, user_id: UUID) -> None:
         assert self._repo is not None
         user = await self._repo.get_by_id(user_id)
         if user is None:
@@ -100,7 +103,7 @@ class AccountService:
             logger.bind(email=email).exception("TesterApplicationEmailDeliveryFailed")
 
 
-def _build_referral_vm(user: UserResponse) -> AccountReferralVM:
+def _build_referral_vm(user: AccountProfileUser) -> AccountReferralVM:
     verified_at = getattr(user, "email_verified_at", None)
     created_at = getattr(user, "created_at", None)
     return AccountReferralVM(

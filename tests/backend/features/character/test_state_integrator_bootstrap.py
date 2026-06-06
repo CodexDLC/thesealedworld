@@ -5,7 +5,16 @@ from uuid import uuid4
 import pytest
 
 from src.backend.features.character.integrations import CharacterStateIntegrator
+from src.backend.features.character.runtime.rules.vital_constants import CONCENTRATION_PER_SENSOR_ATTRIBUTE
 from src.shared.enums.skill_enums import SkillProgressState
+
+
+def _effective(stat: float) -> float:
+    return stat * stat / 11.0
+
+
+def _expected_stamina_max(projection: int) -> int:
+    return round(_effective(projection) * CONCENTRATION_PER_SENSOR_ATTRIBUTE)
 
 
 class FakeCharacterSessions:
@@ -184,8 +193,8 @@ async def test_bootstrap_active_session_restores_persisted_runtime_refs_progress
     assert session_doc.vitals.hp.max == 61
     assert session_doc.vitals.energy.cur == 26
     assert session_doc.vitals.energy.max == 26
-    assert session_doc.vitals.stamina.cur == 25
-    assert session_doc.vitals.stamina.max == 25
+    assert session_doc.vitals.stamina.cur == _expected_stamina_max(character.attributes.projection)
+    assert session_doc.vitals.stamina.max == _expected_stamina_max(character.attributes.projection)
     assert session_doc.attributes.strength == 17
     assert session_doc.skills["skill_swords"]["xp"] == 0.25
     assert "locked_skill" not in session_doc.skills

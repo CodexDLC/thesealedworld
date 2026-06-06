@@ -6,8 +6,17 @@ import pytest
 
 from src.backend.core.exceptions import BusinessLogicException
 from src.backend.features.character.integrations import CharacterStateIntegrator
+from src.backend.features.character.runtime.rules.vital_constants import CONCENTRATION_PER_SENSOR_ATTRIBUTE
 from src.backend.features.character.services.status_service import CharacterStatusService
 from src.shared.enums.skill_enums import SkillProgressState
+
+
+def _effective(stat: float) -> float:
+    return stat * stat / 11.0
+
+
+def _expected_stamina_max(projection: int) -> int:
+    return round(_effective(projection) * CONCENTRATION_PER_SENSOR_ATTRIBUTE)
 
 
 class FakeCharacterRepository:
@@ -333,7 +342,7 @@ async def test_get_actor_core_initializes_actor_core_from_persisted_actor_state(
     assert dto.vitals["hp"]["max"] == 61
     assert dto.vitals["hp"]["cur"] == 61
     assert dto.vitals["energy"]["max"] == 26
-    assert dto.vitals["stamina"]["max"] == 63
+    assert dto.vitals["stamina"]["max"] == _expected_stamina_max(RewardedCharacterRepository.character.attributes.projection)
     assert dto.skills["skill_macing"]["state"] == "PLUS"
     assert "locked_skill" not in dto.skills
     assert sessions.created["attributes"]["agility"] == 17

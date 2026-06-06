@@ -6,6 +6,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [v0.4.0] - Alpha 0.4.0
 
+- Concentration now scales more strongly from Projection for both maximum
+  capacity and combat regeneration.
 - Startup content materialization and bootstrap AI scheduling are now controlled
   separately, so production can keep static/world bootstrap enabled without
   automatically scheduling AI generation jobs on backend startup.

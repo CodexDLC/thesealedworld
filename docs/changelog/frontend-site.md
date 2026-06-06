@@ -4,11 +4,6 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-- Production deploy now wires the site and play frontend surfaces separately,
-  including Nginx host routing for the `play` domain and realtime websocket proxying.
-- Combat generated-image links are normalized back to `/static/generated-assets/...`
-  for the play domain, and feint tooltips render catalog HTML only on trusted entries.
-
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Auth And Security
@@ -20,6 +15,8 @@ Detailed milestone history for the `src/frontend` site-web layer.
 - Every browser surface now receives baseline security headers and double-submit
   CSRF protection, with shared meta/hidden-field rendering and a small
   JavaScript shim for fetch/HTMX requests.
+- Frontend security headers now allow the configured S3 generated-asset image
+  origin in CSP while keeping the baseline browser hardening headers.
 - Site Alembic adds migrations for the security baseline, referral ownership,
   and feature-flagged email verification tokens.
 
@@ -51,6 +48,11 @@ Detailed milestone history for the `src/frontend` site-web layer.
 - Frontend routing can now run the public site surface independently from gameplay routes for layer-specific production rollout.
 - Local compose and Nginx test configuration now cover the separated site/play
   routing shape used by the release rollout.
+- Production deploy now wires the site and play frontend surfaces separately,
+  including Nginx host routing for the `play` domain and realtime websocket proxying.
+- Combat generated-image links are normalized back to `/static/generated-assets/...`
+  for the play domain, and feint tooltips render catalog HTML only on trusted entries.
+- The default public release marker now points at `0.4.0`.
 
 ## [v0.2.1a2] - Alpha 0.2.1a2
 

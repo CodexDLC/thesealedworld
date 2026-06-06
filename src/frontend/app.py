@@ -28,7 +28,7 @@ from src.frontend.core.database.session import close_db_engine, create_db_tables
 from src.frontend.core.middleware import AuthUserMiddleware, SiteAnalyticsMiddleware
 from src.frontend.core.renderer import get_ui_renderer
 from src.frontend.core.routing import include_frontend_routers
-from src.frontend.core.security_headers import SecurityHeadersMiddleware
+from src.frontend.core.security_headers import SecurityHeadersMiddleware, build_content_security_policy
 from src.frontend.features.account.middleware.account_auth import AccountAuthMiddleware
 from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from src.frontend.features.cabinet.middleware.admin_auth import AdminAuthMiddleware
@@ -185,7 +185,15 @@ if settings.frontend_surface in PLAY_SURFACES:
     app.add_middleware(GameTokenRefreshMiddleware)
 app.add_middleware(PrometheusMiddleware, service_name="frontend")
 app.add_middleware(LogContextMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
+generated_asset_image_origins = (
+    [settings.asset_s3_endpoint_url]
+    if settings.asset_storage_backend == "s3" and settings.asset_s3_endpoint_url
+    else []
+)
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    content_security_policy=build_content_security_policy(image_origins=generated_asset_image_origins),
+)
 app.add_middleware(CsrfMiddleware)
 include_frontend_routers(app, surface=settings.frontend_surface)
 if settings.frontend_surface in SITE_SURFACES:

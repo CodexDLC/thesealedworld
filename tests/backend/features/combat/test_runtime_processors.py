@@ -1780,8 +1780,8 @@ def test_stats_engine_rounds_fractional_resource_maxima_for_dto_contract() -> No
     StatsEngine.ensure_stats(snapshot)
 
     assert snapshot.stats is not None
-    assert snapshot.stats.mods.stamina == 20
-    assert snapshot.stats.mods.stamina_regen == pytest.approx(2.4727)
+    assert snapshot.stats.mods.stamina == 26
+    assert snapshot.stats.mods.stamina_regen == pytest.approx(3.2091)
 
 
 @pytest.mark.unit

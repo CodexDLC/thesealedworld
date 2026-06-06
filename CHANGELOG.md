@@ -14,11 +14,6 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
-- Production deploy now runs the play frontend as a dedicated surface and routes
-  `play.thesealedworld.com` through Nginx instead of relying on local-only wiring.
-- Generated monster image URLs now stay domain-relative for the play host, and
-  combat feint tooltips render their trusted catalog markup instead of raw HTML text.
-
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Product
@@ -42,11 +37,21 @@ Full layer changelogs live in:
 
 ### Runtime And Deploy
 
+- Projection now grants more Concentration capacity and regeneration, with the
+  technical attribute reference updated to match runtime behavior.
 - Splits public-site and gameplay routing into separate rollout surfaces, with
   local compose and Nginx test wiring updated for the new play-entry flow.
 - Splits startup content materialization from bootstrap AI scheduling so
   production can keep static/world bootstrap enabled while preventing automatic
   AI generation tasks on backend startup.
+- Production deploy now runs the play frontend as a dedicated surface and routes
+  `play.thesealedworld.com` through Nginx instead of relying on local-only wiring.
+- Generated monster image URLs now stay domain-relative for the play host, and
+  combat feint tooltips render their trusted catalog markup instead of raw HTML text.
+- Frontend security headers can now allow the configured S3 generated-asset
+  image origin while preserving the baseline CSP.
+- Play-surface encounter previews now render generated enemy artwork from the
+  visual payload when the legacy image field is empty.
 
 ### Release Process
 

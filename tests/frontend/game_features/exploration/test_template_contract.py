@@ -10,6 +10,11 @@ from src.frontend.game_features.inventory.view_models.window import (
     inventory_card_dimensions,
 )
 from src.shared.schemas.exploration import (
+    DetectionStatus,
+    EncounterDTO,
+    EncounterOptionDTO,
+    EncounterType,
+    EnemyPreviewDTO,
     ExplorationLocalMapDTO,
     ExplorationMapCellDTO,
     ExplorationMapEdgeDTO,
@@ -96,6 +101,42 @@ def test_exploration_center_template_has_navigation_and_encounter_surfaces():
     assert "data-risk-frame" in template
     assert "payload_type == 'exploration_encounter' and not" not in template
     assert "HOSTILES" not in template
+
+
+def test_exploration_encounter_uses_visual_generated_image_when_image_field_is_empty():
+    env = Environment(loader=FileSystemLoader("src/frontend/templates"), autoescape=True)
+    template = env.get_template("game/domains/exploration/viewport/main.html")
+    encounter = EncounterDTO(
+        id="encounter-1",
+        type=EncounterType.COMBAT,
+        status=DetectionStatus.DETECTED,
+        title="CONTACT",
+        description="Movement ahead.",
+        enemies=[
+            EnemyPreviewDTO(
+                name="Rat scout",
+                member_tier=1,
+                image=None,
+                visual={
+                    "generated_image_url": "/static/generated-assets/monsters/generated/members/rat.webp?v=hash",
+                },
+            )
+        ],
+        options=[EncounterOptionDTO(id="attack", label="Attack", style="danger")],
+    )
+
+    html = template.render(
+        payload_type="exploration_encounter",
+        exploration=encounter,
+        encounter=encounter,
+        location_view={},
+        city_map=None,
+        symbiote_name="SYSTEM",
+        char_id=7,
+    )
+
+    assert "background-image: url('/static/generated-assets/monsters/generated/members/rat.webp?v=hash');" in html
+    assert "<span>R</span>" not in html
 
 
 def test_runtime_surfaces_do_not_use_legacy_world_glass_contract():

@@ -41,7 +41,7 @@ class FrontendSettings(BaseCommonSettings):
     # Public-facing release surface. Drives the footer build marker and the
     # landing hero stage chip. Override via env on each prod rollout.
     release_stage: Literal["alpha", "beta", "release"] = "alpha"
-    release_version: str = "0.3.0"
+    release_version: str = "0.4.0"
     release_progress_policy: str = (
         "Мы в активной разработке, игроки участвуют как тестеры и влияют на проект. "
         "На альфе прогресс может быть сброшен при крупных изменениях. "

@@ -7,6 +7,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [v0.4.0] - Alpha 0.4.0
 
+- Mobile encounter target previews now use generated visual image URLs when the
+  legacy enemy image field is empty.
 - Gameplay routes can now run as a dedicated play surface while the public site remains on its own route/middleware set.
 - The play-entry flow now handles unavailable gameplay explicitly and redirects lobby entry through the new character/game-token routing contract.
 - Combat UI now localizes archived stat labels, goblin archer names, and effect

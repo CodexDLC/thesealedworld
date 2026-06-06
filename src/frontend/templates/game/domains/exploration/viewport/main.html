@@ -164,12 +164,14 @@
                     {% set enemy_description = enemy.description if enemy.description is defined and enemy.description else active_encounter.description %}
                     {% set enemy_intel = enemy.intel if enemy.intel is defined and enemy.intel else {} %}
                     {% set enemy_vitals = enemy_intel.vitals if enemy_intel.vitals is defined else {} %}
+                    {% set enemy_visual = enemy.visual if enemy.visual is defined and enemy.visual else {} %}
+                    {% set enemy_image = enemy.image if enemy.image is defined and enemy.image else enemy_visual.image_url if enemy_visual.image_url is defined and enemy_visual.image_url else enemy_visual.generated_image_url if enemy_visual.generated_image_url is defined and enemy_visual.generated_image_url else enemy_visual.placeholder_image_url if enemy_visual.placeholder_image_url is defined and enemy_visual.placeholder_image_url else none %}
                     <div class="mobile-encounter-target-view" x-show="selected === {{ loop.index0 }}" {% if not loop.first %}x-cloak{% endif %}>
                         <div class="mobile-encounter-target-main">
                             <div class="mobile-encounter-target-art"
-                                 {% if enemy.image is defined and enemy.image %}style="background-image: url('{{ enemy.image }}');"{% endif %}
+                                 {% if enemy_image %}style="background-image: url('{{ enemy_image }}');"{% endif %}
                                  aria-hidden="true">
-                                {% if not (enemy.image is defined and enemy.image) %}<span>{{ enemy_name[:1] }}</span>{% endif %}
+                                {% if not enemy_image %}<span>{{ enemy_name[:1] }}</span>{% endif %}
                             </div>
                             <div class="mobile-encounter-target-copy">
                                 <div class="mobile-encounter-target-title">

@@ -127,8 +127,8 @@ Elemental resistances currently derived from `mental`:
 | Attribute | Runtime output | Formula |
 | --- | --- | --- |
 | `perception` | `anti_dodge_chance` | `effective(perception) * 0.03` |
-| `projection` | `stamina` | `effective(projection) * 2.7` |
-| `projection` | `stamina_regen` | `1 + effective(projection) * 0.2` |
+| `projection` | `stamina` | `effective(projection) * 3.5` |
+| `projection` | `stamina_regen` | `1 + effective(projection) * 0.3` |
 
 Naming note: the player-facing design name is **Concentration**. The current
 runtime field is `stamina`. Rename/migration is future work if the code adopts

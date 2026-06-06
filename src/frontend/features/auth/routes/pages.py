@@ -11,7 +11,9 @@ from src.frontend.features.auth.forms.login import LoginForm
 from src.frontend.features.auth.forms.register import RegisterForm
 from src.frontend.features.auth.services.auth_service import FrontendAuthService
 from src.frontend.features.auth.services.referral_code import normalize_referral_code
+from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME
 from src.frontend.game_features.session.cookies import clear_active_character_cookie
+from src.frontend.game_features.session.token_state import clear_game_token_cookies
 from src.shared.exceptions import AuthException, BusinessLogicException
 
 router = APIRouter(tags=["Auth"])
@@ -22,16 +24,28 @@ _REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 @router.get("/login", name="login")
 async def login_page(request: Request, ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    return await ui.render(
+    auth_expired = request.query_params.get("expired") == "1"
+    response = await ui.render(
         "site/index.html",
         context={
             "form": LoginForm(),
             "auth_overlay_open": True,
             "auth_mode": "login",
+            "auth_expired": auth_expired,
             "backend_unavailable": request.query_params.get("server") == "starting"
             or getattr(request.state, "backend_unavailable", False),
         },
     )
+    if auth_expired:
+        # Hard reset: clear every cookie that could still resolve a user.
+        # Without explicit domain= the browser keeps the .thesealed.localhost cookie
+        # alongside a now-cleared host-scoped one, so the loop persists.
+        cookie_domain = settings.auth_cookie_domain or None
+        response.delete_cookie(ACCESS_COOKIE_NAME, domain=cookie_domain)
+        response.delete_cookie(REFRESH_COOKIE_NAME, domain=cookie_domain)
+        clear_active_character_cookie(response)
+        clear_game_token_cookies(response)
+    return response
 
 
 @router.post("/login", name="login_submit")

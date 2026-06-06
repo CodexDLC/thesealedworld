@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.shared.exceptions import AuthException
 from src.frontend.features.auth.dependencies.providers import (
     get_auth_service,
     get_current_user,
@@ -11,6 +10,7 @@ from src.frontend.features.auth.dependencies.providers import (
     get_user_repository,
 )
 from src.frontend.features.auth.services.site_auth_service import AuthService
+from src.shared.exceptions import AuthException
 
 
 @pytest.mark.unit

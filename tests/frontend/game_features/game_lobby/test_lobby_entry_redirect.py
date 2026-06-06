@@ -14,7 +14,13 @@ from src.shared.enums.domain_enums import CoreDomain
 from src.shared.schemas.response import GameStateHeader
 
 
-def test_play_surface_guest_lobby_redirects_to_site_play_entry(monkeypatch) -> None:
+def test_play_surface_guest_lobby_redirects_to_site_login_expired(monkeypatch) -> None:
+    """Unauth user on play.* must land on site /login?expired=1, NOT site /play.
+
+    Redirecting to /play loops because site /play sees the still-valid access
+    cookie, treats the user as authed, and bounces back into the lobby —
+    ERR_TOO_MANY_REDIRECTS. /login?expired=1 clears the cookies and stops.
+    """
     monkeypatch.setattr(settings, "frontend_surface", "play")
     monkeypatch.setattr(settings, "site_base_url", "http://localhost:8080")
     app = _make_app(user=None)
@@ -26,11 +32,11 @@ def test_play_surface_guest_lobby_redirects_to_site_play_entry(monkeypatch) -> N
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "http://localhost:8080/play"
+    assert response.headers["location"] == "http://localhost:8080/login?expired=1"
     assert "THE BOND: RESONANCE" not in response.text
 
 
-def test_play_surface_guest_lobby_infers_site_entry_from_play_host(monkeypatch) -> None:
+def test_play_surface_guest_lobby_infers_site_login_from_play_host(monkeypatch) -> None:
     monkeypatch.setattr(settings, "frontend_surface", "play")
     monkeypatch.setattr(settings, "site_base_url", "")
     app = _make_app(user=None)
@@ -42,7 +48,7 @@ def test_play_surface_guest_lobby_infers_site_entry_from_play_host(monkeypatch) 
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "http://thesealed.localhost:8080/play"
+    assert response.headers["location"] == "http://thesealed.localhost:8080/login?expired=1"
 
 
 def test_play_surface_lobby_close_returns_to_site_origin_from_query(monkeypatch) -> None:

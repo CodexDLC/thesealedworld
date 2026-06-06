@@ -119,7 +119,7 @@ class TestAuthService:
         assert tokens.refresh_token == "refresh"
         persistence.create_refresh_token.assert_called_once()
 
-    async def test_refresh_token_success(self, service, persistence, mocker):
+    async def test_refresh_token_rotates_when_near_expiry(self, service, persistence, mocker):
         from datetime import UTC, timedelta
         db_token = MagicMock(user_id=uuid.uuid4(), expires_at=datetime.now(UTC) + timedelta(days=1))
         persistence.get_refresh_token = AsyncMock(return_value=db_token)
@@ -133,6 +133,43 @@ class TestAuthService:
         result = await service.refresh_token("valid_token")
         assert result == "new_tokens"
         persistence.delete_refresh_token.assert_called_with("valid_token")
+
+    async def test_refresh_token_keeps_existing_when_healthy(self, service, persistence, mocker):
+        """Refresh with >7d left: only issue new access; do NOT rotate refresh."""
+        from datetime import UTC, timedelta
+        db_token = MagicMock(user_id=uuid.uuid4(), expires_at=datetime.now(UTC) + timedelta(days=20))
+        persistence.get_refresh_token = AsyncMock(return_value=db_token)
+        persistence.delete_refresh_token = AsyncMock()
+
+        user = MagicMock(
+            id=db_token.user_id,
+            email="t@e.com",
+            is_active=True,
+            tester_status="none",
+            tester_approved_at=None,
+            referral_code="SEAL-ABCD2345",
+            created_at=datetime.now(),
+        )
+        persistence.get_user_by_id = AsyncMock(return_value=user)
+        mocker.patch(
+            "src.frontend.features.auth.services.site_auth_service.create_access_token",
+            return_value="fresh-access",
+        )
+        create_tokens_spy = mocker.patch.object(service, "create_tokens", AsyncMock())
+
+        result = await service.refresh_token("plenty-of-life-left")
+
+        assert result.access_token == "fresh-access"
+        assert result.refresh_token == "plenty-of-life-left"
+        persistence.delete_refresh_token.assert_not_called()
+        create_tokens_spy.assert_not_called()
+
+    async def test_refresh_token_not_found_raises_specific_error(self, service, persistence):
+        from src.frontend.features.auth.services.site_auth_service import RefreshTokenNotFoundError
+
+        persistence.get_refresh_token = AsyncMock(return_value=None)
+        with pytest.raises(RefreshTokenNotFoundError):
+            await service.refresh_token("ghost")
 
     async def test_refresh_token_invalid(self, service, persistence):
         persistence.get_refresh_token = AsyncMock(return_value=None)

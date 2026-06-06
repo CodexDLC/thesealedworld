@@ -6,6 +6,10 @@ import pytest
 from src.frontend.features.auth.dto.token import Token
 from src.frontend.features.auth.dto.user import UserResponse
 from src.frontend.features.auth.services.auth_service import FrontendAuthService
+from src.frontend.features.auth.services.site_auth_service import (
+    RefreshTokenExpiredError,
+    RefreshTokenNotFoundError,
+)
 from src.shared.exceptions import AuthException
 
 
@@ -69,6 +73,52 @@ async def test_get_current_user_uses_refresh_cookie_when_access_cookie_missing(m
     site_auth.refresh_token.assert_awaited_once_with("old_refresh")
     assert request.state.access_token == "new_access"
     assert request.state.auth_tokens.refresh_token == "new_refresh"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_not_found_does_not_clear_cookies(mocker) -> None:
+    """Rotation race: sibling request rotated the cookie.
+
+    The losing request must NOT mark cookies for clearing — it would force a
+    silent logout. Instead the request stays anonymous and the next render
+    cycle either succeeds with the freshly issued cookie or falls into the
+    hard-fail branch below.
+    """
+    mocker.patch(
+        "src.frontend.features.auth.services.auth_service.decode_access_token",
+        side_effect=ValueError("Token expired"),
+    )
+    site_auth = SimpleNamespace(
+        refresh_token=AsyncMock(side_effect=RefreshTokenNotFoundError("Invalid refresh token")),
+        get_user_by_id=AsyncMock(),
+    )
+    service = FrontendAuthService(auth_service=site_auth)
+    request = _request(access_token="stale", refresh_token="lost-in-race")
+
+    user = await service.get_current_user(request)
+
+    assert user is None
+    assert not getattr(request.state, "clear_auth_cookies", False)
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_expired_clears_cookies(mocker) -> None:
+    """Hard fail: refresh token actually expired — logout must propagate."""
+    mocker.patch(
+        "src.frontend.features.auth.services.auth_service.decode_access_token",
+        side_effect=ValueError("Token expired"),
+    )
+    site_auth = SimpleNamespace(
+        refresh_token=AsyncMock(side_effect=RefreshTokenExpiredError("Refresh token expired")),
+        get_user_by_id=AsyncMock(),
+    )
+    service = FrontendAuthService(auth_service=site_auth)
+    request = _request(access_token="stale", refresh_token="really-expired")
+
+    user = await service.get_current_user(request)
+
+    assert user is None
+    assert request.state.clear_auth_cookies is True
 
 
 @pytest.mark.asyncio

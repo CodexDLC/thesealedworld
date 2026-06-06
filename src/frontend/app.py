@@ -287,7 +287,7 @@ def _auth_recovery_location(request: Request) -> str:
         ("/game", "/api/game", "/scenario", "/combat", "/exploration", "/inventory", "/arena", "/city-services")
     ):
         return "/game-lobby"
-    return "/login"
+    return "/login?expired=1"
 
 
 def _redirect_and_clear_expired_state(
@@ -300,8 +300,9 @@ def _redirect_and_clear_expired_state(
     clear_active_character_cookie(response)
     clear_game_token_cookies(response)
     if location.startswith("/login"):
-        response.delete_cookie(ACCESS_COOKIE_NAME)
-        response.delete_cookie(REFRESH_COOKIE_NAME)
+        cookie_domain = settings.auth_cookie_domain or None
+        response.delete_cookie(ACCESS_COOKIE_NAME, domain=cookie_domain)
+        response.delete_cookie(REFRESH_COOKIE_NAME, domain=cookie_domain)
     if "HX-Request" in request.headers:
         response.headers["HX-Redirect"] = location
     return response

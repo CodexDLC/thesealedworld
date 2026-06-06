@@ -44,7 +44,10 @@ async def game_lobby_page(
     user = await auth_service.get_current_user(request)
     if user is None:
         if settings.frontend_surface == "play":
-            return RedirectResponse(_site_play_entry_url(request), status_code=status.HTTP_303_SEE_OTHER)
+            # Hard exit out of the play subdomain when the session is gone.
+            # Redirecting to site /play would have ping-ponged: site sees the still
+            # valid access cookie and bounces back here, producing a redirect loop.
+            return RedirectResponse(_site_login_expired_url(request), status_code=status.HTTP_303_SEE_OTHER)
         return await ui.render(
             "site/index.html",
             context={"auth_overlay_open": True, "auth_mode": "login"},
@@ -202,6 +205,14 @@ def _lobby_redirect() -> RedirectResponse:
 def _site_play_entry_url(request: Request) -> str:
     return build_public_absolute_url(
         path_or_url="/play",
+        configured_base_url=settings.site_base_url or _infer_site_base_url_from_play_request(request),
+        request_base_url=str(request.base_url),
+    )
+
+
+def _site_login_expired_url(request: Request) -> str:
+    return build_public_absolute_url(
+        path_or_url="/login?expired=1",
         configured_base_url=settings.site_base_url or _infer_site_base_url_from_play_request(request),
         request_base_url=str(request.base_url),
     )

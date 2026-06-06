@@ -6,8 +6,8 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from starlette.testclient import TestClient
 
-from src.frontend.core.database import get_db
 from src.frontend.config.settings import settings
+from src.frontend.core.database import get_db
 from src.frontend.features.account.routes.pages import router
 from src.frontend.integrations.backend_api.game_lobby import GameLobbyPayload, GameLobbyResponse, LobbySlotPayload
 from src.shared.enums import CoreDomain

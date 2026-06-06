@@ -8,7 +8,10 @@ from src.frontend.config.settings import settings
 from src.frontend.features.auth.dto.token import Token as TokenResponse
 from src.frontend.features.auth.dto.user import UserCreate, UserResponse
 from src.frontend.features.auth.security import decode_access_token
-from src.frontend.features.auth.services.site_auth_service import AuthService
+from src.frontend.features.auth.services.site_auth_service import (
+    AuthService,
+    RefreshTokenNotFoundError,
+)
 from src.frontend.features.auth.token_state import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, get_access_token
 from src.shared.exceptions import AuthException
 
@@ -134,6 +137,12 @@ class FrontendAuthService:
 
         try:
             tokens = await self.refresh(refresh_token)
+        except RefreshTokenNotFoundError as exc:
+            # Likely a rotation race: a sibling request already consumed the cookie.
+            # Stay silent — do NOT clear cookies. The next refresh attempt either
+            # succeeds with the freshly issued cookie or falls into the hard branch.
+            logger.bind(error=str(exc), recovered_from="race").info("FrontendAuthRefreshRaceDetected")
+            return None
         except AuthException as exc:
             logger.bind(error=str(exc)).warning("FrontendAuthRefreshRejected")
             request.state.clear_auth_cookies = True

@@ -91,6 +91,7 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
         if tokens is not None:
             from src.frontend.config.settings import settings
 
+            cookie_domain = settings.auth_cookie_domain or None
             response.set_cookie(
                 FrontendAuthService.access_cookie_name,
                 tokens.access_token,
@@ -98,18 +99,23 @@ class AuthUserMiddleware(BaseHTTPMiddleware):
                 samesite="lax",
                 secure=settings.auth_cookie_secure,
                 max_age=60 * 30,
+                domain=cookie_domain,
             )
             response.set_cookie(
                 FrontendAuthService.refresh_cookie_name,
                 tokens.refresh_token,
                 httponly=True,
-                samesite="strict",
+                samesite="lax",
                 secure=settings.auth_cookie_secure,
                 max_age=60 * 60 * 24 * 30,
+                domain=cookie_domain,
             )
         elif getattr(request.state, "clear_auth_cookies", False):
-            response.delete_cookie(FrontendAuthService.access_cookie_name)
-            response.delete_cookie(FrontendAuthService.refresh_cookie_name)
+            from src.frontend.config.settings import settings
+
+            cookie_domain = settings.auth_cookie_domain or None
+            response.delete_cookie(FrontendAuthService.access_cookie_name, domain=cookie_domain)
+            response.delete_cookie(FrontendAuthService.refresh_cookie_name, domain=cookie_domain)
         return response
 
 

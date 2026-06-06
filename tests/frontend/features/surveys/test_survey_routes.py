@@ -1,6 +1,4 @@
 import json
-import uuid
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,8 +10,9 @@ from src.frontend.features.surveys.routes.pages import router
 def _make_app(user=None):
     from fastapi import FastAPI
     from fastapi.templating import Jinja2Templates
-    from src.frontend.config.settings import settings
+
     from src.frontend.app import inline_css
+    from src.frontend.config.settings import settings
 
     app = FastAPI()
     app.include_router(router)

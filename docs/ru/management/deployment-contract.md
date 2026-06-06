@@ -11,7 +11,7 @@ Production deploy разделен на независимые operational layer
 | Слой | Владеет | Миграции | Допустимый restart scope | Rollback target |
 | --- | --- | --- | --- | --- |
 | `infra` | Postgres, Redis, Nginx, certbot helper, networks, volumes | Нет прикладных миграций | Только infra-сервисы | Ручной rollback после отдельного плана |
-| `site` | `frontend` / site-web, site static/generated assets mount | `site` schema через frontend Alembic | `site-migrate`, `frontend` | Предыдущий `site` image SHA |
+| `site` | `frontend` / site-web, `frontend-play` / play surface, site static/generated assets mount | `site` schema через frontend Alembic | `site-migrate`, `frontend`, `frontend-play` | Предыдущий `site` image SHA |
 | `game` | Backend/game API, chat/ws, ARQ workers, game runtime mounts | `game` и `chat` schemas через backend migration command | `backend-migrate`, `backend`, `chat`, workers | Предыдущие `game`, `chat`, `worker` image SHA |
 | `tg-bot` | Telegram polling worker, Redis Stream news announcements | Нет прикладных миграций | `tg-bot` | Предыдущий `tg-bot` image SHA |
 
@@ -76,11 +76,16 @@ Production runtime разделен на site и game layers:
 
 - `frontend` / site-web владеет public site, auth/account, cabinet, library,
   site templates/static и `site` schema migrations.
+- `frontend-play` запускает тот же site image с `FRONTEND_SURFACE=play` и
+  обслуживает gameplay entry/lobby под отдельным public host.
 - `backend` / game владеет gameplay APIs, runtime state, workers, game catalog,
   chat/ws и `game` + `chat` schema migrations.
 - Site обращается к game backend через typed HTTP clients и internal service key.
 - Backend не рендерит public site.
 - Site должен оставаться доступным при restart/maintenance game runtime.
+- Nginx обязан маршрутизировать основной public domain на `frontend`, а play
+  domain на `frontend-play`; оба host-а проксируют `/api/`, `/chat/`,
+  `/ws/chat` и `/ws/realtime` в game/chat слой.
 - Generated asset URLs остаются site-facing контрактом `/static/generated-assets/<storage_key>`.
   S3/Object Storage является backend storage implementation detail; прямые provider URLs не являются
   каноническими значениями для статей, монстров или будущих generated assets.

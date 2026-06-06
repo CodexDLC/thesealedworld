@@ -65,6 +65,7 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required}
+      PLAY_DOMAIN_NAME: ${PLAY_DOMAIN_NAME:?PLAY_DOMAIN_NAME is required}
     ports:
       - "80:80"
       - "443:443"

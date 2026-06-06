@@ -34,17 +34,66 @@ services:
 
   frontend:
     image: ${DOCKER_IMAGE_SITE:?DOCKER_IMAGE_SITE is required}
-    container_name: tbmmorpg-frontend
+    container_name: tbmmorpg-frontend-site
     restart: unless-stopped
     env_file:
       - path: ${DEPLOY_ENV_FILE:-.env}
         required: false
     environment:
+      FRONTEND_SURFACE: site
       DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
       GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
+      SITE_BASE_URL: ${SITE_BASE_URL:?SITE_BASE_URL is required}
+      PLAY_PUBLIC_BASE_URL: ${PLAY_PUBLIC_BASE_URL:?PLAY_PUBLIC_BASE_URL is required}
+      PLAY_INTERNAL_BASE_URL: ${PLAY_INTERNAL_BASE_URL:-http://frontend-play:8000}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:?AUTH_COOKIE_DOMAIN is required}
+      PYTHONPATH: /app:/app/src
+      DEBUG: "False"
+    entrypoint:
+      - uvicorn
+      - src.frontend.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --log-level
+      - info
+    expose:
+      - "8000"
+    volumes:
+      - tbmmorpg-generated-assets:/app/var/generated-assets
+    depends_on:
+      generated-assets-init:
+        condition: service_completed_successfully
+      site-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - tbmmorpg-network
+
+  frontend-play:
+    image: ${DOCKER_IMAGE_SITE:?DOCKER_IMAGE_SITE is required}
+    container_name: tbmmorpg-frontend-play
+    restart: unless-stopped
+    env_file:
+      - path: ${DEPLOY_ENV_FILE:-.env}
+        required: false
+    environment:
+      FRONTEND_SURFACE: play
+      DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      SITE_DATABASE_URL: ${SITE_DATABASE_URL:?SITE_DATABASE_URL is required}
+      GAME_DATABASE_URL: ${GAME_DATABASE_URL:?GAME_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://backend:8001}
+      SITE_BASE_URL: ${SITE_BASE_URL:?SITE_BASE_URL is required}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:?AUTH_COOKIE_DOMAIN is required}
       PYTHONPATH: /app:/app/src
       DEBUG: "False"
     entrypoint:

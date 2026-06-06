@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 
@@ -85,3 +87,33 @@ def test_library_internal_fragments_still_routable(client) -> None:
     them again without a route-table change."""
     response = client.get("/library/fragments/intro")
     assert response.status_code == 200
+
+
+@pytest.mark.unit
+def test_production_play_surface_is_wired() -> None:
+    root = Path(__file__).resolve().parents[2]
+    compose_site = (root / "deploy" / "compose.site.yml").read_text(encoding="utf-8")
+    compose_infra = (root / "deploy" / "compose.infra.yml").read_text(encoding="utf-8")
+    nginx_template = (root / "deploy" / "nginx" / "site.conf.template").read_text(encoding="utf-8")
+    nginx_entrypoint = (root / "deploy" / "nginx" / "entrypoint.sh").read_text(encoding="utf-8")
+    prod_env_example = (root / ".env.prod.example").read_text(encoding="utf-8")
+
+    assert "frontend-play:" in compose_site
+    assert "FRONTEND_SURFACE: play" in compose_site
+    assert "PLAY_INTERNAL_BASE_URL" in compose_site
+    assert "PLAY_DOMAIN_NAME" in compose_infra
+
+    assert "server_name ${PLAY_DOMAIN_NAME};" in nginx_template
+    assert "set $play_upstream http://frontend-play:8000;" in nginx_template
+    assert "location /ws/realtime" in nginx_template
+    assert "PLAY_TLS_CERTIFICATE_PATH" in nginx_entrypoint
+
+    for key in (
+        "PLAY_DOMAIN_NAME",
+        "PLAY_PUBLIC_BASE_URL",
+        "PLAY_INTERNAL_BASE_URL",
+        "AUTH_COOKIE_DOMAIN",
+        "AUTH_COOKIE_SECURE",
+        "RELEASE_VERSION",
+    ):
+        assert f"{key}=" in prod_env_example

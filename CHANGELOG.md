@@ -14,6 +14,9 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Production deploy now runs the play frontend as a dedicated surface and routes
+  `play.thesealedworld.com` through Nginx instead of relying on local-only wiring.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Product

@@ -77,12 +77,16 @@ DOCKER_IMAGE_NGINX
 Deploy rules:
 
 - `infra` owns postgres, redis, nginx, certbot helper profile, networks, and volumes.
-- `site` owns frontend/site and site migrations.
+- `site` owns frontend/site, frontend-play/play surface, and site migrations.
 - `game` owns backend/game API, chat/ws, workers, and game/chat migrations.
 - `tg-bot` owns the Telegram polling worker and Redis Stream news announcements.
 - `site` deploys must not restart game services.
 - `game` deploys must not restart the site service.
 - `tg-bot` deploys must not restart site or game services.
+
+Production nginx routes `DOMAIN_NAME` to `frontend` and `PLAY_DOMAIN_NAME` to
+`frontend-play`. Both hosts keep `/api/`, `/chat/`, `/ws/chat`, and
+`/ws/realtime` proxied to the game/chat layer.
 
 ## Production Admin Tools
 

@@ -4,6 +4,9 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Production deploy now wires the site and play frontend surfaces separately,
+  including Nginx host routing for the `play` domain and realtime websocket proxying.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Auth And Security

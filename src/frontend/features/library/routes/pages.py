@@ -19,14 +19,21 @@ def get_library_service(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]) -> 
 
 @router.get("/library", name="library")
 async def library(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    """Render the Library page."""
+    """Render the Library page.
+
+    Currently rendered as a maintenance stub while the section is being rebuilt
+    to merge editorial lore with live game-catalog data. Internal HTMX fragments
+    below stay routable so the upcoming surface can wire them back in without
+    a route-table change.
+    """
     return await ui.render(
-        "site/library.html",
+        "site/library_stub.html",
         context={
             "meta": {
                 "title": "Библиотека - The Sealed World",
-                "description": "Архив мира The Sealed World: заметки, существа, фрагменты лора и игровые справочники.",
+                "description": "Раздел библиотеки пересобирается. Скоро здесь снова появятся записи о мире The Sealed World.",
                 "url": "/library",
+                "robots": "noindex, follow",
             }
         },
     )

@@ -1,0 +1,29 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Библиотека — The Sealed World{% endblock title %}
+{% block body_class %}page-library page-library--stub{% endblock body_class %}
+
+{% block content %}
+<section class="library-page library-page--stub">
+    <div class="library-stub">
+        <span class="ds-tag sys">Library // Offline</span>
+        <h1>Библиотека пересобирается</h1>
+        <p>
+            Раздел готовится с нуля: соединяем редакторские заметки
+            с реальными игровыми данными из текущей сборки.
+        </p>
+        <p class="library-stub-note">
+            Пока изменения копятся в технических чейнджлогах разработки.
+            Когда библиотека вернётся, в ней появится бестиарий, ленты артефактов,
+            история мира и привязанный к версиям технический список изменений.
+        </p>
+        <div class="library-stub-actions">
+            <a href="/" class="btn-node"><span>На главную</span></a>
+            <a href="/news" class="btn-node ghost"><span>Свежие новости</span></a>
+        </div>
+        <p class="library-stub-build">
+            Текущая сборка проекта: <strong>{{ release_stage_label }} · build {{ release_version }}</strong>
+        </p>
+    </div>
+</section>
+{% endblock content %}

@@ -37,6 +37,15 @@ class FrontendSettings(BaseCommonSettings):
     csrf_cookie_name: str = "tbmmorpg_csrf"
     csrf_header_name: str = "X-CSRF-Token"
     csrf_field_name: str = "csrf_token"
+
+    # Public-facing release surface. Drives the footer build marker and the
+    # landing hero stage chip. Override via env on each prod rollout.
+    release_stage: Literal["alpha", "closed-beta", "open-beta", "release"] = "alpha"
+    release_version: str = "0.3.0"
+    release_progress_policy: str = (
+        "Альфа: прогресс может быть сброшен при крупных изменениях логики. "
+        "Бета: возможен один объявленный вайп перед 1.0. После 1.0 прогресс не сбрасывается."
+    )
     site_database_url: str = (
         "postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@127.0.0.1:5432/tbmmorpg_site"  # pragma: allowlist secret
     )

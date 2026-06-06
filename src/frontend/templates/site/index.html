@@ -11,7 +11,8 @@
 {% block content %}
 <nav class="landing-dock" aria-label="Навигация по лендингу">
     <a href="#premise">Идея</a>
-    <a href="#prealpha">Pre-alpha</a>
+    <a href="#stages">Этап</a>
+    <a href="#prealpha">Сборка</a>
     <a href="#loop">Цикл</a>
     <a href="#roadmap">Планы</a>
     <a href="/support">Поддержка</a>
@@ -28,7 +29,7 @@
     </div>
 
     <div class="tsw-hero-content">
-        <div class="tag sys tsw-kicker">Пре-альфа · браузерная MMORPG · открытый вход</div>
+        <div class="tag sys tsw-kicker">{{ release_stage_label }} · браузерная MMORPG · открытый вход</div>
         <h1>The Sealed <em>World</em></h1>
         <p class="tsw-hero-lede">
             Браузерная MMORPG об опасных вылазках за стену, добыче и возвращении домой живым.
@@ -59,7 +60,44 @@
             <a class="btn-node lg" href="#cta"><span>Хочу на тест</span></a>
             <a class="btn-node ghost lg" href="#roadmap"><span>Смотреть планы</span></a>
         </div>
-        <p class="tsw-hero-note"><span></span>Первая публичная pre-alpha · версия 0.1.0</p>
+        <p class="tsw-hero-note">
+            <span></span>{{ release_stage_label }} · build {{ release_version }} ·
+            <a href="#stages" class="tsw-hero-link">что значит {{ release_stage_label|lower }}?</a>
+        </p>
+    </div>
+</section>
+
+<section class="tsw-band tsw-band-surface" id="stages" aria-label="Этапы разработки">
+    <div class="tsw-wrap">
+        <div class="tsw-section-head">
+            <span class="tag sys">Состояние проекта</span>
+            <h2>Где мы сейчас<br><em>и что это значит для прогресса.</em></h2>
+            <p>{{ release_progress_policy }}</p>
+        </div>
+
+        <div class="tsw-card-grid tsw-stage-grid">
+            <article class="ds-panel tsw-card{% if release_stage == 'alpha' %} is-active{% endif %}">
+                <div class="ds-panel-header">Этап · Альфа{% if release_stage == 'alpha' %} · сейчас{% endif %}</div>
+                <div class="ds-panel-body">
+                    <h3>Открытое тестирование</h3>
+                    <p>Прогресс <strong>может быть сброшен</strong> при крупных изменениях логики, экономики или баланса. Заранее предупреждаем — но играем без обещаний сохранить персонажа.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card{% if release_stage in ['closed-beta', 'open-beta'] %} is-active{% endif %}">
+                <div class="ds-panel-header">Этап · Бета{% if release_stage in ['closed-beta', 'open-beta'] %} · сейчас{% endif %}</div>
+                <div class="ds-panel-body">
+                    <h3>Стабилизация мира</h3>
+                    <p>Возможен <strong>один объявленный вайп</strong> перед 1.0 — минимум за месяц до даты. Других сбросов не планируем.</p>
+                </div>
+            </article>
+            <article class="ds-panel tsw-card{% if release_stage == 'release' %} is-active{% endif %}">
+                <div class="ds-panel-header">Этап · Релиз 1.0+{% if release_stage == 'release' %} · сейчас{% endif %}</div>
+                <div class="ds-panel-body">
+                    <h3>Постоянный мир</h3>
+                    <p><strong>Прогресс не сбрасывается.</strong> Дальше — патчи, минорные обновления и расширения, как в любой долгоживущей MMO.</p>
+                </div>
+            </article>
+        </div>
     </div>
 </section>
 
@@ -110,10 +148,10 @@
 <section class="tsw-band tsw-band-surface" id="prealpha">
     <div class="tsw-wrap">
         <div class="tsw-section-head">
-            <span class="tag sys">II · Что входит в 0.1.0</span>
+            <span class="tag sys">II · Что входит в сборку {{ release_version }}</span>
             <h2>Играбельная основа<br><em>для честного раннего теста.</em></h2>
             <p>
-                Это не релиз и не витрина. Первая публичная версия проверяет базовую петлю:
+                Это не релиз и не витрина. Текущая публичная сборка проверяет базовую петлю:
                 персонаж, бой, добыча, подготовка и первые решения.
             </p>
         </div>
@@ -331,7 +369,7 @@
         <div class="tsw-cta-actions">
             <button type="button" class="btn-node lg" @click="authModal = 'register'"><span>Зарегистрироваться</span></button>
             <button type="button" class="btn-node ghost lg" @click="authModal = 'login'"><span>Войти</span></button>
-            <a class="btn-node ghost lg" href="#prealpha"><span>Что будет в 0.1.0</span></a>
+            <a class="btn-node ghost lg" href="#prealpha"><span>Что в сборке {{ release_version }}</span></a>
         </div>
         <p class="tsw-cta-note">Браузерный вход · ранний игровой срез · обратная связь через поддержку</p>
     </div>

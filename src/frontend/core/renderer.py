@@ -45,6 +45,10 @@ class UIRenderer:
             "csrf_token": getattr(self.request.state, "csrf_token", ""),
             "csrf_field_name": settings.csrf_field_name,
             "csrf_header_name": settings.csrf_header_name,
+            "release_stage": settings.release_stage,
+            "release_stage_label": _release_stage_label(settings.release_stage),
+            "release_version": settings.release_version,
+            "release_progress_policy": settings.release_progress_policy,
         }
 
         # 2. Dynamic Game Menu (if domain is provided in context)
@@ -86,6 +90,18 @@ def get_ui_renderer(request: Request) -> UIRenderer:
     Requires 'templates' to be attached to app.state.
     """
     return UIRenderer(request, request.app.state.templates)
+
+
+_RELEASE_STAGE_LABELS: dict[str, str] = {
+    "alpha": "Альфа",
+    "closed-beta": "Закрытая бета",
+    "open-beta": "Открытая бета",
+    "release": "Релиз",
+}
+
+
+def _release_stage_label(stage: str) -> str:
+    return _RELEASE_STAGE_LABELS.get(stage, stage.capitalize())
 
 
 def _static_version() -> str:

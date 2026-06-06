@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import copy
+import asyncio
 from typing import Any
 
 from loguru import logger
@@ -23,40 +23,46 @@ def _build_notice_publisher(ctx: dict[str, Any]) -> PlayerNoticePublisher | None
     return None
 
 
+def _chunked(values: list[int], size: int) -> list[list[int]]:
+    if not values:
+        return []
+    size = max(1, size)
+    return [values[index : index + size] for index in range(0, len(values), size)]
+
+
 @logged_task
 async def online_vitals_regen_task(ctx: dict[str, Any], payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     limit = int(payload.get("limit") or 100)
-    now = payload.get("now")
+    batch_size = int(payload.get("batch_size") or limit or 100)
+    batch_pause_ms = int(payload.get("batch_pause_ms") or 0)
     managers = ctx["redis_managers"]
     sessions = managers.character_sessions
     notice_publisher = _build_notice_publisher(ctx)
 
     candidate_ids = await sessions.scan_vitals_regen_candidates(limit=limit)
-    processed: list[int] = []
-    refreshed: list[int] = []
-    for char_id in candidate_ids:
-        before = copy.deepcopy(await sessions.get_section(char_id, "vitals"))
-        updated = (
-            await sessions.apply_vitals_regen(char_id)
-            if now is None
-            else await sessions.apply_vitals_regen(char_id, now=now)
-        )
-        if updated != before:
-            processed.append(char_id)
-            refreshed.append(char_id)
-            if notice_publisher is not None:
-                await notice_publisher.request_refresh(
-                    char_id,
-                    target=RefreshTargets.STATUS,
-                    reason="vitals_regenerated",
-                    domain="system",
-                )
+    notified: list[int] = []
+    batches = _chunked(candidate_ids, batch_size)
+    if notice_publisher is not None:
+        for index, batch in enumerate(batches):
+            await notice_publisher.request_refresh_many(
+                batch,
+                target=RefreshTargets.STATUS,
+                reason="vitals_refresh_requested",
+                domain="system",
+            )
+            notified.extend(batch)
+            if batch_pause_ms > 0 and index < len(batches) - 1:
+                await asyncio.sleep(batch_pause_ms / 1000)
 
-    logger.bind(candidate_count=len(candidate_ids), processed_count=len(processed)).info("OnlineVitalsRegenCompleted")
+    logger.bind(
+        candidate_count=len(candidate_ids),
+        notified_count=len(notified),
+        batch_count=len(batches),
+    ).info("OnlineVitalsRefreshRequested")
     return {
         "status": "ok",
         "candidate_char_ids": candidate_ids,
-        "processed_char_ids": processed,
-        "refreshed_char_ids": refreshed,
+        "notified_char_ids": notified,
+        "batch_count": len(batches),
     }

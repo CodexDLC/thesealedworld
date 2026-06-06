@@ -19,7 +19,7 @@
                     <h1>{{ profile.display_name }}</h1>
                     <p class="account-lead">Центр аккаунта игрока: профиль, персонажи, приглашения и будущие игровые сервисы.</p>
                     <div class="account-hero-actions">
-                        <a href="/play" class="btn-node lg"><span>В игру</span></a>
+                        <a href="{{ play_lobby_url }}" class="btn-node lg"><span>В игру</span></a>
                         <a href="/account/profile?section=characters" class="btn-node ghost lg"><span>Мои персонажи</span></a>
                     </div>
                 </div>
@@ -98,22 +98,168 @@
         </div>
     </div>
     {% elif active_section == "characters" %}
-    <div class="ds-panel account-section">
+    <div class="ds-panel account-section account-section--characters">
         <div class="ds-panel-header">Персонажи</div>
         <div class="ds-panel-body">
             <div class="account-section-title">
-                <h2>Мои персонажи</h2>
-                <span class="tag">Слот игрока</span>
+                <div>
+                    <h2>Сводка персонажей</h2>
+                    <p class="account-muted">Краткое состояние персонажей аккаунта без входа в игровой экран.</p>
+                </div>
+                <a href="{{ play_lobby_url }}" class="btn-node ghost"><span>Игровое лобби</span></a>
             </div>
 
+            {% if characters_lobby %}
+            {% set first_character = characters_lobby.slots | rejectattr("is_empty") | list | first %}
+            <div class="account-character-workspace">
+                <div class="account-character-toolbar">
+                    <span>Занято слотов: {{ characters_lobby.slots | selectattr("is_empty", "equalto", false) | list | length }} / {{ characters_lobby.max_slots }}</span>
+                    <span>Свободно: {{ characters_lobby.slots | selectattr("is_empty", "equalto", true) | list | length }}</span>
+                </div>
+
+                {% for character in characters_lobby.slots %}
+                <input
+                    class="account-character-tab-control"
+                    type="radio"
+                    name="account-character-slot"
+                    id="account-character-slot-{{ character.index }}"
+                    {% if character.index == (first_character.index if first_character else 1) %}checked{% endif %}
+                >
+                {% endfor %}
+
+                <div class="account-character-tabs" role="tablist" aria-label="Слоты персонажей">
+                    {% for character in characters_lobby.slots %}
+                    <label class="account-character-tab{% if character.is_empty %} is-empty{% endif %}" for="account-character-slot-{{ character.index }}">
+                        <span>Слот {{ character.index }}</span>
+                        <strong>{% if character.is_empty %}Нет персонажа{% else %}{{ character.name }}{% endif %}</strong>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div class="account-character-panels">
+                {% for character in characters_lobby.slots %}
+                <section class="account-character-panel account-character-panel--{{ character.index }}">
+                    {% if character.is_empty %}
+                    <div class="account-character-empty account-character-empty--slot">
+                        <div class="account-character-sigil">{{ character.index }}</div>
+                        <div>
+                            <h3>Слот свободен</h3>
+                            <p>Новый персонаж создаётся в игровом лобби. Кабинет покажет сводку сразу после создания.</p>
+                        </div>
+                        <a href="{{ play_lobby_url }}" class="btn-node"><span>Открыть лобби</span></a>
+                    </div>
+                    {% else %}
+                    <article class="account-character-card">
+                        <div class="account-character-main">
+                            <div class="account-character-avatar">
+                                <img src="{{ character.avatar_url }}" alt="">
+                            </div>
+                            <div class="account-character-identity">
+                                <div class="account-character-state">
+                                    <span class="tag">{{ character.status }}</span>
+                                    <span class="account-presence account-presence--{{ character.presence_class }}">{{ character.presence_label }}</span>
+                                </div>
+                                <h3>{{ character.name }}</h3>
+                                <p>{{ character.location_label }}</p>
+                            </div>
+                            <div class="account-vital-grid">
+                                {% for vital in character.vitals %}
+                                <div class="account-vital account-vital--{{ vital.tone }}{% if vital.is_missing %} is-missing{% endif %}">
+                                    <div class="account-vital-head">
+                                        <span>{{ vital.label }}</span>
+                                        <strong>{{ vital.value }}</strong>
+                                    </div>
+                                    <div class="account-vital-track">
+                                        <span style="width: {{ vital.percent }}%"></span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="account-character-blocks">
+                            <section class="account-character-zone">
+                                <h4>Характеристики</h4>
+                                {% if character.attributes %}
+                                <div class="account-attribute-list">
+                                    {% for attr in character.attributes %}
+                                    <div>
+                                        <span>{{ attr.label }}</span>
+                                        <strong>{{ attr.value }}</strong>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="account-muted">Данные характеристик пока не синхронизированы.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="account-character-zone">
+                                <h4>Навыки</h4>
+                                {% if character.skills %}
+                                <div class="account-skill-list">
+                                    {% for skill in character.skills %}
+                                    <div class="{% if not skill.is_unlocked %}is-locked{% endif %}">
+                                        <span>{{ skill.label }}</span>
+                                        <strong>{{ skill.xp_label }}</strong>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="account-muted">Навыки пока не открыты.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="account-character-zone">
+                                <h4>Надетые предметы</h4>
+                                {% if character.equipped_items %}
+                                <div class="account-item-strip">
+                                    {% for item in character.equipped_items %}
+                                    <div class="account-item-chip account-item-chip--{{ item.rarity }}">
+                                        <strong>{{ item.name }}</strong>
+                                        <span>{{ item.meta }}{% if item.quantity > 1 %} x{{ item.quantity }}{% endif %}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="account-muted">На персонаже нет экипировки.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="account-character-zone">
+                                <h4>Ресурсы</h4>
+                                <div class="account-inventory-counters">
+                                    <span>Надето: <strong>{{ character.inventory.equipped_count }}</strong></span>
+                                    <span>Инвентарь: <strong>{{ character.inventory.backpack_count }}</strong></span>
+                                    <span>Ресурсы: <strong>{{ character.inventory.resource_count }}</strong></span>
+                                </div>
+                                {% if character.inventory.resources %}
+                                <div class="account-resource-strip">
+                                    {% for resource in character.inventory.resources %}
+                                    <span>{{ resource.label }} <strong>{{ resource.value }}</strong></span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="account-muted">Ресурсы пока не найдены.</p>
+                                {% endif %}
+                            </section>
+                        </div>
+                    </article>
+                    {% endif %}
+                </section>
+                {% endfor %}
+                </div>
+            </div>
+            {% else %}
             <div class="account-character-empty">
                 <div class="account-character-sigil">I</div>
                 <div>
-                    <h3>Персонажи подключаются через игровой вход</h3>
-                    <p>Когда список персонажей будет вынесен в кабинет, здесь появятся карточки с уровнем, состоянием и быстрым переходом.</p>
+                    <h3>Игровой backend сейчас недоступен</h3>
+                    <p>Кабинет не может показать список персонажей. Создание и вход остаются в игровом лобби.</p>
                 </div>
-                <a href="/play" class="btn-node"><span>Открыть игру</span></a>
+                <a href="{{ play_lobby_url }}" class="btn-node"><span>Открыть лобби</span></a>
             </div>
+            {% endif %}
         </div>
     </div>
     {% elif active_section == "referrals" %}
@@ -145,34 +291,109 @@
         <div class="ds-panel-header">Рефералы</div>
         <div class="ds-panel-body">
             <div class="account-section-title">
-                <h2>Приглашения</h2>
+                <div>
+                    <h2>Приглашения</h2>
+                    <p class="account-muted">Личная ссылка для друзей и будущих наград аккаунта.</p>
+                </div>
                 <span class="tag sys">Бета</span>
             </div>
 
-            <div class="account-referral-box">
-                <div>
-                    <span class="account-profile-label">Ваш код</span>
-                    <strong>{{ profile.referral_code }}</strong>
-                    <p class="account-muted" x-text="link"></p>
+            <div class="account-referral-layout">
+                <div class="account-referral-primary">
+                    <div class="account-referral-code">
+                        <span class="account-profile-label">Ваш код</span>
+                        <strong>{{ profile.referral_code }}</strong>
+                    </div>
+                    <div class="account-referral-link">
+                        <span class="account-profile-label">Ссылка приглашения</span>
+                        <code x-text="link">{{ profile.referral_link }}</code>
+                    </div>
+                    <div class="account-referral-actions">
+                        <button type="button" class="btn-node" @click="copyLink()">
+                            <span x-text="copied ? 'Скопировано' : 'Скопировать ссылку'">Скопировать ссылку</span>
+                        </button>
+                    </div>
                 </div>
-                <button type="button" class="btn-node ghost" @click="copyLink()">
-                    <span x-text="copied ? 'Скопировано' : 'Скопировать ссылку'"></span>
-                </button>
             </div>
 
-            <div class="account-mini-stats">
+            <div class="account-mini-stats account-mini-stats--referrals">
                 <div>
                     <span>Приглашено</span>
                     <strong>{{ profile.referrals_invited }}</strong>
+                    <em>Всего регистраций по вашей ссылке</em>
                 </div>
                 <div>
                     <span>Бонусы</span>
                     <strong>{{ profile.referral_bonus }}</strong>
+                    <em>Начисления появятся после включения наград</em>
                 </div>
                 <div>
                     <span>Активные</span>
                     <strong>{{ profile.referrals_active }}</strong>
+                    <em>Будет заполнено после верификации</em>
                 </div>
+            </div>
+
+            <div class="account-referral-details">
+                <div class="account-referral-steps">
+                    <h3>Как это работает</h3>
+                    <ol>
+                        <li><span>1</span><p>Скопируйте ссылку и отправьте её игроку.</p></li>
+                        <li><span>2</span><p>Код сохранится у гостя на 30 дней и подставится при регистрации.</p></li>
+                        <li><span>3</span><p>После регистрации приглашение закрепится за вашим аккаунтом.</p></li>
+                    </ol>
+                </div>
+                <div class="account-referral-rewards">
+                    <h3>Награды</h3>
+                    <div class="account-reward-row is-ready">
+                        <span>Приглашённый зарегистрировался</span>
+                        <strong>Подключено</strong>
+                    </div>
+                    <div class="account-reward-row">
+                        <span>Приглашённый подтвердил email</span>
+                        <strong>Будет начисляться</strong>
+                    </div>
+                    <div class="account-reward-row">
+                        <span>Приглашённый создал персонажа</span>
+                        <strong>Будет отслеживаться</strong>
+                    </div>
+                    <div class="account-reward-row">
+                        <span>Приглашённый сделал платёж</span>
+                        <strong>Будет добавлено</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="account-referral-list">
+                <div class="account-referral-list-head">
+                    <h3>Приглашённые игроки</h3>
+                    <span>{{ profile.referrals_invited }}</span>
+                </div>
+                {% if profile.referrals %}
+                <div class="account-referral-table">
+                    <div class="account-referral-table-row account-referral-table-row--head">
+                        <span>Игрок</span>
+                        <span>Регистрация</span>
+                        <span>Email</span>
+                        <span>Персонаж</span>
+                        <span>Платёж</span>
+                    </div>
+                    {% for referral in profile.referrals %}
+                    <div class="account-referral-table-row">
+                        <strong>{{ referral.display_name }}</strong>
+                        <span>{{ referral.joined_at }}</span>
+                        <span class="account-referral-event {{ referral.email_status_class }}">{{ referral.email_status }}</span>
+                        <span class="account-referral-event is-muted">{{ referral.character_status }}</span>
+                        <span class="account-referral-event is-muted">{{ referral.payment_status }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="account-referral-empty">
+                    <strong>Пока нет приглашённых игроков</strong>
+                    <p>Когда игрок зарегистрируется по вашей ссылке, он появится здесь со статусами регистрации и подтверждения email.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

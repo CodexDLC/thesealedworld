@@ -873,6 +873,9 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
                         "accuracy": 12.5,
                         "main_hand_damage_base": 14,
                         "main_hand_damage_spread": 0.25,
+                        "anti_dodge_chance": 0.565,
+                        "armor_penetration_pct": 0.024,
+                        "physical_suppression": 0.262,
                         "parry": 0,
                         "block": 8,
                         "attack_speed": 3,
@@ -896,7 +899,16 @@ def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
     ]
     sections = {section.key: section for section in dashboard.hero.stat_sheet.sections}
     assert sections["offense"].items[0].key == "main_hand_damage"
+    assert sections["offense"].label == "Атака"
+    assert [item.label for item in sections["offense"].items] == [
+        "Урон",
+        "Точность",
+        "Против уворота",
+        "Пробой брони",
+        "Подавление защиты",
+    ]
     assert [item.key for item in sections["attributes"].items] == ["strength", "perception"]
+    assert [item.label for item in sections["attributes"].items] == ["Сила", "Восприятие"]
     assert sections["attributes"].items[0].value == 12
     assert [item.key for item in sections["defense"].items] == ["block"]
     all_keys = {item.key for section in dashboard.hero.stat_sheet.sections for item in section.items}

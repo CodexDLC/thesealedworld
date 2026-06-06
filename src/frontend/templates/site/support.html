@@ -1,0 +1,174 @@
+{% extends "site/base_site.html" %}
+
+{% block body_class %}page-support{% endblock body_class %}
+
+{% block content %}
+<section class="support-hero">
+    <div class="support-hero-bg" aria-hidden="true"></div>
+    <div class="support-wrap support-hero-layout">
+        <div class="support-copy">
+            <span class="tag sys">Пользовательская поддержка</span>
+            <h1>Центр поддержки<br><em>The Sealed World</em></h1>
+            <p>
+                Выберите раздел, ответьте на короткие вопросы и отправьте обращение через аккаунт.
+                Поддержка принимает баги, проблемы баланса, темпа боя, интерфейса и идеи для вылазок.
+            </p>
+            <div class="support-hero-actions">
+                <a class="btn-node lg" href="#support-wizard"><span>Описать сигнал</span></a>
+                {% if user %}
+                    <a class="btn-node ghost lg" href="/account/feedback"><span>Мои обращения</span></a>
+                {% else %}
+                    <button type="button" class="btn-node ghost lg" @click="authModal = 'login'"><span>Войти</span></button>
+                {% endif %}
+            </div>
+        </div>
+
+        <aside class="ds-panel support-status-panel" aria-label="Разделы поддержки">
+            <div class="ds-panel-header">Что можно отправить</div>
+            <div class="ds-panel-body">
+                <ul class="support-scope-list">
+                    <li>Баг в игре или аккаунте</li>
+                    <li>Перекос баланса или наград</li>
+                    <li>Затянутый или непонятный бой</li>
+                    <li>Проблема интерфейса</li>
+                    <li>Идея для вылазки или события</li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section class="support-band" id="support-wizard" x-data="supportWizardState()">
+    <div class="support-wrap">
+        <div class="support-section-head">
+            <span class="tag sys">Разделы поддержки</span>
+            <h2>Выберите, что нужно разобрать.</h2>
+            <p>Формы специально дробятся на короткие шаги, чтобы игрок в основном выбирал варианты, а не писал длинный текст с нуля.</p>
+        </div>
+
+        <div class="support-layout">
+            <div class="support-category-grid" role="list" aria-label="Типы обращений">
+                <template x-for="item in categories" :key="item.id">
+                    <button
+                        type="button"
+                        class="support-category-card"
+                        :class="{ 'active': selectedCategory === item.id }"
+                        @click="selectCategory(item.id)"
+                    >
+                        <span class="support-category-code" x-text="item.code"></span>
+                        <strong x-text="item.title"></strong>
+                        <span x-text="item.description"></span>
+                    </button>
+                </template>
+            </div>
+
+            <div class="ds-panel support-wizard-panel">
+                <div class="ds-panel-header">
+                    <span x-text="currentCategory.title"></span>
+                    <span x-text="`Шаг ${step + 1} / 4`"></span>
+                </div>
+                <div class="ds-panel-body">
+                    <div class="support-progress" aria-hidden="true">
+                        <template x-for="(_, index) in [0, 1, 2, 3]" :key="index">
+                            <span :class="{ 'active': index <= step }"></span>
+                        </template>
+                    </div>
+
+                    <div class="support-step" x-show="step === 0">
+                        <span class="support-step-label">Первичный вопрос</span>
+                        <h3 x-text="currentCategory.question"></h3>
+                        <div class="support-option-grid">
+                            <template x-for="option in currentCategory.yesNo" :key="option.value">
+                                <button
+                                    type="button"
+                                    class="choice support-option"
+                                    :class="{ 'selected': answers.intent === option.value }"
+                                    @click="answers.intent = option.value; nextStep()"
+                                    x-text="option.label"
+                                ></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="support-step" x-show="step === 1">
+                        <span class="support-step-label">Уточнение</span>
+                        <h3>Где это произошло?</h3>
+                        <div class="support-option-grid">
+                            <template x-for="place in currentCategory.places" :key="place">
+                                <button
+                                    type="button"
+                                    class="choice support-option"
+                                    :class="{ 'selected': answers.place === place }"
+                                    @click="answers.place = place"
+                                    x-text="place"
+                                ></button>
+                            </template>
+                        </div>
+                        <label class="support-field">
+                            <span>Свой вариант</span>
+                            <input type="text" x-model="answers.customPlace" placeholder="Например: окно добычи после боя">
+                        </label>
+                    </div>
+
+                    <div class="support-step" x-show="step === 2">
+                        <span class="support-step-label">Влияние</span>
+                        <h3 x-text="currentCategory.impactTitle"></h3>
+                        <div class="support-option-grid">
+                            <template x-for="impact in currentCategory.impacts" :key="impact">
+                                <button
+                                    type="button"
+                                    class="choice support-option"
+                                    :class="{ 'selected': answers.impact === impact }"
+                                    @click="answers.impact = impact"
+                                    x-text="impact"
+                                ></button>
+                            </template>
+                        </div>
+                        <label class="support-field">
+                            <span>Короткая заметка</span>
+                            <textarea x-model="answers.note" rows="4" :placeholder="currentCategory.notePlaceholder"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="support-step support-review" x-show="step === 3">
+                        <span class="support-step-label">Проверка</span>
+                        <h3>Проверьте обращение перед отправкой.</h3>
+                        <dl>
+                            <div>
+                                <dt>Раздел</dt>
+                                <dd x-text="currentCategory.title"></dd>
+                            </div>
+                            <div>
+                                <dt>Первичный ответ</dt>
+                                <dd x-text="selectedIntentLabel"></dd>
+                            </div>
+                            <div>
+                                <dt>Место</dt>
+                                <dd x-text="resolvedPlace"></dd>
+                            </div>
+                            <div>
+                                <dt>Влияние</dt>
+                                <dd x-text="answers.impact || 'Не выбрано'"></dd>
+                            </div>
+                            <div>
+                                <dt>Заметка</dt>
+                                <dd x-text="answers.note || 'Без заметки'"></dd>
+                            </div>
+                        </dl>
+                        {% if user %}
+                            <a class="btn-node lg" :href="submitHref"><span>Перейти к отправке</span></a>
+                        {% else %}
+                            <button type="button" class="btn-node lg" @click="authModal = 'register'"><span>Зарегистрироваться</span></button>
+                        {% endif %}
+                    </div>
+
+                    <div class="support-wizard-actions">
+                        <button type="button" class="btn-node ghost" @click="prevStep()" :disabled="step === 0"><span>Назад</span></button>
+                        <button type="button" class="btn-node" @click="nextStep()" x-show="step < 3"><span>Дальше</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

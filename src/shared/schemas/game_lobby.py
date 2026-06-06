@@ -1,4 +1,5 @@
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -65,6 +66,30 @@ class GameLobbyPopulationStatsDTO(BaseModel):
     characters_total: int = 0
 
 
+class CharacterSummaryItemDTO(BaseModel):
+    name: str
+    item_type: str = ""
+    slot: str | None = None
+    rarity: str = "shared"
+    quantity: int = 1
+
+
+class CharacterSummarySkillDTO(BaseModel):
+    skill_key: str
+    total_xp: float = 0.0
+    is_unlocked: bool = False
+    progress_state: str = ""
+
+
+class CharacterInventorySummaryDTO(BaseModel):
+    equipped_count: int = 0
+    backpack_count: int = 0
+    resource_count: int = 0
+    currency: dict[str, int] = Field(default_factory=dict)
+    resources: dict[str, int] = Field(default_factory=dict)
+    components: dict[str, int] = Field(default_factory=dict)
+
+
 class GameLobbyCharacterSelectRequestDTO(GameLobbyUserContextDTO):
     character_id: int
 
@@ -89,6 +114,13 @@ class LobbySlotDTO(BaseModel):
     avatar_url: str | None = None
     status: str = "VACANT"
     presence_status: Literal["online", "offline"] = "offline"
+    location_id: str | None = None
+    updated_at: datetime | None = None
+    vitals: dict[str, Any] = Field(default_factory=dict)
+    attributes: dict[str, int] = Field(default_factory=dict)
+    equipped_items: list[CharacterSummaryItemDTO] = Field(default_factory=list)
+    inventory_summary: CharacterInventorySummaryDTO = Field(default_factory=CharacterInventorySummaryDTO)
+    skills: list[CharacterSummarySkillDTO] = Field(default_factory=list)
 
 
 class GameLobbyPayloadDTO(BaseModel):

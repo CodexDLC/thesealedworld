@@ -25,6 +25,7 @@
                 <a href="/library" class="nav-link {% if request.path == '/library' %}active{% endif %}">Библиотека</a>
                 <a href="/news" class="nav-link {% if request.path == '/news' %}active{% endif %}">Новости</a>
                 <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">О проекте</a>
+                <a href="/support" class="nav-link {% if request.path == '/support' %}active{% endif %}">Поддержка</a>
                 {% if user %}
                     <a href="/play" class="nav-link nav-link--lobby {% if request.path in ['/game-lobby', '/play'] %}active{% endif %}">Лобби</a>
                 {% endif %}
@@ -89,6 +90,7 @@
         <a href="/library">Библиотека</a>
         <a href="/news">Новости</a>
         <a href="/about">О проекте</a>
+        <a href="/support">Поддержка</a>
         {% if user %}
             <span class="site-mobile-identity">{{ user.email }}</span>
             <a href="/play">Лобби</a>

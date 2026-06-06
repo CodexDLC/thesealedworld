@@ -215,10 +215,10 @@ _ATTRIBUTE_DISPLAY_KEYS: tuple[str, ...] = (
     "charisma",
 )
 
-_OFFENSE_WEAPON_SLOTS: tuple[tuple[str, str], ...] = (
-    ("main_hand", "MH"),
-    ("off_hand", "OH"),
-    ("item", "ITEM"),
+_OFFENSE_ATTACK_PREFIXES: tuple[str, ...] = (
+    "main_hand",
+    "off_hand",
+    "item",
 )
 
 _STATUS_RESIST_ROWS: tuple[tuple[str, str], ...] = (
@@ -259,6 +259,23 @@ _CAP_ROWS: tuple[tuple[str, str], ...] = (
     ("counter_attack_cap", "COUNTER CAP"),
     ("vampiric_trigger_cap", "VAMP CAP"),
 )
+
+_STAT_LABELS: dict[str, str] = {
+    "strength": "Сила",
+    "agility": "Ловкость",
+    "endurance": "Выносливость",
+    "intellect": "Интеллект",
+    "memory": "Память",
+    "mental": "Ментал",
+    "perception": "Восприятие",
+    "projection": "Проекция",
+    "prediction": "Предвидение",
+    "dexterity": "Ловкость рук",
+    "constitution": "Телосложение",
+    "intelligence": "Интеллект",
+    "wisdom": "Мудрость",
+    "charisma": "Харизма",
+}
 
 
 class CombatViewService:
@@ -884,31 +901,35 @@ class CombatViewService:
 
         offense_items = cls._offense_items(values)
         if offense_items:
-            sections.append(CombatStatSectionDTO(key="offense", label="OFFENSE", items=offense_items))
+            sections.append(CombatStatSectionDTO(key="offense", label="Атака", items=offense_items))
 
         defense_items = cls._defense_items(values)
         if defense_items:
-            sections.append(CombatStatSectionDTO(key="defense", label="DEFENSE", items=defense_items))
+            sections.append(CombatStatSectionDTO(key="defense", label="Защита", items=defense_items))
 
         vitals_items = cls._vitals_regen_items(values)
         if vitals_items:
-            sections.append(CombatStatSectionDTO(key="vitals", label="VITALS", items=vitals_items))
+            sections.append(CombatStatSectionDTO(key="vitals", label="Ресурсы", items=vitals_items))
 
         status_items = cls._status_resist_items(values)
         if status_items:
-            sections.append(CombatStatSectionDTO(key="status", label="STATUS", items=status_items))
+            sections.append(CombatStatSectionDTO(key="status", label="Состояния", items=status_items))
 
         elemental_items = cls._elemental_items(values)
         if elemental_items:
-            sections.append(CombatStatSectionDTO(key="elemental", label="ELEMENTAL", items=elemental_items))
+            sections.append(CombatStatSectionDTO(key="elemental", label="Стихии", items=elemental_items))
 
         caps_items = cls._caps_items(values)
         if caps_items:
-            sections.append(CombatStatSectionDTO(key="caps", label="CAPS", items=caps_items))
+            sections.append(CombatStatSectionDTO(key="caps", label="Лимиты", items=caps_items))
 
-        attr_items = [cls._stat_item_raw(k, k.upper(), values[k]) for k in _ATTRIBUTE_DISPLAY_KEYS if values.get(k)]
+        attr_items = [
+            cls._stat_item_raw(k, _STAT_LABELS.get(k, k.replace("_", " ").upper()), values[k])
+            for k in _ATTRIBUTE_DISPLAY_KEYS
+            if values.get(k)
+        ]
         if attr_items:
-            sections.append(CombatStatSectionDTO(key="attributes", label="ATTRIBUTES", items=attr_items))
+            sections.append(CombatStatSectionDTO(key="attributes", label="Атрибуты", items=attr_items))
 
         total_count = sum(len(s.items) for s in sections)
         if total_count == 0:
@@ -1010,7 +1031,7 @@ class CombatViewService:
         # Aggregate armor pen across all weapon slots + global
         total_pen = global_pen
 
-        for prefix, hand in _OFFENSE_WEAPON_SLOTS:
+        for prefix in _OFFENSE_ATTACK_PREFIXES:
             base = float(values.get(f"{prefix}_damage_base") or 0)
             if not base:
                 continue
@@ -1020,7 +1041,7 @@ class CombatViewService:
             items.append(
                 CombatStatValueDTO(
                     key=f"{prefix}_damage",
-                    label=f"{hand} DAMAGE",
+                    label="Урон",
                     value=base,
                     value_text=f"{cls._round_display(min_d)} — {cls._round_display(max_d)}",
                     tooltip=cls._damage_breakdown_tooltip(values, prefix, base=base, spread=spread),
@@ -1032,7 +1053,7 @@ class CombatViewService:
             items.append(
                 CombatStatValueDTO(
                     key=f"{prefix}_accuracy",
-                    label=f"{hand} ACCURACY",
+                    label="Точность",
                     value=total_acc,
                     value_text=f"{total_acc}%",
                 )
@@ -1044,7 +1065,7 @@ class CombatViewService:
                 items.append(
                     CombatStatValueDTO(
                         key=f"{prefix}_crit_chance",
-                        label=f"{hand} CRIT",
+                        label="Крит",
                         value=total_crit,
                         value_text=f"{total_crit}%",
                     )
@@ -1053,14 +1074,14 @@ class CombatViewService:
             total_pen += float(values.get(f"{prefix}_armor_penetration_pct") or 0)
 
         if phys_bonus_pct:
-            items.append(cls._stat_item_pct("physical_damage_bonus", "DMG BONUS", phys_bonus_pct))
+            items.append(cls._stat_item_pct("physical_damage_bonus", "Бонус урона", phys_bonus_pct))
         if anti_dodge:
-            items.append(cls._stat_item_pct("anti_dodge_chance", "ANTI-DODGE", anti_dodge))
+            items.append(cls._stat_item_pct("anti_dodge_chance", "Против уворота", anti_dodge))
         if total_pen:
-            items.append(cls._stat_item_pct("armor_penetration_pct", "ARMOR PEN", total_pen))
+            items.append(cls._stat_item_pct("armor_penetration_pct", "Пробой брони", total_pen))
         phys_suppress = float(values.get("physical_suppression") or 0)
         if phys_suppress:
-            items.append(cls._stat_item_pct("physical_suppression", "PHYS SUPPRESS", phys_suppress))
+            items.append(cls._stat_item_pct("physical_suppression", "Подавление защиты", phys_suppress))
 
         return items
 

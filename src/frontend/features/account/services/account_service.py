@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from src.frontend.features.account.view_models.profile_vm import AccountProfileVM
+from src.frontend.features.account.view_models.profile_vm import AccountProfileVM, AccountReferralVM
 from src.shared.exceptions import BusinessLogicException
 
 if TYPE_CHECKING:
@@ -33,6 +33,7 @@ class AccountService:
         *,
         site_base_url: str = "",
         referral_stats: dict[str, int] | None = None,
+        referral_users: list[UserResponse] | None = None,
         email_verification_enabled: bool = False,
     ) -> AccountProfileVM:
         is_tester = user.tester_status == "approved"
@@ -64,6 +65,7 @@ class AccountService:
             email_verified=verified_at is not None,
             email_verified_at=verified_at.strftime("%d.%m.%Y") if verified_at else None,
             email_verification_enabled=email_verification_enabled,
+            referrals=[_build_referral_vm(referral) for referral in referral_users or []],
         )
 
     async def apply_for_testing(self, user_id: uuid.UUID) -> None:
@@ -96,3 +98,24 @@ class AccountService:
                 )
         except Exception:
             logger.bind(email=email).exception("TesterApplicationEmailDeliveryFailed")
+
+
+def _build_referral_vm(user: UserResponse) -> AccountReferralVM:
+    verified_at = getattr(user, "email_verified_at", None)
+    created_at = getattr(user, "created_at", None)
+    return AccountReferralVM(
+        display_name=_masked_email(str(getattr(user, "email", ""))),
+        joined_at=created_at.strftime("%d.%m.%Y") if created_at else "-",
+        email_status="Подтверждён" if verified_at else "Не подтверждён",
+        email_status_class="is-done" if verified_at else "is-pending",
+        character_status="Не отслеживается",
+        payment_status="Не отслеживается",
+    )
+
+
+def _masked_email(email: str) -> str:
+    if "@" not in email:
+        return email or "Игрок"
+    local, domain = email.split("@", maxsplit=1)
+    masked_local = f"{local[:1]}*" if len(local) <= 2 else f"{local[:2]}***"
+    return f"{masked_local}@{domain}"

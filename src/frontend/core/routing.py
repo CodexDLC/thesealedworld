@@ -5,6 +5,7 @@ from loguru import logger
 
 from src.frontend.config.settings import settings
 from src.frontend.core.routing_play import PLAY_ROUTERS
+from src.frontend.core.routing_play_entry import router as play_entry_router
 from src.frontend.core.routing_site import SITE_ROUTERS
 
 FrontendSurface = str
@@ -16,7 +17,7 @@ def routers_for_surface(surface: FrontendSurface) -> Sequence[APIRouter]:
     if surface == "site":
         return SITE_ROUTERS
     if surface == "play":
-        return PLAY_ROUTERS
+        return (play_entry_router, *PLAY_ROUTERS)
     if surface == "all":
         return FRONTEND_ROUTERS
     raise ValueError(f"Unsupported frontend surface: {surface!r}")

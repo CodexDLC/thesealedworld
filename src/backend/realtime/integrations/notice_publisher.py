@@ -146,6 +146,32 @@ class PlayerNoticePublisher:
         )
         await self._producer.publish(PLAYER_NOTICE_EVENT, payload)
 
+    async def _emit_many(
+        self,
+        *,
+        char_ids: list[int],
+        template_key: str = "",
+        domain: str,
+        variables: dict[str, Any] | None = None,
+        severity: str = "info",
+        presentation: str = "system_chat",
+        target: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        if not char_ids:
+            return
+        payload = build_player_notice_payload(
+            character_ids=char_ids,
+            template_key=template_key,
+            variables=variables,
+            severity=severity,
+            domain=domain,
+            presentation=presentation,
+            target=target,
+            reason=reason,
+        )
+        await self._producer.publish(PLAYER_NOTICE_EVENT, payload)
+
     async def player_died(self, char_id: int) -> None:
         await self._emit(
             char_id=char_id,
@@ -213,6 +239,23 @@ class PlayerNoticePublisher:
         """
         await self._emit(
             char_id=char_id,
+            domain=domain,
+            presentation="refresh",
+            target=target,
+            reason=reason,
+        )
+
+    async def request_refresh_many(
+        self,
+        char_ids: list[int],
+        *,
+        target: str,
+        reason: str | None = None,
+        domain: str = "system",
+    ) -> None:
+        """Wake several players' UIs to re-fetch the same existing fragment."""
+        await self._emit_many(
+            char_ids=char_ids,
             domain=domain,
             presentation="refresh",
             target=target,

@@ -1,4 +1,16 @@
 services:
+  backend:
+    ports: !reset []
+
+  chat:
+    ports: !reset []
+
+  frontend:
+    ports: !reset []
+
+  frontend-play:
+    ports: !reset []
+
   nginx-test:
     build:
       context: ..
@@ -13,6 +25,8 @@ services:
       DOMAIN_NAME: localhost
     depends_on:
       frontend:
+        condition: service_started
+      frontend-play:
         condition: service_started
       backend:
         condition: service_started

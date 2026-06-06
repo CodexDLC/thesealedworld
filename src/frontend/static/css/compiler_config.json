@@ -10,7 +10,8 @@
         "site.js": {
             "strategy": "ordered",
             "sources": [
-                "site/lobby.js"
+                "site/lobby.js",
+                "site/support.js"
             ]
         },
         "app.js": {

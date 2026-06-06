@@ -21,8 +21,11 @@ from src.shared.schemas.city_services import (
 )
 from src.shared.schemas.game_lobby import (
     CharacterCreationGender,
+    CharacterInventorySummaryDTO,
     CharacterNameAvailabilityDTO,
     CharacterNameAvailabilityRequestDTO,
+    CharacterSummaryItemDTO,
+    CharacterSummarySkillDTO,
     CreateCharacterRequestDTO,
     DeleteCharacterRequestDTO,
     EnterCharacterRequestDTO,
@@ -55,6 +58,7 @@ __all__ = [
     "CharacterAttributesReadDTO",
     "CharacterAttributesUpdateDTO",
     "CharacterCreationGender",
+    "CharacterInventorySummaryDTO",
     "CharacterNameAvailabilityDTO",
     "CharacterNameAvailabilityRequestDTO",
     "CharacterOnboardingUpdateDTO",
@@ -64,6 +68,8 @@ __all__ = [
     "CharacterStatsReadDTO",
     "CharacterStatsUpdateDTO",
     "CharacterStatusDTO",
+    "CharacterSummaryItemDTO",
+    "CharacterSummarySkillDTO",
     "CityServiceActionDTO",
     "CityServiceActionEnum",
     "CityServiceButtonDTO",

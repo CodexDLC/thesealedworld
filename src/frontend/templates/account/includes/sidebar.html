@@ -3,10 +3,13 @@
         <div class="ds-panel-header">Мой аккаунт</div>
         <div class="ds-panel-body">
             <nav class="account-sidebar-nav">
-                <a href="/account/profile" class="account-sidebar-link">Профиль</a>
-                {% if profile and profile.is_tester %}
-                    <a href="/account/feedback" class="account-sidebar-link">Обратная связь</a>
-                {% endif %}
+                <a href="/account/profile?section=overview" class="account-sidebar-link{% if active_section == 'overview' %} is-active{% endif %}">Обзор</a>
+                <a href="/account/profile?section=profile" class="account-sidebar-link{% if active_section == 'profile' %} is-active{% endif %}">Профиль</a>
+                <a href="/account/profile?section=characters" class="account-sidebar-link{% if active_section == 'characters' %} is-active{% endif %}">Персонажи</a>
+                <a href="/account/profile?section=referrals" class="account-sidebar-link{% if active_section == 'referrals' %} is-active{% endif %}">Рефералы</a>
+                <a href="/account/profile?section=payments" class="account-sidebar-link{% if active_section == 'payments' %} is-active{% endif %}">Платежи</a>
+                <a href="/account/profile?section=security" class="account-sidebar-link{% if active_section == 'security' %} is-active{% endif %}">Безопасность</a>
+                <a href="/account/profile?section=settings" class="account-sidebar-link{% if active_section == 'settings' %} is-active{% endif %}">Настройки</a>
             </nav>
         </div>
     </div>

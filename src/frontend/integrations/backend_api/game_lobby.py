@@ -26,6 +26,13 @@ class LobbySlotPayload(BaseModel):
     avatar_url: str | None = None
     status: str = "VACANT"
     presence_status: str = "offline"
+    location_id: str | None = None
+    updated_at: str | None = None
+    vitals: dict[str, Any] = Field(default_factory=dict)
+    attributes: dict[str, int] = Field(default_factory=dict)
+    equipped_items: list[dict[str, Any]] = Field(default_factory=list)
+    inventory_summary: dict[str, Any] = Field(default_factory=dict)
+    skills: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class GameLobbyPayload(BaseModel):

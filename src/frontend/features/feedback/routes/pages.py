@@ -14,13 +14,11 @@ from src.frontend.features.feedback.view_models.feedback_vm import FeedbackFormV
 router = APIRouter(prefix="/account/feedback", tags=["Feedback"])
 
 
-def _require_tester(request: Request):
+def _require_user(request: Request):
     user = getattr(request.state, "user", None)
     if user is None:
-        return None, None
-    if user.tester_status != "approved":
-        return user, False
-    return user, True
+        return None
+    return user
 
 
 @router.get("", name="feedback_list")
@@ -29,11 +27,9 @@ async def feedback_list(
     db: Annotated[AsyncSession, Depends(get_db)],
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
 ):
-    user, is_tester = _require_tester(request)
+    user = _require_user(request)
     if user is None:
         return RedirectResponse(url="/login", status_code=303)
-    if not is_tester:
-        return RedirectResponse(url="/account/profile", status_code=303)
 
     repo = FeedbackRepository(session=db)
     service = FeedbackService(repo=repo)
@@ -60,11 +56,9 @@ async def feedback_new(
     request: Request,
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
 ):
-    user, is_tester = _require_tester(request)
+    user = _require_user(request)
     if user is None:
         return RedirectResponse(url="/login", status_code=303)
-    if not is_tester:
-        return RedirectResponse(url="/account/profile", status_code=303)
 
     form_vm = FeedbackFormVM()
     preselect = request.query_params.get("type", "")
@@ -80,11 +74,9 @@ async def feedback_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
 ):
-    user, is_tester = _require_tester(request)
+    user = _require_user(request)
     if user is None:
         return RedirectResponse(url="/login", status_code=303)
-    if not is_tester:
-        return RedirectResponse(url="/account/profile", status_code=303)
 
     form_data = await request.form()
     priority = form_data.get("priority") or None
@@ -105,7 +97,7 @@ async def feedback_submit(
 
     repo = FeedbackRepository(session=db)
     service = FeedbackService(repo=repo)
-    await service.submit(user_id=user.id, tester_status=user.tester_status, data=data)
+    await service.submit(user_id=user.id, data=data)
 
     return RedirectResponse(url="/account/feedback", status_code=303)
 
@@ -117,11 +109,9 @@ async def feedback_detail(
     db: Annotated[AsyncSession, Depends(get_db)],
     ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
 ):
-    user, is_tester = _require_tester(request)
+    user = _require_user(request)
     if user is None:
         return RedirectResponse(url="/login", status_code=303)
-    if not is_tester:
-        return RedirectResponse(url="/account/profile", status_code=303)
 
     repo = FeedbackRepository(session=db)
     service = FeedbackService(repo=repo)

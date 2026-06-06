@@ -35,6 +35,13 @@ class GameLobbyService:
                 avatar_url=character.avatar_url,
                 status=character.status,
                 presence_status=character.presence_status,
+                location_id=character.location_id,
+                updated_at=character.updated_at,
+                vitals=character.vitals or {},
+                attributes=character.attributes or {},
+                equipped_items=character.equipped_items or [],
+                inventory_summary=character.inventory_summary or {},
+                skills=character.skills or [],
             )
             for index, character in enumerate(characters, start=1)
         ]

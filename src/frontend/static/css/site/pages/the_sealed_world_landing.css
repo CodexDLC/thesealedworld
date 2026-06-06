@@ -893,3 +893,193 @@
     right: 8px;
   }
 }
+
+.page-play-unavailable #main-content {
+  padding: 0;
+}
+
+.play-maintenance-screen {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: clamp(36px, 7svh, 84px) var(--sp-4);
+  background: #050505;
+}
+
+.play-maintenance-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 5, 5, 0.96), rgba(5, 5, 5, 0.78) 52%, rgba(5, 5, 5, 0.95)),
+    linear-gradient(180deg, rgba(5, 5, 5, 0.22), #050505 92%),
+    url("/static/images/site/the-sealed-world/hero-main.webp") center / cover;
+  opacity: 0.42;
+  filter: saturate(0.6) contrast(1.08);
+}
+
+.play-maintenance-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(226, 196, 122, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 196, 122, 0.014) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 76%, transparent);
+}
+
+.play-maintenance-layout {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  gap: clamp(28px, 6vw, 78px);
+  align-items: center;
+}
+
+.play-maintenance-copy {
+  border-left: 1px solid rgba(226, 196, 122, 0.42);
+  background: linear-gradient(90deg, rgba(8, 7, 6, 0.76), rgba(8, 7, 6, 0.36));
+  padding: clamp(22px, 4vw, 40px) 0 clamp(22px, 4vw, 40px) clamp(22px, 4vw, 38px);
+  max-width: 640px;
+}
+
+.play-maintenance-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  padding: 0 var(--sp-3);
+  border: 1px solid rgba(226, 196, 122, 0.24);
+  background: rgba(5, 5, 5, 0.62);
+  color: var(--col-warning);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.play-maintenance-eyebrow span:last-child {
+  color: var(--col-text-muted);
+}
+
+.play-maintenance-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--col-warning);
+  box-shadow: 0 0 18px rgba(255, 170, 0, 0.55);
+}
+
+.play-maintenance-copy h1 {
+  max-width: 11ch;
+  margin: var(--sp-4) 0 var(--sp-3);
+  color: var(--col-text-primary);
+  font-family: var(--font-world);
+  font-size: clamp(42px, 5.6vw, 72px);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.play-maintenance-copy p {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--col-text-secondary);
+  font-size: clamp(15px, 1.5vw, 18px);
+  line-height: 1.7;
+}
+
+.play-maintenance-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  max-width: 560px;
+  margin: var(--sp-6) 0 0;
+  border: 1px solid rgba(226, 196, 122, 0.18);
+  background: rgba(226, 196, 122, 0.14);
+}
+
+.play-maintenance-status div {
+  min-width: 0;
+  padding: var(--sp-3);
+  background: rgba(5, 5, 5, 0.72);
+}
+
+.play-maintenance-status dt {
+  margin-bottom: var(--sp-1);
+  color: var(--col-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.play-maintenance-status dd {
+  margin: 0;
+  color: #9be38e;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.play-maintenance-status .is-offline dd {
+  color: var(--col-warning);
+}
+
+.play-maintenance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}
+
+.play-maintenance-figure {
+  position: relative;
+  justify-self: center;
+  width: min(440px, 38vw);
+  opacity: 0.72;
+  filter: saturate(0.82) contrast(1.08);
+}
+
+.play-maintenance-figure picture,
+.play-maintenance-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.play-maintenance-figure::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border: 1px solid rgba(226, 196, 122, 0.18);
+  transform: rotate(45deg);
+}
+
+@media (max-width: 900px) {
+  .play-maintenance-layout {
+    grid-template-columns: 1fr;
+    gap: var(--sp-6);
+  }
+
+  .play-maintenance-figure {
+    order: -1;
+    width: min(260px, 62vw);
+  }
+
+  .play-maintenance-copy h1 {
+    font-size: clamp(38px, 11vw, 56px);
+  }
+
+  .play-maintenance-status {
+    grid-template-columns: 1fr;
+  }
+
+  .play-maintenance-actions .btn-node {
+    width: 100%;
+  }
+}

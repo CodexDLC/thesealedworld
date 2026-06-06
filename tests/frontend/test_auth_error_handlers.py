@@ -3,9 +3,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import HTTPException, status
+from fastapi.responses import Response
 from starlette.datastructures import Headers
 
 from src.frontend.app import backend_http_status_handler, frontend_http_exception_handler, split_bracket_coords_label
+from src.frontend.config.settings import settings
+from src.frontend.features.auth.dto.token import Token
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
 
 
 def test_split_bracket_coords_label_separates_location_suffix() -> None:
@@ -50,6 +54,17 @@ async def test_frontend_login_redirect_clears_site_auth_cookies() -> None:
     cookie_header = "\n".join(response.headers.getlist("set-cookie"))
     assert "tbmmorpg_access_token=" in cookie_header
     assert "tbmmorpg_refresh_token=" in cookie_header
+
+
+def test_frontend_auth_cookies_use_configured_cookie_domain(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "auth_cookie_domain", ".thesealed.localhost")
+    response = Response()
+    service = FrontendAuthService(auth_service=object())
+
+    service.attach_auth_cookies(response, Token(access_token="access", refresh_token="refresh", token_type="bearer"))
+
+    cookie_header = "\n".join(response.headers.getlist("set-cookie"))
+    assert "Domain=.thesealed.localhost" in cookie_header
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,10 @@
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
 from src.frontend.features.auth.services.auth_service import FrontendAuthService
@@ -27,6 +29,7 @@ from src.shared.schemas import (
     EnterCharacterRequestDTO,
 )
 from src.shared.schemas.game_lobby import CharacterCreationGender
+from src.shared.utils.url import build_public_absolute_url
 
 router = APIRouter(tags=["Game Lobby"])
 
@@ -40,6 +43,8 @@ async def game_lobby_page(
 ):
     user = await auth_service.get_current_user(request)
     if user is None:
+        if settings.frontend_surface == "play":
+            return RedirectResponse(_site_play_entry_url(request), status_code=status.HTTP_303_SEE_OTHER)
         return await ui.render(
             "site/index.html",
             context={"auth_overlay_open": True, "auth_mode": "login"},
@@ -55,6 +60,7 @@ async def game_lobby_page(
             "lobby": lobby,
             "lobby_overlay_open": True,
             "lobby_notice": lobby_notice,
+            "lobby_close_url": _lobby_close_url(request),
         },
     )
     if lobby_notice == "session_replaced":
@@ -160,7 +166,12 @@ async def game_lobby_delete(
     lobby = build_lobby_page_vm(response)
     rendered = await ui.render(
         "site/index.html",
-        context={"user": user, "lobby": lobby, "lobby_overlay_open": True},
+        context={
+            "user": user,
+            "lobby": lobby,
+            "lobby_overlay_open": True,
+            "lobby_close_url": _lobby_close_url(request),
+        },
     )
     clear_active_character_cookie(rendered)
     clear_game_token_cookies(rendered)
@@ -186,3 +197,42 @@ def _lobby_redirect() -> RedirectResponse:
     clear_active_character_cookie(response)
     clear_game_token_cookies(response)
     return response
+
+
+def _site_play_entry_url(request: Request) -> str:
+    return build_public_absolute_url(
+        path_or_url="/play",
+        configured_base_url=settings.site_base_url or _infer_site_base_url_from_play_request(request),
+        request_base_url=str(request.base_url),
+    )
+
+
+def _lobby_close_url(request: Request) -> str:
+    return_to = request.query_params.get("return_to", "").strip()
+    if _is_safe_site_return_url(request, return_to):
+        return return_to
+    configured_site = settings.site_base_url or _infer_site_base_url_from_play_request(request)
+    return build_public_absolute_url(
+        path_or_url="/",
+        configured_base_url=configured_site,
+        request_base_url=str(request.base_url),
+    )
+
+
+def _is_safe_site_return_url(request: Request, value: str) -> bool:
+    if not value:
+        return False
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+    current_host = request.headers.get("host", "")
+    return parsed.netloc != current_host and not (parsed.hostname or "").startswith("play.")
+
+
+def _infer_site_base_url_from_play_request(request: Request) -> str:
+    host = request.headers.get("host", "")
+    if host.startswith("play."):
+        host = host.removeprefix("play.")
+        scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+        return f"{scheme}://{host}"
+    return ""

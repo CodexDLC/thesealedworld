@@ -397,10 +397,77 @@ def test_combat_template_renders_draggable_actor_stat_sheet():
     assert "@keydown.escape.window=\"activeStatSheet = null\"" in html
     assert "openStatSheet('enemy-2')" in html
     assert "openStatSheet('hero')" not in html
-    assert "DEFENSE" in html
+    assert "Защита" in html
     assert "PARRY" in html
     assert "7.5" in html
     assert 'data-tippy-content="Оружие: 7 // Статы: 5 из 14"' in html
+
+
+def test_combat_vm_localizes_archived_actor_stat_labels():
+    stat_sheet = CombatActorStatSheetDTO(
+        actor_id="2",
+        name="goblin_slinger",
+        total_count=5,
+        sections=[
+            CombatStatSectionDTO(
+                key="offense",
+                label="OFFENSE",
+                items=[
+                    CombatStatValueDTO(key="main_hand_damage", label="MH DAMAGE", value=8, value_text="7 — 9"),
+                    CombatStatValueDTO(key="main_hand_accuracy", label="MH ACCURACY", value=61, value_text="61%"),
+                    CombatStatValueDTO(
+                        key="anti_dodge_chance",
+                        label="ANTI-DODGE",
+                        value=0.565,
+                        value_text="56.5%",
+                    ),
+                    CombatStatValueDTO(
+                        key="armor_penetration_pct",
+                        label="ARMOR PEN",
+                        value=0.024,
+                        value_text="2.4%",
+                    ),
+                    CombatStatValueDTO(
+                        key="physical_suppression",
+                        label="PHYS SUPPRESS",
+                        value=0.262,
+                        value_text="26.2%",
+                    ),
+                ],
+            )
+        ],
+    )
+    target = CombatActorCardDTO(
+        actor_id="2",
+        name="goblin_slinger",
+        team="team_2",
+        is_target=True,
+        stat_sheet=stat_sheet,
+    )
+
+    screen = build_combat_screen_vm(
+        CombatDashboardDTO(
+            session_id="combat-stats",
+            turn_number=1,
+            status="active",
+            hero=CombatActorCardDTO(actor_id="1", name="Hero", team="team_1"),
+            target=target,
+            enemies=[target],
+        )
+    )
+
+    assert screen.target is not None
+    assert screen.target.name == "гоблин-лучник"
+    assert screen.target.stat_sheet is not None
+    section = screen.target.stat_sheet.sections[0]
+    assert section.label == "Атака"
+    assert [item.label for item in section.items] == [
+        "Урон",
+        "Точность",
+        "Против уворота",
+        "Пробой брони",
+        "Подавление защиты",
+    ]
 
 
 def test_combat_active_template_renders_prototype_layout():
@@ -810,6 +877,7 @@ def test_combat_log_panel_renders_mechanical_facts_after_text():
     assert "[dodge +1]" not in html
     assert "Кровотечение // осталось 3 хода" in html
     assert "bleeding.svg" in html
+    assert "[dot_bleed 3]" not in html
     assert "[-3]" not in html
     assert "CodexDLC отвечает контратакой по Shadow CodexDLC.;" not in html
 
@@ -1358,6 +1426,56 @@ def test_combat_vm_preserves_log_catalog_metadata():
     assert screen.log_turns[0].lines[0].catalog_key == "combat.feint.true_strike.hit.humanoid_to_humanoid.weapon"
     assert screen.log_turns[0].lines[0].icon_url is not None
     assert screen.log_turns[0].lines[0].icon_url.endswith("/feint.svg")
+
+
+def test_combat_vm_renders_technical_log_effect_ids_as_effect_facts():
+    dashboard = CombatDashboardDTO(
+        session_id="combat-1",
+        turn_number=3,
+        status="active",
+        hero=CombatActorCardDTO(actor_id="1", name="CodexEN", team="team_1"),
+        events_delta=CombatDeltaDTO(
+            events=[
+                CombatEventDTO(
+                    type="HIT",
+                    text="goblin_slinger выводит тетиву и стреляет в CodexEN. [marker_evasion] [ranged_position 1]",
+                    source=CombatLogActorRefDTO(id="goblin_slinger", name="goblin_slinger", team="team_2"),
+                    effects=[
+                        {"effect_id": "marker_evasion", "label": "marker_evasion"},
+                        {"effect_id": "ranged_position", "label": "ranged_position", "duration": 1},
+                    ],
+                    data={"global_turn": 7},
+                )
+            ]
+        ),
+    )
+
+    screen = build_combat_screen_vm(dashboard)
+
+    line = screen.log_lines[0]
+    assert "goblin_slinger" not in line.text
+    assert "гоблин-лучник" in line.text
+    assert "marker_evasion" not in line.text
+    assert "ranged_position" not in line.text
+    assert line.source is not None
+    assert line.source["name"] == "гоблин-лучник"
+    assert line.effects == [
+        {
+            "effect_id": "marker_evasion",
+            "label": "Уворот",
+            "title": "Метка уворота",
+            "tooltip": "Событие уворота: цель получила защитный маркер этого размена.",
+            "icon": "/static/images/ui/combat-icons/token-dodge.svg",
+        },
+        {
+            "effect_id": "ranged_position",
+            "label": "Дистанция",
+            "title": "Дистанция лучника",
+            "tooltip": "Дальняя позиция повлияла на точность, урон или входящий ближний удар.",
+            "icon": "/static/images/ui/combat-icons/ranged_position.svg",
+            "duration": 1,
+        },
+    ]
 
 
 def test_combat_vm_exposes_exchange_state():

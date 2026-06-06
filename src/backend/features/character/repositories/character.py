@@ -79,7 +79,15 @@ class CharacterRepository:
     async def get_by_user_id(self, user_id: uuid.UUID) -> list[Character]:
         log.bind(user_id=str(user_id)).debug("CharacterRepositoryGetByUserId")
         stmt = (
-            select(Character).where(Character.user_id == user_id).order_by(Character.created_at, Character.character_id)
+            select(Character)
+            .options(
+                selectinload(Character.attributes),
+                selectinload(Character.skill_progress),
+                selectinload(Character.progression),
+                selectinload(Character.wallet),
+            )
+            .where(Character.user_id == user_id)
+            .order_by(Character.created_at, Character.character_id)
         )
         result = await self.session.scalars(stmt)
         return list(result.all())

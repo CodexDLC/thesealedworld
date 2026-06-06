@@ -86,7 +86,7 @@ class FrontendAuthService:
             self.refresh_cookie_name,
             tokens.refresh_token,
             httponly=True,
-            samesite="strict",
+            samesite="lax",
             secure=settings.auth_cookie_secure,
             max_age=60 * 60 * 24 * 30,
             domain=cookie_domain,

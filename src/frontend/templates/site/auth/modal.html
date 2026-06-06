@@ -1,7 +1,7 @@
 <div class="auth-modal-backdrop" role="presentation">
-    <a class="auth-modal-scrim" href="/" aria-label="Закрыть окно входа"></a>
+    <a class="auth-modal-scrim" href="{{ auth_close_url | default(site_close_url, true) }}" aria-label="Закрыть окно входа"></a>
     <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-        <a class="auth-modal-close" href="/" aria-label="Закрыть окно входа">
+        <a class="auth-modal-close" href="{{ auth_close_url | default(site_close_url, true) }}" aria-label="Закрыть окно входа">
             <span aria-hidden="true">×</span>
         </a>
         {% if auth_mode == "register" %}

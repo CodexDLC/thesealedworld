@@ -10,12 +10,38 @@ The default developer stack remains:
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
+The local stack runs two frontend surfaces from the same frontend codebase:
+
+- `frontend` / `tbmmorpg-frontend-site` on `http://127.0.0.1:8000` with `FRONTEND_SURFACE=site`.
+- `frontend-play` / `tbmmorpg-frontend-play` on `http://127.0.0.1:8003` with `FRONTEND_SURFACE=play`.
+
+The site surface routes `/play` to the play surface when `frontend-play` is healthy.
+If the play container is stopped, the site stays online and renders the in-site
+technical maintenance state instead of sending users to a broken lobby:
+
+```powershell
+docker compose -f deploy/docker-compose.yml stop frontend-play
+```
+
 To test the reverse proxy locally without changing that flow:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml -f deploy/compose.nginx-test.yml up -d --build
 python tools/deploy/nginx_smoke.py
 ```
+
+The local nginx smoke layer uses one nginx container, matching production host-based routing:
+
+- `http://thesealed.localhost:8080` -> site frontend.
+- `http://play.thesealed.localhost:8080` -> play frontend.
+
+In this nginx smoke mode the direct application host ports are reset, so
+`frontend`, `frontend-play`, `backend`, and `chat` are reachable from the host
+only through nginx.
+
+Use the `thesealed.localhost` hosts for browser auth testing. They share the
+local `.thesealed.localhost` auth cookie domain, unlike `localhost` and
+`play.localhost`.
 
 The smoke check targets `http://127.0.0.1:8080` and verifies nginx, frontend, backend, chat, static files, and backend OpenAPI routing through nginx.
 

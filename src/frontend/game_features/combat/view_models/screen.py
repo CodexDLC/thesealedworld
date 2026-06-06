@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -33,6 +34,68 @@ BASIC_ABILITY_ICON_FILES: dict[str, str] = {
     "basic_grit_teeth": "basic_grit_teeth",
     "basic_bloody_answer": "basic_bloody_answer",
     "basic_last_push": "basic_last_push",
+}
+
+COMBAT_DISPLAY_TEXT_REPLACEMENTS: dict[str, str] = {
+    "goblin_slinger": "гоблин-лучник",
+}
+
+COMBAT_EFFECT_TITLES: dict[str, str] = {
+    "marker_evasion": "Уворот",
+    "ranged_position": "Дистанция лучника",
+}
+
+COMBAT_LOG_EFFECT_FACTS: dict[str, dict[str, str]] = {
+    "marker_evasion": {
+        "label": "Уворот",
+        "title": "Метка уворота",
+        "tooltip": "Событие уворота: цель получила защитный маркер этого размена.",
+        "icon": f"{COMBAT_ICON_ROOT}/token-dodge.svg",
+    },
+    "ranged_position": {
+        "label": "Дистанция",
+        "title": "Дистанция лучника",
+        "tooltip": "Дальняя позиция повлияла на точность, урон или входящий ближний удар.",
+        "icon": f"{COMBAT_ICON_ROOT}/ranged_position.svg",
+    },
+}
+
+COMBAT_TECHNICAL_TEXT_TOKEN_RE = re.compile(r"\[(?P<effect_id>marker_evasion|ranged_position)(?: (?P<duration>\d+))?\]")
+
+COMBAT_STAT_SECTION_LABELS: dict[str, str] = {
+    "offense": "Атака",
+    "defense": "Защита",
+    "vitals": "Ресурсы",
+    "status": "Состояния",
+    "elemental": "Стихии",
+    "caps": "Лимиты",
+    "attributes": "Атрибуты",
+}
+
+COMBAT_STAT_LABELS: dict[str, str] = {
+    "main_hand_damage": "Урон",
+    "main_hand_accuracy": "Точность",
+    "main_hand_crit_chance": "Крит",
+    "off_hand_damage": "Урон",
+    "off_hand_accuracy": "Точность",
+    "off_hand_crit_chance": "Крит",
+    "item_damage": "Урон",
+    "item_accuracy": "Точность",
+    "item_crit_chance": "Крит",
+    "physical_damage_bonus": "Бонус урона",
+    "anti_dodge_chance": "Против уворота",
+    "armor_penetration_pct": "Пробой брони",
+    "physical_suppression": "Подавление защиты",
+    "armor": "Броня",
+    "physical_resistance": "Физ. сопротивление",
+    "evasion": "Уворот",
+    "parry": "Парирование",
+    "block": "Блок",
+    "magic_resist": "Маг. сопротивление",
+    "strength": "Сила",
+    "agility": "Ловкость",
+    "endurance": "Выносливость",
+    "perception": "Восприятие",
 }
 
 FEINT_GROUP_ICON_FILES: dict[str, str] = {
@@ -808,22 +871,29 @@ def _log_line(event: CombatEventDTO) -> CombatLogLineVM:
     catalog_key = _event_data_str(event.data, "catalog_key") or _dict_str(action, "catalog_key")
     catalog_event = _event_data_str(event.data, "catalog_event") or _dict_str(action, "event")
     catalog_taxonomy = _event_data_str(event.data, "catalog_taxonomy") or _dict_str(action, "taxonomy") or "humanoid"
+    visible_text, text_effects = _combat_log_text_and_effects(event.text or "NO_DATA")
+    event_effects = [
+        fact
+        for effect in getattr(event, "effects", [])
+        if isinstance(effect, dict)
+        if (fact := _combat_effect_fact_dict(effect)) is not None
+    ]
     return CombatLogLineVM(
         id=getattr(event, "id", None),
-        text=event.text or "NO_DATA",
+        text=visible_text,
         kind=getattr(event, "kind", None) or event.type,
         severity=getattr(event, "severity", None) or "normal",
         icon_url=_combat_log_icon_url(catalog, catalog_key),
         timestamp=event.timestamp,
         global_turn=_event_data_int(event, "global_turn"),
-        source=source,
-        target=target,
+        source=_combat_actor_ref_dict(source),
+        target=_combat_actor_ref_dict(target),
         action=action,
         template=template,
         outcome=getattr(event, "outcome", None) or _event_data_str(event.data, "outcome"),
         resources=[_model_dict(resource) for resource in getattr(event, "resources", [])],
         badges=[_model_dict(badge) for badge in getattr(event, "badges", [])],
-        effects=[dict(effect) for effect in getattr(event, "effects", []) if isinstance(effect, dict)],
+        effects=_dedupe_combat_effect_facts([*event_effects, *text_effects]),
         flags=dict(getattr(event, "flags", {}) or {}),
         catalog=catalog,
         catalog_key=catalog_key,
@@ -950,7 +1020,7 @@ def _actor_ref(value: object) -> CombatActorRefVM | None:
         return None
     return CombatActorRefVM(
         id=actor_id,
-        name=name,
+        name=_combat_display_text(name),
         team=_dict_str(data, "team"),
         actor_type=_dict_str(data, "actor_type"),
     )
@@ -1039,10 +1109,96 @@ def _combat_log_icon_url(catalog: str | None, catalog_key: str | None) -> str | 
     return None
 
 
+def _combat_display_text(text: str) -> str:
+    result = text
+    for old, new in COMBAT_DISPLAY_TEXT_REPLACEMENTS.items():
+        result = result.replace(old, new)
+    return " ".join(result.split())
+
+
+def _combat_log_text_and_effects(text: str) -> tuple[str, list[dict[str, Any]]]:
+    effects: list[dict[str, Any]] = []
+    for match in COMBAT_TECHNICAL_TEXT_TOKEN_RE.finditer(text):
+        effect = _combat_log_effect_fact(match.group("effect_id"), duration=match.group("duration"))
+        if effect is not None:
+            effects.append(effect)
+    stripped = COMBAT_TECHNICAL_TEXT_TOKEN_RE.sub(" ", text)
+    return _combat_display_text(stripped), effects
+
+
+def _combat_actor_ref_dict(value: dict[str, object] | None) -> dict[str, object] | None:
+    if value is None:
+        return None
+    normalized = dict(value)
+    name = normalized.get("name")
+    if isinstance(name, str):
+        normalized["name"] = _combat_display_text(name)
+    return normalized
+
+
+def _combat_effect_fact_dict(value: dict[str, Any]) -> dict[str, Any] | None:
+    normalized = dict(value)
+    effect_id = str(normalized.get("effect_id") or normalized.get("id") or normalized.get("kind") or "")
+    fact = _combat_log_effect_fact(effect_id, duration=normalized.get("duration"))
+    if fact is not None:
+        return fact
+    title = normalized.get("title")
+    tooltip = normalized.get("tooltip")
+    label = normalized.get("label")
+    fallback = COMBAT_EFFECT_TITLES.get(effect_id)
+    if fallback:
+        if not isinstance(title, str) or title == effect_id:
+            normalized["title"] = fallback
+        if not isinstance(tooltip, str) or tooltip == effect_id:
+            normalized["tooltip"] = fallback
+        if not isinstance(label, str) or label == effect_id:
+            normalized["label"] = fallback
+    return normalized
+
+
+def _combat_log_effect_fact(effect_id: str, *, duration: object = None) -> dict[str, Any] | None:
+    config = COMBAT_LOG_EFFECT_FACTS.get(effect_id)
+    if config is None:
+        return None
+    fact: dict[str, Any] = {
+        "effect_id": effect_id,
+        "label": config["label"],
+        "title": config["title"],
+        "tooltip": config["tooltip"],
+        "icon": config["icon"],
+    }
+    parsed_duration = _optional_int(duration)
+    if parsed_duration is not None:
+        fact["duration"] = parsed_duration
+    return fact
+
+
+def _dedupe_combat_effect_facts(effects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, int | None]] = set()
+    for effect in effects:
+        effect_id = str(effect.get("effect_id") or effect.get("id") or effect.get("kind") or "")
+        duration = _optional_int(effect.get("duration"))
+        key = (effect_id, duration)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(effect)
+    return result
+
+
+def _combat_stat_section_label(key: str, label: str) -> str:
+    return COMBAT_STAT_SECTION_LABELS.get(key, label)
+
+
+def _combat_stat_label(key: str, label: str) -> str:
+    return COMBAT_STAT_LABELS.get(key, label)
+
+
 def _actor_panel(actor: CombatActorCardDTO, *, include_belt: bool) -> CombatActorPanelVM:
     return CombatActorPanelVM(
         actor_id=actor.actor_id,
-        name=actor.name,
+        name=_combat_display_text(actor.name),
         actor_type=actor.actor_type,
         team=actor.team,
         avatar_url=_avatar_url(actor),
@@ -1074,16 +1230,16 @@ def _stat_sheet(actor: CombatActorCardDTO) -> CombatActorStatSheetVM | None:
         return None
     return CombatActorStatSheetVM(
         actor_id=sheet.actor_id,
-        name=sheet.name,
+        name=_combat_display_text(sheet.name),
         total_count=sheet.total_count,
         sections=[
             CombatStatSectionVM(
                 key=section.key,
-                label=section.label,
+                label=_combat_stat_section_label(section.key, section.label),
                 items=[
                     CombatStatValueVM(
                         key=item.key,
-                        label=item.label,
+                        label=_combat_stat_label(item.key, item.label),
                         value_text=item.value_text,
                         tooltip=item.tooltip,
                     )
@@ -1118,7 +1274,7 @@ def _roster_row(actor: CombatActorCardDTO) -> CombatRosterRowVM:
     vitals = _vitals(actor)
     return CombatRosterRowVM(
         actor_id=actor.actor_id,
-        name=actor.name,
+        name=_combat_display_text(actor.name),
         team=actor.team,
         actor_type=actor.actor_type,
         avatar_url=_avatar_url(actor),
@@ -1531,6 +1687,8 @@ def _effect_kind(effect_id: str) -> str:
 
 
 def _effect_title(effect_id: str, frame_kind: str) -> str:
+    if effect_id in COMBAT_EFFECT_TITLES:
+        return COMBAT_EFFECT_TITLES[effect_id]
     titles = {
         "bleeding": "Кровотечение",
         "poison": "Яд",

@@ -326,7 +326,7 @@ def test_landing_rift_links_to_lobby_with_tooltip():
     )
 
     assert 'class="tsw-hero-bg" aria-hidden="true"' in landing_template
-    assert '<a class="tsw-hero-rift" href="/game-lobby" aria-label="Заглянуть в мир">' in landing_template
+    assert '<a class="tsw-hero-rift" href="/play" aria-label="Заглянуть в мир">' in landing_template
     assert '<button type="button" class="tsw-hero-rift" @click="authModal = \'login\'"' in landing_template
     assert 'class="tsw-rift-tooltip"' in landing_template
     assert 'href="/static/images/site/the-sealed-world/hero-rift.webp"' in landing_template

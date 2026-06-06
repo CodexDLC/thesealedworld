@@ -37,10 +37,42 @@
             </div>
 
             <div class="fc-form-row">
-                <label class="fc-form-label" for="field-cover">Обложка (URL)</label>
-                <input class="fc-form-input" type="text" id="field-cover" name="cover_image"
-                       value="{{ form.cover_image }}" maxlength="500"
-                       placeholder="/static/images/news/cover.webp">
+                <span class="fc-form-label">Обложка новости</span>
+                <div class="fc-cover-picker">
+                    <label class="fc-cover-card fc-cover-card--empty {% if not form.cover_image %}is-selected{% endif %}">
+                        <input type="radio" name="cover_image" value="" {% if not form.cover_image %}checked{% endif %}>
+                        <span class="fc-cover-empty">Без обложки</span>
+                    </label>
+
+                    {% set cover_state = namespace(matched=false) %}
+                    {% for cover in form.cover_presets %}
+                        {% set is_selected = form.cover_image == cover.url %}
+                        {% if is_selected %}
+                            {% set cover_state.matched = true %}
+                        {% endif %}
+                        <label class="fc-cover-card {% if is_selected %}is-selected{% endif %} {% if not cover.available and not is_selected %}is-disabled{% endif %}">
+                            <input type="radio" name="cover_image" value="{{ cover.url }}"
+                                   {% if is_selected %}checked{% endif %}
+                                   {% if not cover.available and not is_selected %}disabled{% endif %}>
+                            {% if cover.available %}
+                                <img class="fc-cover-thumb" src="{{ cover.url }}" alt="">
+                            {% else %}
+                                <span class="fc-cover-thumb fc-cover-thumb--missing">Нет файла</span>
+                            {% endif %}
+                            <span class="fc-cover-title">{{ cover.title }}</span>
+                            <span class="fc-cover-description">{{ cover.description }}</span>
+                        </label>
+                    {% endfor %}
+
+                    {% if form.cover_image and not cover_state.matched %}
+                        <label class="fc-cover-card is-selected">
+                            <input type="radio" name="cover_image" value="{{ form.cover_image }}" checked>
+                            <span class="fc-cover-thumb fc-cover-thumb--external">Внешняя</span>
+                            <span class="fc-cover-title">Текущая обложка</span>
+                            <span class="fc-cover-description">{{ form.cover_image }}</span>
+                        </label>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="fc-form-actions">
@@ -64,38 +96,12 @@
                     <input type="hidden" name="article_id" value="{{ form.article_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--deny">Удалить</button>
                 </form>
-                <form method="post" action="/admin/news/generate-cover" style="display:inline">
-                    <input type="hidden" name="article_id" value="{{ form.article_id }}">
-                    <button type="submit" class="fc-action-btn">Сгенерировать обложку</button>
-                </form>
-
                 {% if form.is_published %}
                     <span class="fc-status-badge fc-status-badge--published">Опубликована</span>
                 {% else %}
                     <span class="fc-status-badge fc-status-badge--draft">Черновик</span>
                 {% endif %}
             </div>
-
-            {% if form.cover_task_id %}
-                <div class="fc-article-extra-actions">
-                    <span class="fc-status-badge">Cover task: {{ form.cover_preview_status or "pending" }}</span>
-                    {% if form.cover_preview_error %}
-                        <span class="fc-status-badge fc-status-badge--draft">{{ form.cover_preview_error }}</span>
-                    {% endif %}
-                    {% if form.cover_preview_url %}
-                        <span class="fc-status-badge">{{ form.cover_preview_url }}</span>
-                        <form method="post" action="/admin/news/approve-cover" style="display:inline">
-                            <input type="hidden" name="article_id" value="{{ form.article_id }}">
-                            <input type="hidden" name="cover_url" value="{{ form.cover_preview_url }}">
-                            <button type="submit" class="fc-action-btn fc-action-btn--approve">Применить обложку</button>
-                        </form>
-                    {% endif %}
-                    <form method="post" action="/admin/news/reject-cover" style="display:inline">
-                        <input type="hidden" name="article_id" value="{{ form.article_id }}">
-                        <button type="submit" class="fc-action-btn fc-action-btn--deny">Отклонить</button>
-                    </form>
-                </div>
-            {% endif %}
         {% endif %}
     </section>
 {% endblock %}

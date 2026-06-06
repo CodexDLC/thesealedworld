@@ -16,9 +16,7 @@ class FeedbackService:
     def __init__(self, repo: FeedbackRepository) -> None:
         self._repo = repo
 
-    async def submit(self, *, user_id: uuid.UUID, tester_status: str, data: FeedbackCreate) -> Feedback:
-        if tester_status != "approved":
-            raise BusinessLogicException(detail="Only approved testers can submit feedback")
+    async def submit(self, *, user_id: uuid.UUID, data: FeedbackCreate) -> Feedback:
         if data.priority and data.type != "bug":
             raise BusinessLogicException(detail="Priority is only allowed for bug reports")
 

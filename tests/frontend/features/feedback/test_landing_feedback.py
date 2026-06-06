@@ -9,9 +9,10 @@ from starlette.testclient import TestClient
 def _make_app(user=None):
     from fastapi import FastAPI
     from fastapi.templating import Jinja2Templates
+
+    from src.frontend.app import inline_css
     from src.frontend.config.settings import settings
     from src.frontend.features.public_site.routes.pages import router
-    from src.frontend.app import inline_css
 
     app = FastAPI()
     app.include_router(router)
@@ -42,34 +43,36 @@ def _user_mock(*, tester_status="none"):
 
 @pytest.mark.unit
 class TestLandingFeedbackBlock:
-    def test_feedback_buttons_for_anonymous_link_to_cta(self):
+    def test_feedback_block_for_anonymous_links_to_support_and_registration(self):
         app = _make_app(user=None)
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/")
         assert response.status_code == 200
         html = response.text
-        assert 'href="#cta"' in html
-        assert "откроется вместе с 0.1.0" in html
+        assert 'href="/support"' in html
+        assert "Зарегистрироваться" in html
+        assert "Подать заявку" not in html
 
-    def test_feedback_buttons_for_tester_link_to_account_feedback(self):
+    def test_feedback_block_for_user_links_to_account_feedback(self):
         app = _make_app(user=_user_mock(tester_status="approved"))
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/")
         html = response.text
-        assert "/account/feedback/new?type=bug" in html
-        assert "/account/feedback/new?type=wish" in html
+        assert "/support" in html
+        assert "/account/feedback" in html
 
-    def test_feedback_buttons_for_pending_show_waiting_message(self):
+    def test_feedback_block_ignores_pending_tester_status(self):
         app = _make_app(user=_user_mock(tester_status="pending"))
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/")
         html = response.text
-        assert "заявка на рассмотрении" in html.lower()
+        assert "заявка на рассмотрении" not in html.lower()
+        assert "/account/feedback" in html
 
-    def test_feedback_buttons_for_none_show_apply_link(self):
+    def test_feedback_block_ignores_none_tester_status(self):
         app = _make_app(user=_user_mock(tester_status="none"))
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/")
         html = response.text
-        assert "/account/profile" in html
-        assert "Подать заявку" in html
+        assert "/account/feedback" in html
+        assert "Подать заявку" not in html

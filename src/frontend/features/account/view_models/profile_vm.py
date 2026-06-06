@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class AccountReferralVM:
+    display_name: str
+    joined_at: str
+    email_status: str
+    email_status_class: str
+    character_status: str
+    payment_status: str
 
 
 @dataclass(frozen=True)
@@ -22,3 +32,4 @@ class AccountProfileVM:
     email_verified: bool = False
     email_verified_at: str | None = None
     email_verification_enabled: bool = False
+    referrals: list[AccountReferralVM] = field(default_factory=list)

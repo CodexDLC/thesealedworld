@@ -68,7 +68,7 @@
                       data-effect="{{ effect_id }}"
                       {% if effect_duration is not none %}data-duration="{{ effect_duration }}"{% endif %}>
                     <img class="combat-log-effect-icon" src="{{ effect_icon }}" alt="">
-                    <span>[{{ effect_label }}{% if effect_duration is not none and effect_duration < 900 %} {{ effect_duration }}{% endif %}]</span>
+                    <span>{{ effect_label }}{% if effect_duration is not none and effect_duration < 900 %} {{ effect_duration }}{% endif %}</span>
                 </span>
             {% endfor %}
             {% if flags.crit is defined and flags.crit and not seen.crit %}<span class="combat-log-badge combat-log-badge--crit combat-log-badge--flag" title="crit" data-token="crit"><img class="combat-log-badge-icon" src="/static/images/ui/combat-icons/token-crit.svg" alt=""></span>{% endif %}

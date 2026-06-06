@@ -609,6 +609,103 @@ body.fc-shell {
     min-height: 280px;
 }
 
+.fc-cover-picker {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.fc-cover-card {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    color: #18202a;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100%;
+    padding: 10px;
+    transition: border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+
+.fc-cover-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.12);
+}
+
+.fc-cover-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fc-cover-card.is-selected {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+}
+
+.fc-cover-card.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+.fc-cover-card.is-disabled:hover {
+    border-color: #d1d5db;
+    box-shadow: none;
+}
+
+.fc-cover-thumb {
+    align-items: center;
+    aspect-ratio: 16 / 9;
+    background: #eef2f7;
+    border-radius: 6px;
+    color: #6b7a92;
+    display: flex;
+    font-size: 12px;
+    font-weight: 700;
+    justify-content: center;
+    object-fit: cover;
+    overflow: hidden;
+    width: 100%;
+}
+
+.fc-cover-thumb--missing {
+    border: 1px dashed #cbd5e1;
+}
+
+.fc-cover-thumb--external {
+    background: #fef3c7;
+    color: #92400e;
+    text-transform: uppercase;
+}
+
+.fc-cover-empty {
+    align-items: center;
+    aspect-ratio: 16 / 9;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    color: #6b7a92;
+    display: flex;
+    font-size: 13px;
+    font-weight: 700;
+    justify-content: center;
+}
+
+.fc-cover-title {
+    color: #18202a;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.fc-cover-description {
+    color: #6b7a92;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
 .fc-form-actions {
     align-items: center;
     border-top: 1px solid #f0f2f5;

@@ -1,0 +1,53 @@
+{% extends "site/base_site.html" %}
+
+{% block title %}Игровой сервер недоступен - The Sealed World{% endblock title %}
+
+{% block body_class %}page-play-unavailable{% endblock body_class %}
+
+{% block auth_modal %}{% endblock auth_modal %}
+{% block header %}{% endblock header %}
+{% block footer %}{% endblock footer %}
+
+{% block content %}
+<section class="play-maintenance-screen" aria-labelledby="play-maintenance-title">
+    <div class="play-maintenance-bg" aria-hidden="true"></div>
+
+    <div class="play-maintenance-layout">
+        <div class="play-maintenance-figure" aria-hidden="true">
+            <picture>
+                <source srcset="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp">
+                <img src="/static/images/site/the-sealed-world/hero-rift.webp" width="500" height="500" alt="" decoding="async">
+            </picture>
+        </div>
+
+        <article class="play-maintenance-copy">
+            <div class="play-maintenance-eyebrow">
+                <span class="play-maintenance-dot"></span>
+                <span>Игровой слой недоступен</span>
+                <span>503</span>
+            </div>
+            <h1 id="play-maintenance-title">Врата временно закрыты</h1>
+            <p>
+                Сайт и аккаунт работают. Игровое лобби сейчас не отвечает,
+                поэтому вход в The Sealed World временно приостановлен.
+            </p>
+
+            <dl class="play-maintenance-status" aria-label="Статус игровых сервисов">
+                <div>
+                    <dt>Сайт</dt>
+                    <dd>Доступен</dd>
+                </div>
+                <div class="is-offline">
+                    <dt>Игра</dt>
+                    <dd>Недоступна</dd>
+                </div>
+            </dl>
+
+            <div class="play-maintenance-actions">
+                <a class="btn-node lg" href="/play"><span>Проверить снова</span></a>
+                <a class="btn-node ghost lg" href="/"><span>Вернуться на сайт</span></a>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock content %}

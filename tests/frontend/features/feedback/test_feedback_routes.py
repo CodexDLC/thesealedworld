@@ -11,8 +11,9 @@ from src.frontend.features.feedback.routes.pages import router
 def _make_app(user=None):
     from fastapi import FastAPI
     from fastapi.templating import Jinja2Templates
-    from src.frontend.config.settings import settings
+
     from src.frontend.app import inline_css
+    from src.frontend.config.settings import settings
 
     app = FastAPI()
     app.include_router(router)
@@ -43,12 +44,18 @@ def _user_mock(*, tester_status="approved"):
 
 @pytest.mark.unit
 class TestFeedbackRoutes:
-    def test_feedback_list_requires_tester_status(self):
+    @patch("src.frontend.features.feedback.routes.pages.get_db")
+    def test_feedback_list_allows_regular_player(self, mock_get_db):
         app = _make_app(user=_user_mock(tester_status="none"))
+        mock_get_db.return_value = AsyncMock()
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get("/account/feedback", follow_redirects=False)
-        assert response.status_code == 303
-        assert "/account/profile" in response.headers["location"]
+        with patch("src.frontend.features.feedback.routes.pages.FeedbackRepository") as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.get_by_user = AsyncMock(return_value=[])
+            mock_repo_cls.return_value = mock_repo
+            response = client.get("/account/feedback", follow_redirects=False)
+        assert response.status_code == 200
+        assert "Обратная связь" in response.text
 
     def test_feedback_list_redirects_anonymous(self):
         app = _make_app(user=None)
@@ -77,11 +84,11 @@ class TestFeedbackRoutes:
 
         with patch(
             "src.frontend.features.feedback.routes.pages.FeedbackRepository",
-        ) as MockRepo:
+        ) as mock_repo_cls:
             mock_repo = AsyncMock()
             mock_repo.create = AsyncMock(return_value=mock_feedback)
             mock_repo.commit = AsyncMock()
-            MockRepo.return_value = mock_repo
+            mock_repo_cls.return_value = mock_repo
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.post(

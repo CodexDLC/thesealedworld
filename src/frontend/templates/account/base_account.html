@@ -27,12 +27,10 @@
                 <a href="/" class="account-logo">The Sealed World</a>
                 <nav class="account-nav">
                     <a href="/account/profile">Профиль</a>
-                    {% if profile and profile.is_tester %}
-                        <a href="/account/feedback">Обратная связь</a>
-                    {% endif %}
+                    <a href="/account/feedback">Обратная связь</a>
                 </nav>
                 <div class="account-header-actions">
-                    <a href="/play" class="btn-node sm"><span>В игру</span></a>
+                    <a href="{{ play_lobby_url | default('/play') }}" class="btn-node sm"><span>В игру</span></a>
                     <form method="post" action="/logout" style="display:inline">
                         {% include "site/includes/csrf_field.html" %}
                         <button type="submit" class="btn-node ghost sm"><span>Выйти</span></button>

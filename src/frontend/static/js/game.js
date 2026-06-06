@@ -448,22 +448,20 @@ window.GameCatalogCache = {
 
         if (typeof tippy !== 'undefined') {
             const tooltipNodes = root.querySelectorAll('[data-tippy-content]');
-            const isHtmlNode = (node) => node.dataset.tippyHtml === '1';
             const tooltipContent = (node) => {
                 const raw = node.getAttribute('data-tippy-content') || '';
-                if (isHtmlNode(node)) return raw;
                 return raw.replace(/\\n/g, '\n').replace(/\s+\/\/\s+/g, '\n');
             };
             tooltipNodes.forEach((node) => {
                 node.removeAttribute('title');
                 if (node._tippy) {
-                    node._tippy.setProps({ allowHTML: isHtmlNode(node) });
+                    node._tippy.setProps({ allowHTML: false });
                     node._tippy.setContent(tooltipContent(node));
                 }
             });
             Array.from(tooltipNodes).filter((node) => !node._tippy).forEach((node) => {
                 tippy(node, {
-                    allowHTML: isHtmlNode(node),
+                    allowHTML: false,
                     appendTo: document.body,
                     content(reference) {
                         return tooltipContent(reference);

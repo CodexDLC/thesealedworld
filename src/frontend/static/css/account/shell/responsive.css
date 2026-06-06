@@ -3,6 +3,8 @@
 @media (max-width: 768px) {
   .account-wrap {
     grid-template-columns: 1fr;
+    width: min(calc(100% - (var(--sp-4) * 2)), 720px);
+    padding: var(--sp-6) 0;
   }
 
   .account-sidebar {
@@ -13,6 +15,15 @@
     flex-direction: row;
     gap: var(--sp-2);
     overflow-x: auto;
+  }
+
+  .account-sidebar-link {
+    white-space: nowrap;
+  }
+
+  .account-sidebar-link.is-active {
+    border-left: 0;
+    border-bottom: 1px solid rgba(255, 170, 0, 0.52);
   }
 
   .account-header-inner {

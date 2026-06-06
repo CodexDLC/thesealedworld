@@ -6,7 +6,7 @@
 <link rel="preload" as="image" href="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp" fetchpriority="high">
 {% endblock extra_head %}
 
-{% block body_class %}page-the-sealed-world{% if lobby_overlay_open %} has-lobby-modal{% endif %}{% if auth_overlay_open %} has-auth-modal{% endif %}{% endblock body_class %}
+{% block body_class %}page-the-sealed-world{% if lobby_overlay_open %} has-lobby-modal{% endif %}{% if auth_overlay_open %} has-auth-modal{% endif %}{% if play_unavailable %} has-play-maintenance{% endif %}{% endblock body_class %}
 
 {% block content %}
 <nav class="landing-dock" aria-label="Навигация по лендингу">
@@ -14,7 +14,7 @@
     <a href="#prealpha">Pre-alpha</a>
     <a href="#loop">Цикл</a>
     <a href="#roadmap">Планы</a>
-    <a href="#feedback">Фидбек</a>
+    <a href="/support">Поддержка</a>
     <a class="primary" href="#cta">Заявка</a>
 </nav>
 
@@ -28,7 +28,7 @@
     </div>
 
     <div class="tsw-hero-content">
-        <div class="tag sys tsw-kicker">Пре-альфа · браузерная MMORPG · набор тестеров</div>
+        <div class="tag sys tsw-kicker">Пре-альфа · браузерная MMORPG · открытый вход</div>
         <h1>The Sealed <em>World</em></h1>
         <p class="tsw-hero-lede">
             Браузерная MMORPG об опасных вылазках за стену, добыче и возвращении домой живым.
@@ -39,7 +39,7 @@
             <span>The Sealed World</span>
         </div>
         {% if user %}
-        <a class="tsw-hero-rift" href="/game-lobby" aria-label="Заглянуть в мир">
+        <a class="tsw-hero-rift" href="/play" aria-label="Заглянуть в мир">
             <picture>
                 <source srcset="/static/images/site/the-sealed-world/hero-rift.webp" type="image/webp">
                 <img src="/static/images/site/the-sealed-world/hero-rift.webp" width="500" height="500" alt="" fetchpriority="high" decoding="async">
@@ -171,7 +171,7 @@
             <span class="tag sys">III · Первый игровой цикл</span>
             <h2>Одна вылазка.<br><em>От стены к разлому и обратно.</em></h2>
             <p>
-                Именно эту петлю нужно проверить с первыми тестерами. Если она работает,
+                Именно эту петлю нужно проверить с первыми игроками. Если она работает,
                 на ней можно строить мир дальше.
             </p>
         </div>
@@ -291,59 +291,30 @@
 <section class="tsw-band tsw-band-surface" id="feedback">
     <div class="tsw-wrap tsw-split">
         <div class="tsw-copy">
-            <span class="tag sys">V · Прозрачность разработки</span>
-            <h2>Честный ранний тест.<br><em>Не релиз и не витрина.</em></h2>
+            <span class="tag sys">V · Центр поддержки</span>
+            <h2>Нашли баг или слабое место?<br><em>Оставьте сигнал по игре.</em></h2>
             <p>
-                В pre-alpha важны не красивые отзывы, а конкретные сигналы:
-                где интересно, где непонятно, где бой затянулся, где хочется еще одну вылазку.
+                Регистрация открыта, вход в игру доступен сразу. Поэтому поддержка
+                работает как отдельный пользовательский раздел: баги, баланс, темп боя,
+                интерфейс и идеи для вылазок собираются по разным формам.
             </p>
         </div>
 
         <div class="ds-panel tsw-feedback-panel">
-            {% if user and user.tester_status == "approved" %}
-            <div class="ds-panel-header">Канал тестеров</div>
+            <div class="ds-panel-header">Центр поддержки</div>
             <div class="ds-panel-body">
-                <h3>Помогите понять, где игра цепляет.</h3>
+                <h3>Сообщите, что произошло, без длинной пустой анкеты.</h3>
+                <p>На странице поддержки сначала выбирается тип обращения, затем короткие уточнения и итоговая проверка перед отправкой.</p>
                 <div class="tsw-feedback-actions">
-                    <a class="choice" href="/account/feedback/new?type=bug">Сообщить баг</a>
-                    <a class="choice" href="/account/feedback/new?type=wish">Оставить пожелание</a>
-                    <a class="choice" href="/account/feedback/new?type=impression">Описать впечатление</a>
-                    <a class="choice" href="/account/feedback">Мои отзывы</a>
+                    <a class="choice" href="/support">Открыть центр поддержки</a>
+                    {% if user %}
+                        <a class="choice" href="/account/feedback">Мои обращения</a>
+                    {% else %}
+                        <button class="choice" type="button" @click="authModal = 'register'">Зарегистрироваться</button>
+                    {% endif %}
                 </div>
-                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
+                <p class="tsw-feedback-note">Баги · баланс · темп боя · интерфейс · идеи контента</p>
             </div>
-            {% elif user and user.tester_status == "pending" %}
-            <div class="ds-panel-header">Канал тестеров</div>
-            <div class="ds-panel-body">
-                <h3>Ваша заявка на рассмотрении.</h3>
-                <p>Мы свяжемся с вами по email, когда примем решение.</p>
-                <div class="tsw-feedback-actions">
-                    <a class="choice" href="/account/profile">Посмотреть статус заявки</a>
-                </div>
-            </div>
-            {% elif user and user.tester_status == "none" %}
-            <div class="ds-panel-header">Канал тестеров · откроется вместе с 0.1.0</div>
-            <div class="ds-panel-body">
-                <h3>Помогите понять, где игра цепляет.</h3>
-                <p>Подайте заявку на тестирование, чтобы получить доступ к каналу обратной связи.</p>
-                <div class="tsw-feedback-actions">
-                    <a class="choice" href="/account/profile">Подать заявку на тестирование</a>
-                </div>
-                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
-            </div>
-            {% else %}
-            <div class="ds-panel-header">Канал тестеров · откроется вместе с 0.1.0</div>
-            <div class="ds-panel-body">
-                <h3>Помогите понять, где игра цепляет.</h3>
-                <div class="tsw-feedback-actions">
-                    <a class="choice" href="#cta">Сообщить баг</a>
-                    <a class="choice" href="#cta">Оставить пожелание</a>
-                    <a class="choice" href="#cta">Описать впечатление</a>
-                    <a class="choice" href="#cta">Посмотреть статус</a>
-                </div>
-                <p class="tsw-feedback-note">Баги · баланс · темп боя · понятность интерфейса · идеи для вылазок</p>
-            </div>
-            {% endif %}
         </div>
     </div>
 </section>
@@ -351,18 +322,18 @@
 <section class="tsw-cta" id="cta">
     <div class="tsw-cta-bg" aria-hidden="true"></div>
     <div class="tsw-wrap">
-        <span class="tag sys">Заявка в тест</span>
-        <h2>Станьте одним<br>из первых тестеров.</h2>
+        <span class="tag sys">Вход в игру</span>
+        <h2>Создайте аккаунт<br>и заходите в мир.</h2>
         <p>
-            Первая публичная версия 0.1.0 будет небольшой, честной и сырой.
-            Нам нужны игроки, готовые попробовать ранний срез и сказать, что в нем работает.
+            Зарегистрируйтесь и попробуйте ранний срез,
+            а если что-то сломалось или кажется непонятным, вернитесь в центр поддержки.
         </p>
         <div class="tsw-cta-actions">
-            <button type="button" class="btn-node lg" @click="authModal = 'register'"><span>Оставить заявку</span></button>
+            <button type="button" class="btn-node lg" @click="authModal = 'register'"><span>Зарегистрироваться</span></button>
             <button type="button" class="btn-node ghost lg" @click="authModal = 'login'"><span>Войти</span></button>
             <a class="btn-node ghost lg" href="#prealpha"><span>Что будет в 0.1.0</span></a>
         </div>
-        <p class="tsw-cta-note">Без магазина · без обещаний релиза · только pre-alpha тест</p>
+        <p class="tsw-cta-note">Браузерный вход · ранний игровой срез · обратная связь через поддержку</p>
     </div>
 </section>
 

@@ -1,10 +1,14 @@
 from typing import Annotated
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, Response
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
 from src.frontend.config.settings import settings
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
+from src.frontend.features.auth.dependencies.providers import get_frontend_auth_service
+from src.frontend.features.auth.services.auth_service import FrontendAuthService
+from src.frontend.features.public_site.services import PlayAvailabilityService, build_play_url
 from src.shared.utils.url import build_public_base_url
 
 router = APIRouter(tags=["Frontend Pages"])
@@ -20,10 +24,38 @@ async def index(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
                 "title": "The Sealed World - Запечатанный мир",
                 "description": "Браузерная MMORPG об опасных вылазках за стену, добыче и возвращении домой живым.",
                 "url": "/",
-                "image": "/static/images/site/the-sealed-world/hero-main.webp",
+                "image": settings.site_meta_image,
             }
         },
     )
+
+
+@router.get("/play", name="play_entry")
+async def play_entry(
+    request: Request,
+    ui: Annotated[UIRenderer, Depends(get_ui_renderer)],
+    auth_service: Annotated[FrontendAuthService, Depends(get_frontend_auth_service)],
+):
+    if not await PlayAvailabilityService().is_available():
+        return await ui.render(
+            "site/play_unavailable.html",
+            context={
+                "meta": {
+                    "title": "Игровой сервер недоступен - The Sealed World",
+                    "description": "Игровой слой The Sealed World временно недоступен из-за технического обслуживания.",
+                    "url": "/play",
+                    "robots": "noindex, nofollow",
+                }
+            },
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    user = await auth_service.get_current_user(request)
+    if user is None:
+        return await ui.render("site/index.html", context={"auth_overlay_open": True, "auth_mode": "login"})
+
+    query = urlencode({"return_to": f"{_public_base_url(request)}/"})
+    return RedirectResponse(build_play_url(f"/game-lobby?{query}"), status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/system/design", name="design_system")
@@ -32,16 +64,22 @@ async def design_system(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
     return await ui.render("system/design_system.html")
 
 
-@router.get("/about", name="about")
-async def about(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
-    """Render the About page."""
+@router.get("/about", name="about", include_in_schema=False)
+async def about() -> RedirectResponse:
+    """The standalone About page was retired; lore lives in /library now."""
+    return RedirectResponse(url="/library", status_code=301)
+
+
+@router.get("/support", name="support")
+async def support(ui: Annotated[UIRenderer, Depends(get_ui_renderer)]):
+    """Render the public support and tester feedback hub."""
     return await ui.render(
-        "site/about.html",
+        "site/support.html",
         context={
             "meta": {
-                "title": "О проекте - The Sealed World",
-                "description": "Лор, сеттинг и основные идеи мира The Sealed World.",
-                "url": "/about",
+                "title": "Поддержка и обратная связь - The Sealed World",
+                "description": "Сообщить о баге, оценить баланс, темп боя, понятность интерфейса или предложить идею для вылазок.",
+                "url": "/support",
             }
         },
     )
@@ -56,6 +94,7 @@ Allow: /
 Allow: /about
 Allow: /news
 Allow: /library
+Allow: /support
 
 Disallow: /login
 Disallow: /register
@@ -95,6 +134,7 @@ currently in pre-alpha testing.
 - About: /about
 - News: /news
 - Library (game lore & bestiary): /library
+- Support and feedback: /support
 
 ## Status
 
@@ -113,7 +153,7 @@ async def llms_txt() -> PlainTextResponse:
     return PlainTextResponse(_LLMS_TXT)
 
 
-_SITEMAP_PATHS = ("/", "/about", "/news", "/library")
+_SITEMAP_PATHS = ("/", "/about", "/news", "/library", "/support")
 
 
 @router.get("/sitemap.xml", name="sitemap_xml")

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.frontend.config.settings import settings
 from src.frontend.core.database import get_db
 from src.frontend.core.renderer import UIRenderer, get_ui_renderer
 from src.frontend.features.news.repositories.article_repository import ArticleRepository
@@ -78,7 +79,7 @@ async def news_detail(
             "meta": {
                 "title": f"{article.title} - The Sealed World",
                 "description": article.preview,
-                "image": article.cover_image or "/static/images/site/the-sealed-world/hero-main.webp",
+                "image": article.cover_image or settings.site_meta_image,
                 "type": "article",
                 "url": f"/news/{article.slug}",
             },

@@ -73,6 +73,15 @@ class UserRepository:
             "bonus": 0,
         }
 
+    async def list_referrals(self, user_id: uuid.UUID, *, limit: int = 20) -> list[User]:
+        result = await self.session.execute(
+            select(User)
+            .where(User.referred_by_id == user_id)
+            .order_by(User.created_at.desc(), User.id.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
     async def update_tester_status(
         self,
         user_id: uuid.UUID,

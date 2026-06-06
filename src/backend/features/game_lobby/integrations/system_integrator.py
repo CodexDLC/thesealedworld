@@ -20,13 +20,19 @@ from src.backend.features.character.schemas.session import (
     CharacterSessionSymbioteDTO,
 )
 from src.backend.features.character.services import StartingImprintBuild, StartingImprintService
+from src.backend.features.inventory.repositories.items import runtime_item_from_instance
 from src.backend.features.items.dto.instance import ItemGenerationRequestDTO, ItemOriginRefDTO, ItemPlacementRefDTO
 from src.backend.features.items.integrations import ItemPersistenceIntegration
 from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.items.services import ItemCatalogService, ItemGenerationService
 from src.shared.enums import CoreDomain
 from src.shared.enums.skill_enums import SkillProgressState
-from src.shared.schemas import ScenarioPayloadDTO
+from src.shared.schemas import (
+    CharacterInventorySummaryDTO,
+    CharacterSummaryItemDTO,
+    CharacterSummarySkillDTO,
+    ScenarioPayloadDTO,
+)
 
 if TYPE_CHECKING:
     import uuid
@@ -55,6 +61,13 @@ class LobbyCharacterSummary:
     avatar_url: str | None
     status: str
     presence_status: Literal["online", "offline"] = "offline"
+    location_id: str | None = None
+    updated_at: datetime | None = None
+    vitals: dict[str, Any] | None = None
+    attributes: dict[str, int] | None = None
+    equipped_items: list[CharacterSummaryItemDTO] | None = None
+    inventory_summary: CharacterInventorySummaryDTO | None = None
+    skills: list[CharacterSummarySkillDTO] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,16 +138,89 @@ class GameLobbyIntegration:
 
     async def list_user_characters(self, user_id: uuid.UUID) -> list[LobbyCharacterSummary]:
         characters = await self._characters().get_by_user_id(user_id)
+        session_docs = await self._active_session_documents([character.character_id for character in characters])
         return [
-            LobbyCharacterSummary(
-                character_id=character.character_id,
-                name=character.name,
-                avatar_url=character.avatar_url,
-                status=str(character.game_stage or "lobby"),
-                presence_status="offline",
+            await self._build_lobby_character_summary(
+                character,
+                session_docs.get(character.character_id),
             )
             for character in characters
         ]
+
+    async def _active_session_documents(self, character_ids: list[int]) -> dict[int, dict[str, Any]]:
+        if not character_ids:
+            return {}
+        getter = getattr(self.character_sessions, "get_sessions_batch", None)
+        if not callable(getter):
+            return {}
+        with suppress(Exception):
+            documents = await getter(character_ids)
+            return {
+                int(char_id): document
+                for char_id, document in dict(documents or {}).items()
+                if isinstance(document, dict)
+            }
+        return {}
+
+    async def _build_lobby_character_summary(
+        self,
+        character,
+        session_doc: dict[str, Any] | None,
+    ) -> LobbyCharacterSummary:
+        status = str(_session_state(session_doc) or character.game_stage or "lobby")
+        return LobbyCharacterSummary(
+            character_id=character.character_id,
+            name=character.name,
+            avatar_url=_session_avatar(session_doc) or character.avatar_url,
+            status=status,
+            presence_status="online" if session_doc else "offline",
+            location_id=_session_location(session_doc) or character.location_id,
+            updated_at=character.updated_at,
+            vitals=_session_vitals(session_doc) or dict(character.vitals_snapshot or {}),
+            attributes=_character_attributes(character),
+            equipped_items=await self._character_equipped_items(character.character_id),
+            inventory_summary=await self._character_inventory_summary(character.character_id),
+            skills=_character_skills(character),
+        )
+
+    async def _character_equipped_items(self, char_id: int) -> list[CharacterSummaryItemDTO]:
+        if self.inventory_repo is None:
+            return []
+        with suppress(Exception):
+            rows = await self.inventory_repo.list_character_items(char_id)
+            items = [runtime_item_from_instance(instance, placement) for instance, placement in rows]
+            equipped = [item for item in items if item.placement == "equipped"]
+            return [
+                CharacterSummaryItemDTO(
+                    name=item.name,
+                    item_type=item.item_type,
+                    slot=item.slot,
+                    rarity=item.rarity,
+                    quantity=item.quantity,
+                )
+                for item in equipped
+            ]
+        return []
+
+    async def _character_inventory_summary(self, char_id: int) -> CharacterInventorySummaryDTO:
+        summary = CharacterInventorySummaryDTO()
+        if self.inventory_repo is None:
+            return summary
+        with suppress(Exception):
+            rows = await self.inventory_repo.list_character_items(char_id)
+            for _instance, placement in rows:
+                if placement.storage_type == "equipped":
+                    summary.equipped_count += 1
+                elif placement.storage_type == "backpack":
+                    summary.backpack_count += 1
+            wallet = await self.inventory_repo.get_wallet(char_id)
+            summary.currency = dict(wallet.currency or {})
+            summary.resources = dict(wallet.resources or {})
+            summary.components = dict(wallet.components or {})
+            summary.resource_count = (
+                sum(summary.currency.values()) + sum(summary.resources.values()) + sum(summary.components.values())
+            )
+        return summary
 
     async def count_user_characters(self, user_id: uuid.UUID) -> int:
         return await self._characters().count_by_user_id(user_id)
@@ -677,3 +763,65 @@ def _default_avatar_url(gender: str | None) -> str:
     if gender == "female":
         return "/static/images/avatars/silhouette_f.webp"
     return "/static/images/avatars/silhouette_m.webp"
+
+
+def _character_attributes(character) -> dict[str, int]:
+    attrs = getattr(character, "attributes", None)
+    if attrs is None:
+        return {}
+    keys = (
+        "strength",
+        "agility",
+        "endurance",
+        "intellect",
+        "memory",
+        "mental",
+        "perception",
+        "projection",
+        "prediction",
+    )
+    return {key: int(getattr(attrs, key, 0) or 0) for key in keys}
+
+
+def _character_skills(character) -> list[CharacterSummarySkillDTO]:
+    rows = list(getattr(character, "skill_progress", None) or [])
+    rows.sort(key=lambda row: (not bool(row.is_unlocked), -float(row.total_xp or 0), str(row.skill_key)))
+    return [
+        CharacterSummarySkillDTO(
+            skill_key=str(row.skill_key),
+            total_xp=float(row.total_xp or 0),
+            is_unlocked=bool(row.is_unlocked),
+            progress_state=str(getattr(row.progress_state, "value", row.progress_state) or ""),
+        )
+        for row in rows[:6]
+    ]
+
+
+def _session_state(document: dict[str, Any] | None) -> str | None:
+    if not isinstance(document, dict):
+        return None
+    state = document.get("state")
+    return str(getattr(state, "value", state)) if state else None
+
+
+def _session_avatar(document: dict[str, Any] | None) -> str | None:
+    bio = document.get("bio") if isinstance(document, dict) else None
+    if not isinstance(bio, dict):
+        return None
+    avatar = bio.get("avatar")
+    return str(avatar) if avatar else None
+
+
+def _session_location(document: dict[str, Any] | None) -> str | None:
+    location = document.get("location") if isinstance(document, dict) else None
+    if not isinstance(location, dict):
+        return None
+    current = location.get("current")
+    return str(current) if current else None
+
+
+def _session_vitals(document: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(document, dict):
+        return {}
+    vitals = document.get("vitals")
+    return dict(vitals) if isinstance(vitals, dict) else {}

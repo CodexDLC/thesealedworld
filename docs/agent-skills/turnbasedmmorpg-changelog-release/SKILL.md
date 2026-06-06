@@ -19,6 +19,7 @@ into a compact, readable release summary.
 - `docs/changelog/backend.md`
 - `docs/changelog/frontend-site.md`
 - `docs/changelog/frontend-game-client.md`
+- `docs/agent-skills/turnbasedmmorpg-release-flow/SKILL.md` for the branch + version + wipe-risk decision that drives which entries get summarised and what version number to bump to.
 - `docs/agent-skills/turnbasedmmorpg-deployment-management/SKILL.md` when the work affects release, deploy, images, tags, or CI/CD.
 
 ## Commit-Time Rule

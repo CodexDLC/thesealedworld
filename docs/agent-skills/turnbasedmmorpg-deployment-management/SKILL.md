@@ -10,6 +10,7 @@ description: Deployment, CI/CD, Docker Compose split, release image tagging, doc
 Read:
 
 - `docs/agent-skills/turnbasedmmorpg-project/SKILL.md`
+- `docs/agent-skills/turnbasedmmorpg-release-flow/SKILL.md` for branch strategy, version bumping, and wipe-risk classification that picks the source branch for the deploy.
 - `docs/ru/management/deployment.md`
 - `docs/ru/management/deployment-contract.md`
 

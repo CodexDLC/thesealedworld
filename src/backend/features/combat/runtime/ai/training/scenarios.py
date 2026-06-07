@@ -1323,9 +1323,9 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 30. basic instant heal: blood should be converted into a small heal
-    #     before the exchange when the bot is wounded. The exchange still
-    #     happens afterwards; the expected ability target is the bot itself.
+    # 30. basic instant heal: blood/block/gift should be converted into a
+    #     survival buff before the exchange when the bot is wounded. The
+    #     exchange still happens afterwards; the expected ability target is the bot itself.
     bot = _stub_actor(
         "bot_basic_blood_heal",
         team="red",
@@ -1334,7 +1334,7 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         max_hp=100,
         en=20,
         max_en=20,
-        tokens={"blood": 1},
+        tokens={"blood": 3, "block": 1, "gift": 1},
         known_abilities=["basic_wipe_blood"],
     )
     target = _stub_actor("target_basic_blood_heal", team="blue", hp=80)
@@ -1362,7 +1362,8 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         is_ai=True,
         en=20,
         max_en=20,
-        tokens={"tempo": 1, "hit": 1},
+        stamina=60,
+        tokens={"tempo": 3, "hit": 2},
         known_abilities=["basic_break_stance"],
     )
     target = _stub_actor("target_basic_break_stance", team="blue", hp=80, mods={"evasion": 0.45})
@@ -1382,30 +1383,29 @@ def default_scenario_set(seed: int = 0) -> list[SyntheticScenario]:
         )
     )
 
-    # 32. basic instant energy discipline: two damage instants are legal, but
-    #     the cheaper hit-based one should win on a non-finishable target. This
-    #     prevents energy_cost from drifting positive just because instant
-    #     abilities are generally useful.
+    # 32. basic instant stamina discipline: two tactical instants are legal, but
+    #     the lower-token anti-defence option should win on a non-finishable
+    #     target. This prevents stamina_cost from drifting positive just because
+    #     instant abilities are generally useful.
     bot = _stub_actor(
-        "bot_basic_energy_discipline",
+        "bot_basic_stamina_discipline",
         team="red",
         is_ai=True,
-        en=20,
-        max_en=20,
-        tokens={"tempo": 1, "hit": 1, "crit": 1},
-        known_abilities=["basic_punish_mistake", "basic_finish_moment"],
+        stamina=60,
+        tokens={"tempo": 3, "hit": 2, "crit": 2},
+        known_abilities=["basic_break_stance", "basic_expose_weakness"],
     )
-    target = _stub_actor("target_basic_energy_discipline", team="blue", hp=80)
+    target = _stub_actor("target_basic_stamina_discipline", team="blue", hp=80)
     scenarios.append(
         SyntheticScenario(
-            name="basic_energy_discipline",
+            name="basic_stamina_discipline",
             bot=bot,
             targets=[target],
             expected=[
                 ScenarioTarget(
                     target.meta.id,
-                    frozenset({"damage_tag"}),
-                    expected_ability_id="basic_punish_mistake",
+                    frozenset({"debuff", "anti_evasion"}),
+                    expected_ability_id="basic_break_stance",
                     reward_weight=2.0,
                     resource_penalty=0.25,
                 ),

@@ -144,6 +144,7 @@ class PhysicalStatsDTO(BaseModel):
     physical_endurance_power: float = 0.0
     physical_damage_bonus: float = 0.0
     accuracy: float = 0.0
+    accuracy_cap: float = 0.0
     physical_suppression: float = 0.0
     armor_penetration_pct: float = 0.0
     armor_penetration_flat: float = 0.0
@@ -184,6 +185,7 @@ class MitigationStatsDTO(BaseModel):
     """Damage reduction modifiers."""
 
     physical_resistance: float = 0.0
+    incoming_damage_absorb_pct: float = 0.0
     magic_resist: float = 0.0
     resistance_cap: float = 0.85
     armor: float = 0.0
@@ -256,6 +258,8 @@ class SpecialStatsDTO(BaseModel):
     pet_efficiency_mult: float = 1.0
     damage_mult: float = 1.0
     thorns_damage_flat: float = 0.0
+    cleave_damage_mult: float = 0.0
+    cleave_target_count: float = 0.0
     hand_size: int = 3
 
 

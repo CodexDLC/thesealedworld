@@ -99,6 +99,7 @@ class DamageTypeFlagsDTO(BaseModel):
     arcane: bool = False
     nature: bool = False
     healing: bool = False  # NEW: Тип урона "Лечение"
+    vampiric: bool = False
 
 
 class StateFlagsDTO(BaseModel):

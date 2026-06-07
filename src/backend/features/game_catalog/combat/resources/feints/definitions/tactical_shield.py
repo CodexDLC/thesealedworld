@@ -123,7 +123,7 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
     ),
     "shield_blood_mend": FeintTechnicalDTO(
         feint_id="shield_blood_mend",
-        cost=FeintCostDTO(tactics={"blood": 3}),
+        cost=FeintCostDTO(tactics={"blood": 3, "block": 1}),
         target=TargetType.SINGLE_ENEMY,
         applicability_tags=[*_TACTICAL_SHIELD_TAGS, "blood", "heal"],
         purchase_group="tactical",

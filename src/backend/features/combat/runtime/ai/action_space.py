@@ -37,6 +37,10 @@ from src.backend.features.combat.dto.actor import ActorSnapshot  # noqa: TC001
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.ai.feint_tags import derive_feint_tags
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
+from src.backend.features.combat.runtime.engine.preparation_exclusivity import (
+    active_effect_exclusive_channels,
+    feint_preparation_exclusive_channels,
+)
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 
 ATTACK_ACTION = "attack"
@@ -92,8 +96,14 @@ def build_legal_actions_for_target(bot: ActorSnapshot, target: ActorSnapshot) ->
         return actions
 
     available_stamina = max(0, int(bot.meta.stamina or 0))
+    blocked_channels = active_effect_exclusive_channels(
+        effect for effect in bot.statuses.effects if effect.expire_at_exchange > bot.meta.exchange_counter
+    )
 
     for feint_id, cost_dict in hand.items():
+        entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
+        if blocked_channels and entry is not None and feint_preparation_exclusive_channels(entry) & blocked_channels:
+            continue
         cost = _normalise_cost(cost_dict)
         stamina_cost = FeintService.activation_stamina_cost(cost)
         if stamina_cost > available_stamina:
@@ -129,6 +139,8 @@ def build_legal_instant_actions_for_target(bot: ActorSnapshot, target: ActorSnap
         entry = CombatCatalogIntegrator.get_ability_catalog_entry(ability_id)
         if entry is None:
             continue
+        if _ability_on_cooldown(bot, ability_id):
+            continue
         ability = entry.technical
         if not _ability_cost_affordable(bot, ability.cost):
             continue
@@ -142,6 +154,7 @@ def build_legal_instant_actions_for_target(bot: ActorSnapshot, target: ActorSnap
                 feint_id=None,
                 ability_id=ability.ability_id,
                 cost=_ability_token_cost(ability.cost),
+                stamina_cost=max(0, int(ability.cost.stamina or 0)),
                 energy_cost=max(0, int(ability.cost.energy or 0)),
                 hp_cost=max(0, int(ability.cost.hp or 0)),
                 tags=frozenset(_ability_tags(ability.ai_tags)),
@@ -174,10 +187,17 @@ def _normalise_cost(cost: Any) -> dict[str, int]:
 def _ability_cost_affordable(bot: ActorSnapshot, cost: Any) -> bool:
     if int(bot.meta.en or 0) < max(0, int(cost.energy or 0)):
         return False
+    if int(bot.meta.stamina or 0) < max(0, int(cost.stamina or 0)):
+        return False
     if int(bot.meta.hp or 0) < max(0, int(cost.hp or 0)):
         return False
     token_cost = _ability_token_cost(cost)
     return all(int(bot.meta.tokens.get(token, 0) or 0) >= amount for token, amount in token_cost.items())
+
+
+def _ability_on_cooldown(bot: ActorSnapshot, ability_id: str) -> bool:
+    until = int(bot.meta.ability_cooldowns.get(str(ability_id), 0) or 0)
+    return until > int(bot.meta.exchange_counter)
 
 
 def _ability_token_cost(cost: Any) -> dict[str, int]:

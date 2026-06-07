@@ -1,9 +1,11 @@
+from typing import Any
+
 from loguru import logger as log
 from pydantic import ValidationError
 
 from src.backend.core.calculators.stats_waterfall_calculator import StatsWaterfallCalculator
 from src.backend.features.character.runtime.rules.base_power_assembler import BasePowerAssembler
-from src.backend.features.combat.dto.actor import ActorSnapshot, ActorStats
+from src.backend.features.combat.dto.actor import ActorLoadoutDTO, ActorRawDTO, ActorSnapshot, ActorStats
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 TRACE_MOD_KEYS = (
@@ -80,46 +82,40 @@ class StatsEngine:
         # Если stats есть и dirty_stats пуст -> ничего не делаем (используем кэш)
 
     @staticmethod
+    def build_stats(
+        *,
+        raw: ActorRawDTO | dict[str, Any],
+        skills: dict[str, Any],
+        loadout: ActorLoadoutDTO | dict[str, Any],
+    ) -> tuple[ActorStats, dict[str, str]]:
+        raw_data = raw.model_dump() if isinstance(raw, ActorRawDTO) else dict(raw)
+        loadout_layout = loadout.layout if isinstance(loadout, ActorLoadoutDTO) else dict(loadout.get("layout") or {})
+
+        calculated_mods, explanation = StatsWaterfallCalculator.calculate_waterfall(raw_data)
+        BasePowerAssembler.apply_to_values(
+            calculated_mods,
+            loadout_layout=loadout_layout,
+            skills=skills,
+        )
+        calculated_mods = StatsEngine._normalize_calculated_mods(calculated_mods)
+        mods_dto = StatsEngine._modifiers_dto(calculated_mods)
+        skills_dto = CombatSkillsDTO(**skills)
+        return ActorStats(mods=mods_dto, skills=skills_dto), explanation
+
+    @staticmethod
     def _recalculate_full(actor: ActorSnapshot) -> None:
         """
         Полный цикл пересчета.
         """
-        # 1. Подготовка данных для калькулятора
-        raw_data = actor.raw.model_dump()
-
-        # 2. Расчет (Waterfall)
-        # Возвращает плоский словарь модификаторов и словарь формул
-        calculated_mods, explanation = StatsWaterfallCalculator.calculate_waterfall(raw_data)
-        BasePowerAssembler.apply(actor, calculated_mods)
-        calculated_mods = StatsEngine._normalize_calculated_mods(calculated_mods)
-
-        # 3. Сборка ActorStats
-        # Берем скиллы из Snapshot (они не считаются в Waterfall, а просто копируются)
-        skills_data = actor.skills
-
-        # Создаем DTO
-        # Теперь ключи в calculated_mods (из StatsWaterfallCalculator -> stats_formulas -> StatKey)
-        # должны совпадать с полями CombatModifiersDTO (которые мы синхронизировали).
-        # extra='ignore' в DTO защитит от лишних полей.
-
-        try:
-            # Pydantic handles float->int conversion for HP/EN
-            mods_dto = CombatModifiersDTO(**calculated_mods)  # type: ignore
-        except (ValidationError, TypeError) as e:
-            # Логируем ошибку, но пытаемся продолжить с частичными данными
-            # В реальном проде тут нужен алерт
-            print(f"StatsEngine Error: {e}")
-            valid_keys = CombatModifiersDTO.model_fields.keys()
-            filtered_mods = {k: v for k, v in calculated_mods.items() if k in valid_keys}
-            mods_dto = CombatModifiersDTO(**filtered_mods)  # type: ignore
-
-        skills_dto = CombatSkillsDTO(**skills_data)
-
-        actor.stats = ActorStats(mods=mods_dto, skills=skills_dto)
+        actor.stats, actor.explanation = StatsEngine.build_stats(
+            raw=actor.raw,
+            skills=actor.skills,
+            loadout=actor.loadout,
+        )
 
         # 4. Сохраняем объяснения (для дебага/логов)
-        actor.explanation = explanation
-        StatsEngine._trace_stats(actor, calculated_mods, explanation)
+        calculated_mods = actor.stats.mods.model_dump()
+        StatsEngine._trace_stats(actor, calculated_mods, actor.explanation)
 
         # 5. Сбрасываем флаги
         actor.dirty_stats.clear()
@@ -147,3 +143,18 @@ class StatsEngine:
             if key in normalized:
                 normalized[key] = max(0, int(round(float(normalized[key] or 0.0))))
         return normalized
+
+    @staticmethod
+    def _modifiers_dto(calculated_mods: dict[str, float | int]) -> CombatModifiersDTO:
+        # Теперь ключи в calculated_mods (из StatsWaterfallCalculator -> stats_formulas -> StatKey)
+        # должны совпадать с полями CombatModifiersDTO. extra='ignore' в DTO защитит от лишних полей.
+        try:
+            # Pydantic handles float->int conversion for HP/EN
+            return CombatModifiersDTO(**calculated_mods)  # type: ignore
+        except (ValidationError, TypeError) as e:
+            # Логируем ошибку, но пытаемся продолжить с частичными данными
+            # В реальном проде тут нужен алерт
+            print(f"StatsEngine Error: {e}")
+            valid_keys = CombatModifiersDTO.model_fields.keys()
+            filtered_mods = {k: v for k, v in calculated_mods.items() if k in valid_keys}
+            return CombatModifiersDTO(**filtered_mods)  # type: ignore

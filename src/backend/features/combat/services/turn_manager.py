@@ -22,8 +22,10 @@ from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.infrastructure.game_config.manager import GameConfigManager
 
-# Конфиг таймеров согласно документации
-AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
+BASE_TIMEOUT_SECONDS = 60.0
+TIMEOUT_SECONDS_PER_EXTRA_ACTOR = 20.0
+MAX_TIMEOUT_SECONDS = 180.0
+AFK_TIMEOUT_MULTIPLIERS = {0: 1.0, 1: 0.5, 2: 0.25}
 
 
 class CombatTurnManager:
@@ -91,10 +93,7 @@ class CombatTurnManager:
             log.exception("TurnManagerPayloadValidationFailed")
             raise CombatInvalidMovePayloadError("Invalid move payload structure") from e
 
-        min_timeout = 20.0
-        if self.game_config is not None:
-            min_timeout = await self.game_config.get_float("combat", "MIN_TIMEOUT", default=20.0)
-        timeout = AFK_TIMEOUTS.get(afk_level, min_timeout)
+        timeout = await self._move_timeout_seconds(session_id, afk_level=afk_level)
         move_dto = self._with_timeout(move_dto, timeout)
 
         # --- FEINT VALIDATION & CONSUMPTION (ATOMIC) ---
@@ -211,7 +210,9 @@ class CombatTurnManager:
         if not payloads:
             return
 
-        timeout = 60
+        state_dict = await self.combat_sessions.get_actor_state(session_id, char_id)
+        afk_level = int((state_dict or {}).get("afk_level", 0) or 0)
+        timeout = await self._move_timeout_seconds(session_id, afk_level=afk_level)
         exchange_moves_data = []
         other_moves_dtos = []
         # Per-move feint bookkeeping for refunds. Key: move_id (str). Value:
@@ -403,6 +404,28 @@ class CombatTurnManager:
             default=int(CombatConfig.CHAOS_FIRST_CHECK_DELAY_SECONDS),
         )
 
+    async def _move_timeout_seconds(self, session_id: str, *, afk_level: int) -> float:
+        min_timeout = 20.0
+        if self.game_config is not None:
+            min_timeout = await self.game_config.get_float("combat", "MIN_TIMEOUT", default=20.0)
+        return calculate_move_timeout_seconds(
+            afk_level=afk_level,
+            actor_count=await self._active_actor_count(session_id),
+            min_timeout=min_timeout,
+        )
+
+    async def _active_actor_count(self, session_id: str) -> int:
+        get_battle_meta = getattr(self.combat_sessions, "get_battle_meta", None)
+        if get_battle_meta is not None:
+            return actor_count_from_battle_meta(await get_battle_meta(session_id))
+
+        get_meta = getattr(self.combat_sessions, "get_meta", None)
+        if get_meta is not None:
+            raw_meta = await get_meta(session_id)
+            if isinstance(raw_meta, dict):
+                return len(CombatSessionIntegration.actor_ids_from_meta(raw_meta)) or 2
+        return 2
+
     async def _is_dead_target(self, session_id: str, target_id: ActorIdLike) -> bool:
         """Return whether the target is already dead in runtime state."""
         state = await self.combat_sessions.get_actor_state(session_id, target_id)
@@ -425,3 +448,40 @@ class CombatTurnManager:
             return int(value or 0)
         except (TypeError, ValueError):
             return 0
+
+
+def calculate_move_timeout_seconds(*, afk_level: int, actor_count: int, min_timeout: float) -> float:
+    """Scale turn thinking time by combat size and apply AFK pressure."""
+    safe_actor_count = max(2, int(actor_count or 2))
+    base_timeout = min(
+        MAX_TIMEOUT_SECONDS,
+        BASE_TIMEOUT_SECONDS + max(0, safe_actor_count - 2) * TIMEOUT_SECONDS_PER_EXTRA_ACTOR,
+    )
+    penalty = AFK_TIMEOUT_MULTIPLIERS.get(max(0, int(afk_level)), min(AFK_TIMEOUT_MULTIPLIERS.values()))
+    return max(float(min_timeout), base_timeout * penalty)
+
+
+def actor_count_from_battle_meta(meta: Any) -> int:
+    if meta is None:
+        return 2
+
+    teams = getattr(meta, "teams", None)
+    dead_actors = getattr(meta, "dead_actors", None)
+    active_actors_count = getattr(meta, "active_actors_count", None)
+
+    if isinstance(teams, dict):
+        dead_ids = {str(actor_id) for actor_id in dead_actors} if isinstance(dead_actors, list) else set()
+        live_count = sum(
+            1
+            for members in teams.values()
+            if isinstance(members, list)
+            for actor_id in members
+            if str(actor_id) not in dead_ids
+        )
+        if live_count:
+            return live_count
+
+    try:
+        return int(active_actors_count or 2)
+    except (TypeError, ValueError):
+        return 2

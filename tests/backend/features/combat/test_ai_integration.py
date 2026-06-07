@@ -31,7 +31,6 @@ from src.backend.features.combat.services.turn_manager import CombatTurnManager
 from src.backend.features.combat.workers.tasks.ai_turn_task import ai_turn_task
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
-
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
@@ -48,6 +47,7 @@ class FakeCombatSessions:
         self,
         feint_costs: dict[str, dict[str, int]] | None = None,
         rejected_target_ids: set[Any] | None = None,
+        actor_count: int = 2,
     ) -> None:
         self.feint_costs = dict(feint_costs or {})
         self.registered_batches: list[list[dict[str, Any]]] = []
@@ -62,6 +62,26 @@ class FakeCombatSessions:
         # in accepted_move_ids, which triggers the refund path in
         # CombatTurnManager.
         self._rejected_target_ids = {str(tid) for tid in (rejected_target_ids or ())}
+        self.actor_count = actor_count
+
+    async def get_actor_state(self, session_id: str, char_id: int) -> dict[str, Any]:
+        return {"afk_level": 0, "stamina": 100, "hp": 100, "is_dead": False}
+
+    async def get_battle_meta(self, session_id: str) -> BattleMeta:
+        return BattleMeta(
+            active=1,
+            step_counter=0,
+            active_actors_count=self.actor_count,
+            teams={
+                "team_1": ["1"],
+                "team_2": [str(actor_id) for actor_id in range(2, self.actor_count + 1)],
+            },
+            actors_info={str(actor_id): "player" for actor_id in range(1, self.actor_count + 1)},
+            dead_actors=[],
+            last_activity_at=0,
+            battle_type="pve",
+            location_id="test",
+        )
 
     async def register_moves_batch(self, session_id: str, char_id: int, exchange_moves_data: list[dict[str, Any]]):
         self.registered_batches.append(list(exchange_moves_data))

@@ -108,7 +108,7 @@ def _player_snapshot(char_id):
                 "combat_surfaces": {"main_hand": {"slot": "main_hand", "delivery": "weapon"}},
                 "equipment_refs": {"main_hand": {"item_id": "sword-1", "base_id": "short_sword"}},
             },
-            "skills": {"swords": 1.0},
+            "skills": {"skill_swords": 1.0},
         },
         "status": {"hp": {"cur": 64, "max": 64}, "energy": {"cur": 26, "max": 26}},
         "source": {"character_id": char_id},
@@ -190,6 +190,30 @@ async def test_lifecycle_creates_arena_pvp_session():
     assert sessions.combat == {}
     assert sessions.states == {}
     assert events.published[0][0] == "combat.session_ready"
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_materializes_initial_actor_stats_before_first_exchange():
+    store = FakeStore()
+    service = _orchestrator(store)
+
+    await service.create_from_request(
+        {
+            "source": "arena",
+            "arena_session_id": "arena:initial-stats",
+            "battle_type": "pvp",
+            "requested_by": 1,
+            "participants": {"team_1": [1], "team_2": [2]},
+        }
+    )
+
+    _, data, _ = store.created
+    hero_doc = data.actors["1"]
+
+    assert "stats" in hero_doc
+    assert hero_doc["stats"]["mods"]["physical_strength_power"] > 0
+    assert hero_doc["stats"]["skills"]["skill_swords"] == 1.0
+    assert hero_doc["explanation"]["physical_strength_power"]
 
 
 @pytest.mark.asyncio

@@ -55,7 +55,8 @@ class AccuracyStep(ResolverStep):
         effective_penalty = offensive_lookup.accuracy_penalty_after_mastery(raw_penalty, weapon_skill, style_skill)
         skill_bonus = offensive_lookup.accuracy_skill_bonus(atk, ctx)
         multiplier = ctx.mods.accuracy_mult
-        accuracy_cap = max(0.0, min(1.0, tunables.accuracy_chance_cap))
+        accuracy_cap_bonus = offensive_lookup.get_offensive_val(atk, ctx, "accuracy_cap")
+        accuracy_cap = max(0.0, min(1.0, tunables.accuracy_chance_cap + accuracy_cap_bonus))
         final_acc = max(
             0.0,
             min(
@@ -76,6 +77,7 @@ class AccuracyStep(ResolverStep):
             raw_penalty=raw_penalty,
             effective_penalty=effective_penalty,
             cap=accuracy_cap,
+            cap_bonus=accuracy_cap_bonus,
             weapon_skill=weapon_skill,
             style_skill=style_skill,
             tactical_style_skill=ctx.flags.meta.tactical_style_skill,

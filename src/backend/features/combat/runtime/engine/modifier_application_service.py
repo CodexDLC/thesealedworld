@@ -34,6 +34,7 @@ class ModifierApplicationService:
         owner_id: str,
         source: ActorSnapshot,
         target: ActorSnapshot | None,
+        symbiote_ability_mult: float = 1.0,
     ) -> AppliedModifierSources:
         applied = AppliedModifierSources()
         for application in applications:
@@ -46,7 +47,7 @@ class ModifierApplicationService:
                 log.bind(modifier_id=application.modifier_id).warning("ModifierApplicationUnknownContract")
                 continue
 
-            value = ModifierApplicationService._resolve_value(application, source)
+            value = ModifierApplicationService._resolve_value(application, source, symbiote_ability_mult)
             source_id = ModifierApplicationService.source_id(owner, owner_uid, owner_id, application.modifier_id)
             stat_key = ModifierApplicationService._write_temp_command(target_actor, contract, value, source_id)
 
@@ -100,29 +101,72 @@ class ModifierApplicationService:
         return None
 
     @staticmethod
-    def _resolve_value(application: ModifierApplicationDTO, source: ActorSnapshot) -> float:
+    def _resolve_value(
+        application: ModifierApplicationDTO,
+        source: ActorSnapshot,
+        symbiote_ability_mult: float,
+    ) -> float:
         if application.value_mode == "base":
             if application.value_override is not None:
-                return application.value_override
-            return application.value_multiplier
+                value = application.value_override
+            else:
+                value = application.value_multiplier
+            return ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
 
         if application.value_mode == "base_multiplier":
             base = application.value_override if application.value_override is not None else 1.0
-            return base * application.value_multiplier
+            value = base * application.value_multiplier
+            return ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
 
         if application.value_mode == "override":
             if application.value_override is not None:
-                return application.value_override
-            return application.value_multiplier
+                value = application.value_override
+            else:
+                value = application.value_multiplier
+            return ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
 
         if application.value_mode == "source_main_hand_damage_multiplier":
             base = 0.0
             if source.stats is not None:
                 base = float(source.stats.mods.main_hand_damage_base or 0.0)
             skill_mult = application.value_override if application.value_override is not None else 1.0
-            return base * skill_mult * application.value_multiplier
+            value = base * skill_mult * application.value_multiplier
+            return ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
+
+        if application.value_mode == "source_modifier_multiplier":
+            base = 0.0
+            if source.stats is not None and application.source_modifier_id:
+                base = float(getattr(source.stats.mods, application.source_modifier_id, 0.0) or 0.0)
+            value = base * application.value_multiplier
+            return ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
+
+        if application.value_mode == "source_modifier_scaled_clamped":
+            base = 0.0
+            if source.stats is not None and application.source_modifier_id:
+                base = float(getattr(source.stats.mods, application.source_modifier_id, 0.0) or 0.0)
+            value = (application.value_override or 0.0) + (base * application.value_multiplier)
+            value = ModifierApplicationService._scale_value(application, value, symbiote_ability_mult)
+            return ModifierApplicationService._clamp_value(application, value)
 
         raise ValueError(f"Unsupported modifier application value mode: {application.value_mode!r}")
+
+    @staticmethod
+    def _scale_value(
+        application: ModifierApplicationDTO,
+        value: float,
+        symbiote_ability_mult: float,
+    ) -> float:
+        if not application.scale_value_with_symbiote:
+            return value
+        return value * symbiote_ability_mult
+
+    @staticmethod
+    def _clamp_value(application: ModifierApplicationDTO, value: float) -> float:
+        if application.value_floor is not None:
+            value = max(application.value_floor, value)
+        if application.value_cap is not None:
+            value = min(application.value_cap, value)
+        return value
 
     @staticmethod
     def _write_temp_command(

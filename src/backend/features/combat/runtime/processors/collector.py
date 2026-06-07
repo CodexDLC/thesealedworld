@@ -5,6 +5,7 @@ from loguru import logger as log
 from src.backend.features.combat.dto import BattleMeta, CombatActionDTO, CombatMoveDTO
 from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.worker import AiTurnRequestDTO, CollectorSignalDTO
+from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.engine.victory_checker import VictoryChecker
 from src.backend.features.combat.runtime.services.data_service import CombatDataService
@@ -85,10 +86,11 @@ class CombatCollector:
         if actions_to_queue:
             # Атомарный перенос (Push + Delete)
             await self.data_service.transfer_actions(session_id, actions_to_queue)
+            queue_size = await self.data_service.get_action_queue_size(session_id)
 
         # 4. Calculate Batch Size (Dynamic)
         batch_size = 0
-        if actions_to_queue:
+        if queue_size > 0:
             actors_count = len(all_actor_ids)
             # Формула: Чем больше актеров, тем меньше батч (чтобы не перегрузить воркер загрузкой контекста)
             # Base: 200. Min: 5. Max: 100.
@@ -173,7 +175,7 @@ class CombatCollector:
 
                         # Резолвинг целей через TargetResolver
                         # payload теперь объект, используем getattr
-                        raw_target = getattr(move.payload, "target_id", None)
+                        raw_target = self._instant_target_instruction(move)
                         target_ids = self.target_resolver.resolve(cast("ActorIdLike", char_id), raw_target, meta)
 
                         # Записываем результат резолвинга в сам мув
@@ -191,6 +193,26 @@ class CombatCollector:
                         log.bind(strategy=strategy, move_id=move_id).exception("CollectorMoveParseFailed")
 
         return actions, to_delete
+
+    @staticmethod
+    def _instant_target_instruction(move: CombatMoveDTO) -> ActorIdLike | None:
+        raw_target = getattr(move.payload, "target_id", None)
+        ability_id = getattr(move.payload, "ability_id", None)
+        if not ability_id:
+            return raw_target
+
+        entry = CombatCatalogIntegrator.get_ability_catalog_entry(str(ability_id))
+        if entry is None:
+            return raw_target
+        ability = entry.technical
+        target_count = max(1, int(getattr(ability, "target_count", 1) or 1))
+        if str(ability.target) == "random_enemy" and target_count > 1:
+            return f"random_enemy_{target_count}"
+        if str(ability.target) == "all_enemies":
+            return "all_enemies"
+        if str(ability.target) == "self":
+            return "self"
+        return raw_target
 
     def _matchmake_exchange(
         self, moves_map: dict[str, Any], signal: CollectorSignalDTO | None = None

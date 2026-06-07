@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto.session import SessionDataDTO
 from src.backend.features.combat.game_config import CombatConfig
+from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.support.analytics_builder import CombatAnalyticsFactBuilder
 from src.backend.infrastructure.actor_commitments import ActorCommitmentManager
 
@@ -155,6 +156,7 @@ class CombatLifecycleService:
         runtime = snapshot.get("runtime") or {}
         loadout = copy.deepcopy(combat.get("loadout") or {})
         raw = copy.deepcopy(combat.get("math_model") or {})
+        skills = copy.deepcopy(combat.get("skills") or {})
 
         name = meta.get("name") or source.get("name") or f"Actor {final_id}"
         avatar_url = meta.get("avatar_url") or source.get("avatar_url")
@@ -192,6 +194,13 @@ class CombatLifecycleService:
         )
         known_feints = loadout.get("known_feints") or loadout.get("feints") or []
         combatant_key = self._combatant_key(meta=meta, source=source, loadout=loadout, actor_type=actor_type)
+        merged_raw = {
+            "attributes": raw.get("attributes", {}),
+            "modifiers": raw.get("modifiers", {}),
+            "pipeline": raw.get("pipeline", {}),
+            "rules": raw.get("rules", {}),
+        }
+        stats, explanation = StatsEngine.build_stats(raw=merged_raw, skills=skills, loadout=loadout)
 
         return {
             "meta": {
@@ -230,18 +239,14 @@ class CombatLifecycleService:
                 "token_progress": {},
                 "feints": {"arsenal": known_feints, "hand": {}, "pinned": None},
             },
-            "raw": {
-                "attributes": raw.get("attributes", {}),
-                "modifiers": raw.get("modifiers", {}),
-                "pipeline": raw.get("pipeline", {}),
-                "rules": raw.get("rules", {}),
-            },
-            "skills": copy.deepcopy(combat.get("skills") or {}),
+            "raw": merged_raw,
+            "skills": skills,
             "loadout": loadout,
             "statuses": {"abilities": [], "effects": []},
             "xp_buffer": {},
             "metrics": {},
-            "explanation": {},
+            "explanation": explanation,
+            "stats": stats.model_dump(mode="json"),
             "source": source,
         }
 

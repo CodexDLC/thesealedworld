@@ -77,7 +77,10 @@ def emit(
         after_resist=state.after_resist,
         after_armor=state.after_armor,
         after_magic_armor=state.magic_after_armor,
+        incoming_damage_absorb_pct=state.incoming_damage_absorb_pct or None,
+        incoming_damage_absorbed=state.incoming_damage_absorbed or None,
         after_absorb=state.total_damage,
+        after_incoming_absorb=state.after_incoming_absorb if state.incoming_damage_absorb_pct > 0.0 else None,
         incoming_damage_cap=state.incoming_damage_cap or None,
     )
 

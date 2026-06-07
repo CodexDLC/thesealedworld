@@ -66,11 +66,13 @@ class FakeCombatStore:
                     "exchange_counter": 2,
                     "type": "player" if str(actor_id) == "1" else "monster",
                     "is_ai": str(actor_id) != "1",
-                    "tokens": {"hit": 2, "gift": 1},
+                    "stamina": 14,
+                    "max_stamina": 50,
+                    "tokens": {"tempo": 3, "hit": 2, "gift": 1},
                     "feints": {"hand": {"true_strike": {"hit": 1}}},
                 },
                 "loadout": {
-                    "known_abilities": ["fireball", "basic_punish_mistake"],
+                    "known_abilities": ["fireball", "basic_break_stance"],
                     "belt": [
                         {
                             "item_id": "potion-1",
@@ -745,7 +747,7 @@ async def test_combat_dashboard_exposes_real_actor_contract_and_actions():
     assert dashboard.hero.actor_id == "1"
     assert dashboard.target.actor_id == "2"
     assert [actor.actor_id for actor in dashboard.enemies] == ["2"]
-    assert dashboard.hero.tokens == {"hit": 2, "gift": 1}
+    assert dashboard.hero.tokens == {"tempo": 3, "hit": 2, "gift": 1}
     assert [effect.effect_id for effect in dashboard.hero.active_effects] == ["burn"]
     assert [ability.ability_id for ability in dashboard.hero.active_abilities] == ["true_strike"]
     assert [feint.feint_id for feint in dashboard.hero.feints] == ["true_strike"]
@@ -842,6 +844,44 @@ def test_combat_view_preserves_ranged_position_effect_params_for_ui():
     assert effect.effect_id == "ranged_position"
     assert effect.params == {"position": "close"}
     assert effect.title == "Дистанция лучника"
+
+
+def test_combat_view_enriches_ability_backed_status_effects_from_ability_catalog():
+    service = CombatViewService()
+
+    dashboard = service.build_dashboard(
+        session_id="combat-1",
+        viewer_id=1,
+        meta={
+            "active": "1",
+            "teams": json.dumps({"team_1": ["1"], "team_2": ["2"]}),
+            "actors_info": json.dumps({"1": "player", "2": "ai"}),
+        },
+        targets={"1": ["2"], "2": ["1"]},
+        actors={
+            "1": {
+                "meta": {"id": "1", "name": "Hero", "team": "team_1", "hp": 30, "max_hp": 40},
+                "statuses": {
+                    "effects": [
+                        {
+                            "uid": "blood-hunger",
+                            "effect_id": "basic_blood_hunger",
+                            "expire_at_exchange": 8,
+                        }
+                    ]
+                },
+            },
+            "2": {
+                "meta": {"id": "2", "name": "Shadow", "team": "team_2", "hp": 40, "max_hp": 40},
+            },
+        },
+        raw_logs=[],
+    )
+
+    effect = dashboard.hero.active_effects[0]
+    assert effect.effect_id == "basic_blood_hunger"
+    assert effect.title == "Кровавый голод"
+    assert effect.description == "Тратит темп и нажим, чтобы усилить урон и включить вампирик."
 
 
 def test_combat_view_builds_flat_actor_stat_sheet_from_stats_and_attributes():
@@ -971,9 +1011,26 @@ async def test_available_actions_contains_exchange_and_no_feint_instant_actions(
     assert exchange.ability_id is None
     assert all(action.feint_id is None for action in dashboard.available_actions if action.action == "instant")
     instant_actions = {action.ability_id: action for action in dashboard.available_actions if action.action == "instant"}
-    assert set(instant_actions) == {"fireball", "basic_punish_mistake"}
+    assert set(instant_actions) == {"fireball", "basic_break_stance"}
     assert instant_actions["fireball"].enabled is True
-    assert instant_actions["basic_punish_mistake"].enabled is False
+    assert instant_actions["basic_break_stance"].enabled is True
+
+
+@pytest.mark.asyncio
+async def test_available_actions_disable_instant_ability_on_cooldown():
+    class CooldownCombatStore(FakeCombatStore):
+        async def get_actors_batch(self, session_id, actor_ids):
+            actors = await super().get_actors_batch(session_id, actor_ids)
+            actors["1"]["meta"]["ability_cooldowns"] = {"basic_break_stance": 3}
+            return actors
+
+    service = CombatSessionService(store=CooldownCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await service.get_dashboard(1)
+
+    action = next(action for action in dashboard.available_actions if action.ability_id == "basic_break_stance")
+    assert action.enabled is False
+    assert action.reason == "cooldown"
 
 
 @pytest.mark.asyncio

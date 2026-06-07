@@ -613,6 +613,55 @@ _prep_scarlet_riposte_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_prep_shield_anti_dispel_brace_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_shield_anti_dispel_brace",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_shield_anti_dispel_brace",
+        type=EffectType.BUFF,
+        duration=999,
+        react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+        tags=["buff", "preparation", "shield", "anti_dispel", "preparation_guard"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_shield_anti_dispel_brace",
+        icon="combat/effects/prep_shield_anti_dispel_brace.svg",
+        display_name="Опора подготовки",
+        short_description="Щитовая подготовка против снятия подготовок.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} закрепляет подготовку щитом."],
+            expire_effect=["{target} тратит опору подготовки."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+_prep_shield_blood_ward_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_shield_blood_ward",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_shield_blood_ward",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[pipeline_mutation("damage_mult", 0.70)],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["hit", "crit", "block"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "shield", "blood", "damage_reduction"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_shield_blood_ward",
+        icon="combat/effects/prep_shield_blood_ward.svg",
+        display_name="Кровавая защита",
+        short_description="Следующий входящий удар наносит на 30% меньше урона.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} переводит боль в кровавую защиту."],
+            expire_effect=["{target} принимает удар кровавой защитой."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
 _prep_2h_steel_line_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_2h_steel_line",
     technical=EffectTechnicalDTO(
@@ -788,6 +837,85 @@ _prep_2h_hidden_agility_catalog = EffectCatalogEntryDTO(
 )
 
 
+def _simple_2h_prep_catalog(effect_id: str, display_name: str, short_description: str) -> EffectCatalogEntryDTO:
+    return EffectCatalogEntryDTO(
+        key=f"combat.effect.{effect_id}",
+        technical=EffectTechnicalDTO(
+            effect_id=effect_id,
+            type=EffectType.BUFF,
+            duration=999,
+            react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+            consume_on_reaction=True,
+            tags=["buff", "preparation", "two_handed", "converter"],
+        ),
+        descriptive=build_combat_description(
+            resource_type="effects",
+            resource_id=effect_id,
+            icon=f"combat/effects/{effect_id}.svg",
+            display_name=display_name,
+            short_description=short_description,
+            humanoid_event_texts=CombatEventTextSetDTO(
+                apply_effect=[f"{{target}} готовит {display_name.lower()}."],
+                expire_effect=[f"{{target}} тратит {display_name.lower()}."],
+            ),
+            beast_event_texts=_BUFF_APPLY_BEAST,
+        ),
+    )
+
+
+_prep_2h_brace_to_blade_catalog = _simple_2h_prep_catalog(
+    "prep_2h_brace_to_blade",
+    "Перевод стойки",
+    "Подготовка-конвертер двуручного стиля.",
+)
+_prep_2h_blade_to_break_catalog = _simple_2h_prep_catalog(
+    "prep_2h_blade_to_break",
+    "Окно после защиты",
+    "Подготовка-конвертер двуручного стиля.",
+)
+_prep_2h_break_to_step_catalog = _simple_2h_prep_catalog(
+    "prep_2h_break_to_step",
+    "Уход после крита",
+    "Подготовка-конвертер двуручного стиля.",
+)
+_prep_2h_press_to_parry_catalog = _simple_2h_prep_catalog(
+    "prep_2h_press_to_parry",
+    "Давление в защиту",
+    "Подготовка-конвертер двуручного стиля.",
+)
+_prep_2h_blood_to_crit_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_2h_blood_to_crit",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_2h_blood_to_crit",
+        type=EffectType.BUFF,
+        duration=999,
+        modifier_applications=[
+            ModifierApplicationDTO(
+                modifier_id="crit_chance_add",
+                value_override=0.20,
+                scope="duration",
+                duration_exchanges=999,
+            )
+        ],
+        react_on_outcomes=["hit", "crit"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "two_handed", "blood", "crit_window"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_2h_blood_to_crit",
+        icon="combat/effects/prep_2h_blood_to_crit.svg",
+        display_name="Боль в удар",
+        short_description="Следующий удар получает повышенный шанс крита.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} собирает боль в тяжелый удар."],
+            expire_effect=["{target} тратит боль в удар."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
+
 def _dual_prep_catalog(
     *,
     effect_id: str,
@@ -947,6 +1075,60 @@ _prep_dual_blade_loop_counter_catalog = _dual_prep_catalog(
     tags=["counter", "counter_only", "damage", "debuff", "high_cost"],
 )
 
+_prep_dual_split_targets_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_split_targets",
+    display_name="Раздвоенная линия",
+    short_description="Подготовка координации двух рук.",
+    tags=["coordination", "multi_focus"],
+)
+
+_prep_dual_chain_follow_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_chain_follow",
+    display_name="Связка по ритму",
+    short_description="Подготовка продолжения второй рукой.",
+    pipeline_mutations=[pipeline_mutation("chain.trigger_offhand_attack")],
+    pipeline_mutation_role="source",
+    react_on_outcomes=["hit", "crit"],
+    tags=["coordination", "offhand_boost"],
+)
+
+_prep_dual_paired_open_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_paired_open",
+    display_name="Парное окно",
+    short_description="Подготовка критического окна для двух рук.",
+    tags=["coordination", "crit_window"],
+)
+
+_prep_dual_cross_lock_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_cross_lock",
+    display_name="Крестовой замок",
+    short_description="Следующая атака гарантированно парируется.",
+    pipeline_mutations=[pipeline_mutation("force.parry")],
+    react_on_outcomes=["parry"],
+    tags=["parry", "blade_lock", "forced_parry"],
+)
+
+_prep_dual_blade_vise_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_blade_vise",
+    display_name="Тиски клинков",
+    short_description="Следующее парирование вызывает контратаку.",
+    pipeline_mutations=[
+        pipeline_mutation("force.parry"),
+        pipeline_mutation("force_counter_on_parry"),
+        pipeline_mutation("allow_counter_on_parry"),
+    ],
+    react_on_outcomes=["parry"],
+    tags=["parry", "blade_lock", "counter", "control", "anti_archer"],
+)
+
+_prep_dual_crimson_lock_catalog = _dual_prep_catalog(
+    effect_id="prep_dual_crimson_lock",
+    display_name="Алый замок",
+    short_description="Следующее парирование возвращает часть урона атакующему.",
+    react_on_outcomes=["parry"],
+    tags=["blood", "parry", "blade_lock", "reflect", "counter"],
+)
+
 _ranged_position_catalog = EffectCatalogEntryDTO(
     key="combat.effect.ranged_position",
     technical=EffectTechnicalDTO(
@@ -999,12 +1181,19 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "prep_parry_riposte": _prep_parry_riposte_catalog,
     "spiked_guard": _spiked_guard_catalog,
     "prep_scarlet_riposte": _prep_scarlet_riposte_catalog,
+    "prep_shield_anti_dispel_brace": _prep_shield_anti_dispel_brace_catalog,
+    "prep_shield_blood_ward": _prep_shield_blood_ward_catalog,
     "prep_2h_steel_line": _prep_2h_steel_line_catalog,
     "prep_2h_blade_return": _prep_2h_blade_return_catalog,
     "prep_2h_hard_intercept": _prep_2h_hard_intercept_catalog,
     "prep_2h_answering_stance": _prep_2h_answering_stance_catalog,
     "prep_2h_closed_distance": _prep_2h_closed_distance_catalog,
     "prep_2h_hidden_agility": _prep_2h_hidden_agility_catalog,
+    "prep_2h_brace_to_blade": _prep_2h_brace_to_blade_catalog,
+    "prep_2h_blade_to_break": _prep_2h_blade_to_break_catalog,
+    "prep_2h_break_to_step": _prep_2h_break_to_step_catalog,
+    "prep_2h_press_to_parry": _prep_2h_press_to_parry_catalog,
+    "prep_2h_blood_to_crit": _prep_2h_blood_to_crit_catalog,
     "prep_dual_broken_step": _prep_dual_broken_step_catalog,
     "prep_dual_shifting_line": _prep_dual_shifting_line_catalog,
     "prep_dual_empty_line": _prep_dual_empty_line_catalog,
@@ -1015,5 +1204,11 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "prep_dual_blade_mill_counter": _prep_dual_blade_mill_counter_catalog,
     "prep_dual_blade_loop_parry": _prep_dual_blade_loop_parry_catalog,
     "prep_dual_blade_loop_counter": _prep_dual_blade_loop_counter_catalog,
+    "prep_dual_split_targets": _prep_dual_split_targets_catalog,
+    "prep_dual_chain_follow": _prep_dual_chain_follow_catalog,
+    "prep_dual_paired_open": _prep_dual_paired_open_catalog,
+    "prep_dual_cross_lock": _prep_dual_cross_lock_catalog,
+    "prep_dual_blade_vise": _prep_dual_blade_vise_catalog,
+    "prep_dual_crimson_lock": _prep_dual_crimson_lock_catalog,
     "ranged_position": _ranged_position_catalog,
 }

@@ -1,10 +1,14 @@
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
+from src.backend.features.game_catalog.combat.resources.effects import get_effect_catalog_entry
 from src.backend.features.game_catalog.combat.resources.feints import (
     FEINT_CATALOG_REGISTRY,
     get_feint_catalog_entry,
 )
 from src.backend.features.game_catalog.combat.resources.feints.availability import (
     BASIC_ARCHERY_FEINTS,
+    BASIC_FEINTS,
+    TACTICAL_STYLE_FEINTS,
+    WEAPON_MASTERY_FEINTS,
     build_known_feints,
 )
 from src.backend.features.game_catalog.combat.resources.text_templates import build_combat_text_catalog
@@ -179,6 +183,23 @@ def test_archived_non_hit_feints_are_not_active_catalog_entries() -> None:
     assert ARCHIVED_FEINT_IDS.isdisjoint(FEINT_CATALOG_REGISTRY)
     for feint_id in ARCHIVED_FEINT_IDS:
         assert get_feint_catalog_entry(feint_id) is None
+
+
+def test_feint_availability_matches_active_catalog() -> None:
+    available_ids = set(BASIC_FEINTS) | set(BASIC_ARCHERY_FEINTS)
+    for feint_ids in WEAPON_MASTERY_FEINTS.values():
+        available_ids.update(feint_ids)
+    for feint_ids in TACTICAL_STYLE_FEINTS.values():
+        available_ids.update(feint_ids)
+
+    assert available_ids == set(FEINT_CATALOG_REGISTRY)
+
+
+def test_active_feint_preparation_effects_are_runtime_catalog_entries() -> None:
+    for feint_id, entry in FEINT_CATALOG_REGISTRY.items():
+        for effect_payload in entry.technical.preparation_effects or []:
+            effect_id = effect_payload["id"]
+            assert get_effect_catalog_entry(effect_id) is not None, (feint_id, effect_id)
 
 
 def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:

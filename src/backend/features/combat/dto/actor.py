@@ -41,6 +41,7 @@ class FeintHandDTO(BaseModel):
     arsenal: list[str] = Field(default_factory=list)
     hand: dict[str, dict[str, int]] = Field(default_factory=dict)
     pinned: str | None = None
+    cooldowns: dict[str, int] = Field(default_factory=dict)
 
     def is_in_hand(self, feint_key: str) -> bool:
         """Проверяет есть ли финт в руке"""
@@ -107,6 +108,7 @@ class ActorMetaDTO(BaseModel):
     exchange_counter: int = 0  # Счетчик участий в разменах (для кулдаунов и XP)
     tokens: dict[str, int] = Field(default_factory=dict)
     token_progress: dict[str, int] = Field(default_factory=dict)
+    ability_cooldowns: dict[str, int] = Field(default_factory=dict)
 
     # === НОВОЕ ПОЛЕ ===
     feints: FeintHandDTO = Field(default_factory=FeintHandDTO)

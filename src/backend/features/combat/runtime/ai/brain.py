@@ -279,7 +279,7 @@ class MonsterCombatBrain:
 
         Stamina: subtract the activation cost for exchange feints.
 
-        Energy/tokens: subtract instant ability costs. This is local planning
+        Stamina/energy/tokens: subtract instant ability costs. This is local planning
         accounting only; executor/turn manager still owns the real runtime
         mutation.
         """
@@ -290,6 +290,7 @@ class MonsterCombatBrain:
                 return
             cost = entry.technical.cost
             local_bot.meta.en = max(0, int(local_bot.meta.en or 0) - int(cost.energy or 0))
+            local_bot.meta.stamina = max(0, int(local_bot.meta.stamina or 0) - int(cost.stamina or 0))
             token_cost = dict(cost.tokens)
             if cost.gift_tokens > 0:
                 token_cost["gift"] = token_cost.get("gift", 0) + int(cost.gift_tokens)

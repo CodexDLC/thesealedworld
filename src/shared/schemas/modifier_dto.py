@@ -170,6 +170,7 @@ class PhysicalStatsDTO(BaseModel):
     physical_damage_bonus: float = 0.0  # % Bonus
 
     accuracy: float = 0.0  # StatKey.ACCURACY (Global)
+    accuracy_cap: float = 0.0
     physical_suppression: float = 0.0  # StatKey.PHYSICAL_SUPPRESSION (Global)
     armor_penetration_pct: float = 0.0  # StatKey.ARMOR_PENETRATION_PCT (Global)
     armor_penetration_flat: float = 0.0  # StatKey.ARMOR_PENETRATION_FLAT (Global)
@@ -222,6 +223,7 @@ class MitigationStatsDTO(BaseModel):
 
     # Resists
     physical_resistance: float = 0.0
+    incoming_damage_absorb_pct: float = 0.0
     magic_resist: float = 0.0  # StatKey.MAGIC_RESIST
     resistance_cap: float = 0.85
 
@@ -307,6 +309,8 @@ class SpecialStatsDTO(BaseModel):
     damage_mult: float = 1.0
 
     thorns_damage_flat: float = 0.0
+    cleave_damage_mult: float = 0.0
+    cleave_target_count: float = 0.0
 
     hand_size: int = 3
 

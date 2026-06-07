@@ -121,14 +121,14 @@ def test_builder_creates_combat_actor_input_from_active_character_document() -> 
     assert actor_input["loadout"]["weapon_slots"] == ["main_hand"]
     assert actor_input["loadout"]["belt"][0]["belt_slot"] == "belt_slot_1"
     assert actor_input["loadout"]["known_abilities"] == [
-        "basic_punish_mistake",
-        "basic_finish_moment",
         "basic_break_stance",
         "basic_expose_weakness",
         "basic_wipe_blood",
-        "basic_grit_teeth",
-        "basic_bloody_answer",
         "basic_last_push",
+        "basic_slip_pain",
+        "basic_blood_hunger",
+        "basic_splinter_strike",
+        "basic_cleave_gift",
         "minor_heal",
     ]
     assert actor_input["loadout"]["known_feints"] == [*BASIC_FEINTS, *SWORD_WEAPON_FEINTS]
@@ -151,14 +151,14 @@ def test_builder_can_emit_lifecycle_compatible_snapshot() -> None:
     assert snapshot["combat"]["skills"] == {}
     assert snapshot["combat"]["loadout"]["layout"] == {"main_hand": "skill_unarmed"}
     assert snapshot["combat"]["loadout"]["known_abilities"] == [
-        "basic_punish_mistake",
-        "basic_finish_moment",
         "basic_break_stance",
         "basic_expose_weakness",
         "basic_wipe_blood",
-        "basic_grit_teeth",
-        "basic_bloody_answer",
         "basic_last_push",
+        "basic_slip_pain",
+        "basic_blood_hunger",
+        "basic_splinter_strike",
+        "basic_cleave_gift",
     ]
     assert snapshot["combat"]["loadout"]["combat_surfaces"]["main_hand"] == {
         "slot": "main_hand",

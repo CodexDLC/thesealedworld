@@ -246,8 +246,9 @@ def test_legal_instant_actions_include_affordable_known_abilities() -> None:
         "bot",
         team="red",
         is_ai=True,
-        tokens={"blood": 1, "hit": 3},
-        known_abilities=["basic_wipe_blood", "basic_bloody_answer"],
+        stamina=20,
+        tokens={"blood": 3, "block": 1, "gift": 1, "tempo": 3, "hit": 2},
+        known_abilities=["basic_wipe_blood", "basic_break_stance"],
     )
     bot.meta.en = 20
     target = _actor("t1", team="blue")
@@ -255,12 +256,15 @@ def test_legal_instant_actions_include_affordable_known_abilities() -> None:
     actions = build_legal_instant_actions_for_target(bot, target)
 
     by_id = {action.ability_id: action for action in actions}
-    assert set(by_id) == {"basic_wipe_blood", "basic_bloody_answer"}
+    assert set(by_id) == {"basic_wipe_blood", "basic_break_stance"}
     assert by_id["basic_wipe_blood"].target_id == "bot"
-    assert by_id["basic_wipe_blood"].energy_cost == 10
-    assert by_id["basic_wipe_blood"].cost == {"blood": 1}
+    assert by_id["basic_wipe_blood"].energy_cost == 5
+    assert by_id["basic_wipe_blood"].stamina_cost == 0
+    assert by_id["basic_wipe_blood"].cost == {"blood": 3, "block": 1, "gift": 1}
     assert {"heal", "blood"} <= set(by_id["basic_wipe_blood"].tags)
-    assert by_id["basic_bloody_answer"].target_id == "t1"
+    assert by_id["basic_break_stance"].target_id == "t1"
+    assert by_id["basic_break_stance"].energy_cost == 0
+    assert by_id["basic_break_stance"].stamina_cost == 0
 
 
 @pytest.mark.unit
@@ -270,12 +274,48 @@ def test_legal_instant_actions_exclude_abilities_when_combat_tokens_are_missing(
         team="red",
         is_ai=True,
         tokens={"blood": 1},
-        known_abilities=["basic_bloody_answer"],
+        known_abilities=["basic_break_stance"],
     )
     bot.meta.en = 20
     target = _actor("t1", team="blue")
 
     assert build_legal_instant_actions_for_target(bot, target) == []
+
+
+@pytest.mark.unit
+def test_legal_instant_actions_exclude_abilities_on_cooldown() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        tokens={"tempo": 3, "hit": 2},
+        known_abilities=["basic_break_stance"],
+    )
+    bot.meta.en = 20
+    bot.meta.exchange_counter = 1
+    bot.meta.ability_cooldowns["basic_break_stance"] = 2
+    target = _actor("t1", team="blue")
+
+    assert build_legal_instant_actions_for_target(bot, target) == []
+
+
+@pytest.mark.unit
+def test_legal_instant_actions_allow_token_abilities_without_stamina() -> None:
+    bot = _actor(
+        "bot",
+        team="red",
+        is_ai=True,
+        stamina=0,
+        tokens={"tempo": 3, "hit": 2},
+        known_abilities=["basic_break_stance"],
+    )
+    bot.meta.en = 20
+    target = _actor("t1", team="blue")
+
+    actions = build_legal_instant_actions_for_target(bot, target)
+
+    assert [action.ability_id for action in actions] == ["basic_break_stance"]
+    assert actions[0].stamina_cost == 0
 
 
 # ---------------------------------------------------------------------------
@@ -665,7 +705,7 @@ def test_decide_turn_can_emit_instant_before_exchange_without_consuming_the_turn
         is_ai=True,
         hp=25,
         max_hp=100,
-        tokens={"blood": 1},
+        tokens={"blood": 3, "block": 1, "gift": 1},
         known_abilities=["basic_wipe_blood"],
     )
     bot.meta.en = 20
@@ -679,7 +719,7 @@ def test_decide_turn_can_emit_instant_before_exchange_without_consuming_the_turn
         {"action": "instant", "target_id": "bot", "ability_id": "basic_wipe_blood"},
         {"action": "attack", "target_id": "t1"},
     ]
-    assert bot.meta.tokens == {"blood": 1}
+    assert bot.meta.tokens == {"blood": 3, "block": 1, "gift": 1}
     assert bot.meta.en == 20
 
 
@@ -691,7 +731,7 @@ def test_decide_turn_does_not_overcommit_instant_resources_across_targets() -> N
         is_ai=True,
         hp=25,
         max_hp=100,
-        tokens={"blood": 1},
+        tokens={"blood": 3, "block": 1, "gift": 1},
         known_abilities=["basic_wipe_blood"],
     )
     bot.meta.en = 20

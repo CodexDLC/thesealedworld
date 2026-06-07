@@ -17,6 +17,9 @@ from src.backend.features.combat.dto import (
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
+from src.backend.features.combat.runtime.engine.preparation_exclusivity import (
+    effect_exclusive_channels,
+)
 
 BLOOD_TOKEN_DAMAGE_STEP = 10
 PRESSURE_TOKEN_DAMAGE_STEP = BLOOD_TOKEN_DAMAGE_STEP
@@ -108,7 +111,12 @@ class MechanicsService:
                 )
 
     def apply_interaction_result(
-        self, ctx: PipelineContextDTO, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
+        self,
+        ctx: PipelineContextDTO,
+        source: ActorSnapshot,
+        target: ActorSnapshot | None,
+        result: InteractionResultDTO,
+        actors_by_id: dict[str, ActorSnapshot] | None = None,
     ) -> None:
         """Apply one interaction result to source and target actor state.
 
@@ -126,7 +134,7 @@ class MechanicsService:
             self._apply_target_changes(ctx, source, target, result)
 
         # 2.5. [RESOURCES] Commit actor-specific staged resource deltas.
-        self._apply_staged_resource_applications(source, target, result)
+        self._apply_staged_resource_applications(source, target, result, actors_by_id=actors_by_id)
 
         # 3. [XP] Register Events
         self._register_xp_events(ctx, source, target, result)
@@ -144,20 +152,29 @@ class MechanicsService:
         if ctx.flags.mechanics.generate_feints and ctx.flags.meta.action_mode == "unidirectional":
             # Получаем размер руки из статов (если есть) или дефолт 3
             source_hand = source.stats.mods.hand_size if source.stats else 3
-            FeintService.refill_hand(source.meta, hand_size=source_hand)
+            FeintService.refill_hand(
+                source.meta,
+                hand_size=source_hand,
+                active_effect_ids=self._active_effect_ids_for_feint_refill(source),
+            )
 
             if target:
                 target_hand = target.stats.mods.hand_size if target.stats else 3
-                FeintService.refill_hand(target.meta, hand_size=target_hand)
+                FeintService.refill_hand(
+                    target.meta,
+                    hand_size=target_hand,
+                    active_effect_ids=self._active_effect_ids_for_feint_refill(target),
+                )
 
     def apply_exchange_results(
         self,
         ctx: PipelineContextDTO,
         pairs: list[tuple[ActorSnapshot, ActorSnapshot | None, InteractionResultDTO]],
+        actors_by_id: dict[str, ActorSnapshot] | None = None,
     ) -> None:
         """Commit a simultaneous exchange layer after all results were calculated."""
         for source, target, result in pairs:
-            self.apply_interaction_result(ctx, source, target, result)
+            self.apply_interaction_result(ctx, source, target, result, actors_by_id=actors_by_id)
 
     # ==============================================================================
     # INTERNAL LOGIC
@@ -520,6 +537,18 @@ class MechanicsService:
 
             if any(existing.uid == active_effect.uid for existing in actor.statuses.effects):
                 continue
+            same_effect = next(
+                (existing for existing in actor.statuses.effects if existing.effect_id == active_effect.effect_id),
+                None,
+            )
+            if same_effect is not None:
+                same_effect.expire_at_exchange = max(same_effect.expire_at_exchange, active_effect.expire_at_exchange)
+                continue
+            active_channels = effect_exclusive_channels(active_effect.effect_id)
+            if active_channels and any(
+                active_channels & effect_exclusive_channels(existing.effect_id) for existing in actor.statuses.effects
+            ):
+                continue
 
             entry = CombatCatalogIntegrator.get_effect_catalog_entry(active_effect.effect_id)
             if entry and entry.technical.modifier_applications:
@@ -535,10 +564,21 @@ class MechanicsService:
                 active_effect.modified_sources = applied.modified_sources
             actor.statuses.effects.append(active_effect)
 
+    @staticmethod
+    def _active_effect_ids_for_feint_refill(actor: ActorSnapshot) -> set[str]:
+        current_exchange = actor.meta.exchange_counter
+        return {effect.effect_id for effect in actor.statuses.effects if effect.expire_at_exchange > current_exchange}
+
     def _apply_staged_resource_applications(
-        self, source: ActorSnapshot, target: ActorSnapshot | None, result: InteractionResultDTO
+        self,
+        source: ActorSnapshot,
+        target: ActorSnapshot | None,
+        result: InteractionResultDTO,
+        *,
+        actors_by_id: dict[str, ActorSnapshot] | None = None,
     ) -> None:
-        actors = {str(source.char_id): source}
+        actors = dict(actors_by_id or {})
+        actors[str(source.char_id)] = source
         if target:
             actors[str(target.char_id)] = target
 

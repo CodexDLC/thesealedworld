@@ -8,7 +8,13 @@ from loguru import logger as log
 from src.backend.features.combat.dto.action import CombatActionDTO, CombatMoveDTO
 from src.backend.features.combat.dto.actor import ActorSnapshot
 from src.backend.features.combat.dto.ids import ActorId, ActorIdLike, normalize_actor_id
-from src.backend.features.combat.dto.pipeline import CombatEffectFactDTO, InteractionResultDTO, PipelineContextDTO
+from src.backend.features.combat.dto.pipeline import (
+    CombatEffectFactDTO,
+    CombatEventDTO,
+    CombatResourceApplicationDTO,
+    InteractionResultDTO,
+    PipelineContextDTO,
+)
 from src.backend.features.combat.dto.session import BattleContext, TargetReturnDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
 from src.backend.features.combat.runtime.ai.ai_memory import record_exchange_outcome
@@ -16,6 +22,7 @@ from src.backend.features.combat.runtime.engine.ability_service import AbilitySe
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
+from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.target_resolver import TargetResolver
 from src.backend.features.combat.runtime.support import (
     CombatAnalyticsFactBuilder,
@@ -208,6 +215,7 @@ class CombatExecutor:
         # --- EXECUTION LOOP (Waves) ---
         max_waves = 3
         wave = 0
+        used_feints: dict[tuple[str, str], ActorSnapshot] = {}
 
         while pending_tasks and wave < max_waves:
             wave += 1
@@ -236,6 +244,10 @@ class CombatExecutor:
             results = await asyncio.gather(*(task for task, _source, _target, _move, _is_secondary in runnable))
             pending_tasks = []
 
+            for result, (_task, real_source, real_target, _move, is_secondary) in zip(results, runnable, strict=False):
+                if not is_secondary:
+                    self._append_cleave_splash(ctx, result, real_source, real_target)
+
             commit_pairs = [
                 (real_source, real_target, result)
                 for result, (_task, real_source, real_target, _move, _is_secondary) in zip(
@@ -245,7 +257,11 @@ class CombatExecutor:
             commit_ctx = PipelineContextDTO()
             commit_ctx.flags.meta.action_mode = "exchange"
             commit_ctx.flags.meta.grant_exchange_gift = True
-            self.pipeline.mechanics_service.apply_exchange_results(commit_ctx, commit_pairs)
+            self.pipeline.mechanics_service.apply_exchange_results(
+                commit_ctx,
+                commit_pairs,
+                actors_by_id={str(actor_id): actor for actor_id, actor in ctx.actors.items()},
+            )
             RangedPositionService.update_after_exchange(commit_pairs)
 
             for result, (_task, _real_source, _real_target, move, is_secondary) in zip(
@@ -272,6 +288,10 @@ class CombatExecutor:
                 self._append_result_support_payload(ctx, result, action=result_action, wave=wave)
                 self._log_result_info(ctx, result, wave=wave)
                 self._refund_feint_cost_if_needed(ctx, result, move)
+                if not is_secondary and not result.chain_events.preserve_feint:
+                    feint_id = getattr(move.payload, "feint_id", None)
+                    if feint_id:
+                        used_feints[(str(real_source.char_id), str(feint_id))] = real_source
                 if s_id is None or t_id is None:
                     log.warning("ExecutorResultActorIdsMissing")
                     continue
@@ -333,6 +353,7 @@ class CombatExecutor:
         ctx.meta.step_counter += 1
         self._cleanup_finished_control_effects(ctx, [source, target], action=action, wave=wave)
 
+        self._apply_used_feint_cooldowns(used_feints)
         self._reroll_exchange_feints(source)
         self._reroll_exchange_feints(target)
 
@@ -366,6 +387,9 @@ class CombatExecutor:
         self._process_periodic_effects(ctx, [source], action=action, wave=0)
 
         target_ids = action.move.targets or []
+        if not target_ids:
+            target_ids = self._resolve_unidirectional_targets(ctx, action)
+            action.move.targets = list(target_ids)
 
         # Check for self target in payload
         payload_target = getattr(action.move.payload, "target_id", None)
@@ -373,27 +397,54 @@ class CombatExecutor:
             target_ids = [source.char_id]
 
         tasks: list[Awaitable[InteractionResultDTO]] = []
+        task_sources: list[tuple[ActorSnapshot, ActorSnapshot, CombatMoveDTO, dict[str, Any]]] = []
+        mods = self._unidirectional_mods(action)
         for tid in target_ids:
             target = ctx.get_actor(tid)
             if target:
-                tasks.append(self._create_task(source, target, action.move, mods={"action_mode": "unidirectional"}))
+                tasks.append(self._create_task(source, target, action.move, mods=mods))
+                task_sources.append((source, target, action.move, mods))
 
         if tasks:
             results = await asyncio.gather(*tasks)
-            for result in results:
+            for result, (_source, target_snapshot, _move, _mods) in zip(results, task_sources, strict=False):
                 target = ctx.get_actor(result.target_id) if result.target_id is not None else None
+                self._append_cleave_splash(ctx, result, source, target_snapshot)
                 commit_ctx = PipelineContextDTO()
                 commit_ctx.flags.meta.action_mode = "unidirectional"
                 commit_ctx.flags.meta.grant_exchange_gift = False
-                self.pipeline.mechanics_service.apply_interaction_result(commit_ctx, source, target, result)
+                self.pipeline.mechanics_service.apply_interaction_result(
+                    commit_ctx,
+                    source,
+                    target,
+                    result,
+                    actors_by_id={str(actor_id): actor for actor_id, actor in ctx.actors.items()},
+                )
                 self._append_result_logs(ctx, result, action=action, wave=1)
                 self._append_result_support_payload(ctx, result, action=action, wave=1)
                 self._log_result_info(ctx, result, wave=1)
+            self._apply_unidirectional_ability_cooldown(source, action, results)
             log.bind(target_count=len(tasks)).info("ExecutorUnidirectionalCompleted")
 
     # ==========================================================================
     # 🛠️ HELPERS
     # ==========================================================================
+
+    def _resolve_unidirectional_targets(self, ctx: BattleContext, action: CombatActionDTO) -> list[ActorId]:
+        raw_target = getattr(action.move.payload, "target_id", None)
+        ability_id = getattr(action.move.payload, "ability_id", None)
+        if ability_id:
+            entry = CombatCatalogIntegrator.get_ability_catalog_entry(str(ability_id))
+            if entry is not None:
+                ability = entry.technical
+                target_count = max(1, int(getattr(ability, "target_count", 1) or 1))
+                if str(ability.target) == "random_enemy" and target_count > 1:
+                    raw_target = f"random_enemy_{target_count}"
+                elif str(ability.target) == "all_enemies":
+                    raw_target = "all_enemies"
+                elif str(ability.target) == "self":
+                    raw_target = "self"
+        return self.target_resolver.resolve(action.move.char_id, raw_target, ctx.meta)
 
     def _create_task(
         self,
@@ -437,6 +488,93 @@ class CombatExecutor:
             if len(selected) >= limit:
                 break
         return selected, max(0.0, float(getattr(feint_config, "secondary_damage_mult", 0.5) or 0.5))
+
+    @staticmethod
+    def _unidirectional_mods(action: CombatActionDTO) -> dict[str, Any]:
+        mods: dict[str, Any] = {"action_mode": "unidirectional"}
+        ability_id = getattr(action.move.payload, "ability_id", None)
+        if not ability_id:
+            return mods
+        entry = CombatCatalogIntegrator.get_ability_catalog_entry(str(ability_id))
+        if entry is None:
+            return mods
+        ability = entry.technical
+        if int(getattr(ability, "target_count", 1) or 1) > 1:
+            mods["damage_mult"] = max(0.0, float(getattr(ability, "secondary_damage_mult", 1.0) or 1.0))
+        return mods
+
+    @staticmethod
+    def _apply_unidirectional_ability_cooldown(
+        source: ActorSnapshot,
+        action: CombatActionDTO,
+        results: list[InteractionResultDTO],
+    ) -> None:
+        ability_id = getattr(action.move.payload, "ability_id", None)
+        if not ability_id:
+            return
+        if any(result.action_facts.get("id") == ability_id and not result.skip_reason for result in results):
+            AbilityService.apply_ability_cooldown(source, str(ability_id))
+
+    def _append_cleave_splash(
+        self,
+        ctx: BattleContext,
+        result: InteractionResultDTO,
+        source: ActorSnapshot,
+        primary_target: ActorSnapshot | None,
+    ) -> None:
+        if not source.is_alive:
+            return
+        if not result.is_hit or result.damage_final <= 0:
+            return
+
+        StatsEngine.ensure_stats(source)
+        if source.stats is None:
+            return
+        damage_mult = max(0.0, float(source.stats.mods.cleave_damage_mult or 0.0))
+        target_count = max(0, int(source.stats.mods.cleave_target_count or 0))
+        if damage_mult <= 0 or target_count <= 0:
+            return
+
+        damage = int(result.damage_final * damage_mult)
+        if damage <= 0:
+            return
+
+        excluded = {str(source.char_id)}
+        if primary_target is not None:
+            excluded.add(str(primary_target.char_id))
+        selected: list[ActorSnapshot] = []
+        for target_id in self.target_resolver.resolve(source.char_id, TargetType.ALL_ENEMIES.value, ctx.meta):
+            if str(target_id) in excluded:
+                continue
+            target = ctx.get_actor(target_id)
+            if target and target.is_alive:
+                selected.append(target)
+            if len(selected) >= target_count:
+                break
+
+        for target in selected:
+            result.resource_applications.append(
+                CombatResourceApplicationDTO(
+                    actor_id=target.char_id,
+                    owner="other",
+                    resource="hp",
+                    reason="cleave_splash",
+                    value=f"-{damage}",
+                    source_effect_id="cleave",
+                    tags=["cleave", "splash"],
+                )
+            )
+            result.events.append(
+                CombatEventDTO(
+                    type="HIT",
+                    source_id=source.char_id,
+                    target_id=target.char_id,
+                    value=damage,
+                    resource="hp",
+                    action_id="cleave_splash",
+                    tags=["CLEAVE", "SPLASH"],
+                )
+            )
 
     def _process_periodic_effects(
         self, ctx: BattleContext, actors: list[Any], *, action: CombatActionDTO, wave: int
@@ -521,7 +659,21 @@ class CombatExecutor:
     @staticmethod
     def _reroll_exchange_feints(actor) -> None:
         hand_size = actor.stats.mods.hand_size if actor.stats else 3
-        FeintService.reroll_hand(actor.meta, hand_size=hand_size)
+        active_effect_ids = {
+            effect.effect_id
+            for effect in actor.statuses.effects
+            if effect.expire_at_exchange > actor.meta.exchange_counter
+        }
+        FeintService.reroll_hand(actor.meta, hand_size=hand_size, active_effect_ids=active_effect_ids)
+
+    @staticmethod
+    def _apply_used_feint_cooldowns(used_feints: dict[tuple[str, str], ActorSnapshot]) -> None:
+        for (_actor_id, feint_id), actor in used_feints.items():
+            feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
+            if feint_entry is None:
+                continue
+            cooldown = sum(max(0, int(amount)) for amount in feint_entry.technical.cost.tactics.values())
+            FeintService.apply_cooldown(actor.meta, feint_id, cooldown)
 
     def _append_result_logs(
         self, ctx: BattleContext, result: InteractionResultDTO, *, action: CombatActionDTO, wave: int

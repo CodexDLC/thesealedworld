@@ -11,7 +11,7 @@ from src.backend.features.combat.dto.ids import normalize_actor_id
 from src.backend.features.combat.exceptions import CombatFeintUnavailableError, CombatSessionNotFoundError
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
-from src.backend.features.combat.services.turn_manager import CombatTurnManager
+from src.backend.features.combat.services.turn_manager import CombatTurnManager, calculate_move_timeout_seconds
 from src.backend.features.combat.services.view_service import CombatViewService
 from src.shared.enums import CoreDomain
 from src.shared.schemas.combat import CombatResultActionDTO, CombatResultDTO
@@ -26,8 +26,6 @@ if TYPE_CHECKING:
         CombatRegisterMoveRequestDTO,
     )
 
-AFK_TIMEOUTS = {0: 60, 1: 45, 2: 30}
-MIN_TIMEOUT = 20
 LOG_PAGE_SIZE = 20
 
 
@@ -402,10 +400,16 @@ class CombatSessionService:
 
     async def _enqueue_collector(self, session_id: str, actor_id: int, move_id: str) -> None:
         state = await self.store.get_actor_state(session_id, actor_id) or {}
+        meta = await self.store.get_meta(session_id)
+        actor_count = len(self._actor_ids_from_meta(meta)) if meta else 2
         min_timeout = 20.0
         if self._game_config is not None:
             min_timeout = await self._game_config.get_float("combat", "MIN_TIMEOUT", default=20.0)
-        timeout = AFK_TIMEOUTS.get(int(state.get("afk_level", 0) or 0), min_timeout)
+        timeout = calculate_move_timeout_seconds(
+            afk_level=int(state.get("afk_level", 0) or 0),
+            actor_count=actor_count,
+            min_timeout=min_timeout,
+        )
         immediate = CollectorSignalDTO(
             session_id=session_id,
             char_id=normalize_actor_id(actor_id),

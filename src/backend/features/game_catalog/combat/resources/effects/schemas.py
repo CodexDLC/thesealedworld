@@ -69,6 +69,8 @@ class EffectTechnicalDTO(BaseModel):
     pipeline_mutation_role: Literal["source", "target", "both"] = "target"
     react_on_outcomes: list[str] = Field(default_factory=list)
     consume_on_reaction: bool = True
+    exclusive_channel: str | None = None
+    exclusive_channels: list[str] = Field(default_factory=list)
     control_logic: ControlInstructionDTO | None = None
     tags: list[str] = Field(default_factory=list)
 

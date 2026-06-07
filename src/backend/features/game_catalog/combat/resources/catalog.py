@@ -308,6 +308,11 @@ class CombatResourceCatalogService:
         value = application.get("value_override")
         if str(application.get("value_mode") or "") == "source_main_hand_damage_multiplier":
             value_text = f"{cls._number_text(float(application.get('value_multiplier') or 0.0) * 100.0)}% урона умения"
+        elif str(application.get("value_mode") or "") == "source_modifier_multiplier":
+            source_modifier = str(application.get("source_modifier_id") or "параметра")
+            value_text = (
+                f"x{cls._number_text(application.get('value_multiplier'))} от {cls._modifier_label(source_modifier)}"
+            )
         else:
             value_text = (
                 cls._number_text(value)
@@ -323,9 +328,27 @@ class CombatResourceCatalogService:
     def _modifier_label(modifier_id: str) -> str:
         labels = {
             "armor_add": "броня",
+            "accuracy": "точность",
+            "accuracy_add": "точность",
+            "accuracy_cap": "кап точности",
+            "accuracy_cap_add": "кап точности",
             "damage_mult": "урон",
             "evasion_add": "уклонение",
+            "hp_regen": "реген HP",
+            "hp_regen_add": "реген HP",
+            "incoming_damage_absorb_pct": "поглощение входящего урона",
+            "incoming_damage_absorb_pct_add": "поглощение входящего урона",
+            "parry": "парирование",
+            "parry_add": "парирование",
+            "parry_cap": "кап парирования",
+            "parry_cap_add": "кап парирования",
             "physical_damage_bonus_add": "физический урон",
+            "cleave_damage_mult": "урон рассечения",
+            "cleave_damage_mult_add": "урон рассечения",
+            "cleave_target_count": "цели рассечения",
+            "cleave_target_count_add": "цели рассечения",
+            "vampiric_power": "сила вампирика",
+            "vampiric_power_add": "сила вампирика",
         }
         return labels.get(modifier_id, modifier_id)
 

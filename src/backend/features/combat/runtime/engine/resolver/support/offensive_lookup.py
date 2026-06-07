@@ -49,6 +49,9 @@ def get_offensive_val(stats: ActorStats, ctx: PipelineContextDTO, key: str) -> f
             "off_hand": stats.mods.off_hand_accuracy + stats.mods.accuracy,
         }.get(source, stats.mods.main_hand_accuracy + stats.mods.accuracy)
 
+    if key == "accuracy_cap":
+        return stats.mods.accuracy_cap
+
     if key == "accuracy_penalty":
         return {
             "magic": 0.0,

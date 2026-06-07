@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from types import SimpleNamespace
 from typing import Any
 
@@ -26,6 +27,7 @@ from src.backend.features.combat.dto import (
     CombatTriggerAttemptDTO,
     CombatTriggerFactDTO,
     ExchangePayload,
+    FeintHandDTO,
     InstantPayload,
     InteractionResultDTO,
     PipelineContextDTO,
@@ -39,6 +41,7 @@ from src.backend.features.combat.runtime.engine.effect_factory import EffectFact
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.mechanics_service import MechanicsService
+from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 from src.backend.features.combat.runtime.engine.pipeline import CombatPipeline
 from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.resolver import CombatResolver
@@ -70,21 +73,30 @@ from src.backend.features.combat.workers.tasks.chat_announcements import (
     publish_combat_start_announcement,
 )
 from src.backend.features.combat.workers.tasks.executor_task import _enqueue_result_support_tasks
+from src.backend.features.game_catalog.combat.resources.common.modifier_applications import ModifierApplicationDTO
 from src.backend.features.game_catalog.combat.resources.common.targeting import TargetType
 from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 
 class FakeDataService:
-    def __init__(self, meta: BattleMeta | None, moves: dict[str, Any], targets: dict[str, list[int | str]]) -> None:
+    def __init__(
+        self,
+        meta: BattleMeta | None,
+        moves: dict[str, Any],
+        targets: dict[str, list[int | str]],
+        *,
+        action_queue_size: int = 0,
+    ) -> None:
         self.meta = meta
         self.moves = moves
         self.targets = targets
+        self.action_queue_size = action_queue_size
         self.transferred: list[CombatActionDTO] = []
         self.calls: list[str] = []
 
     async def get_action_queue_size(self, session_id: str) -> int:
         self.calls.append("get_action_queue_size")
-        return 0
+        return self.action_queue_size
 
     async def get_battle_meta(self, session_id: str) -> BattleMeta | None:
         self.calls.append("get_battle_meta")
@@ -101,6 +113,7 @@ class FakeDataService:
     async def transfer_actions(self, session_id: str, actions: list[CombatActionDTO]) -> None:
         self.calls.append("transfer_actions")
         self.transferred.extend(actions)
+        self.action_queue_size += len(actions)
 
 
 class CapturingCombatManager:
@@ -283,6 +296,33 @@ def actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
         raw=ActorRawDTO(modifiers={"main_hand_damage_base": 200, "main_hand_accuracy": 1.0}),
         loadout=ActorLoadoutDTO(layout={"main_hand": "skill_swords"}),
     )
+
+
+@pytest.mark.unit
+def test_feint_service_refill_skips_feints_on_cooldown() -> None:
+    meta = ActorMetaDTO(
+        id=1,
+        name="A1",
+        type="player",
+        team="a",
+        tokens={"hit": 10},
+        exchange_counter=1,
+        feints=FeintHandDTO(
+            arsenal=["measured_strike"],
+            hand={},
+            cooldowns={"measured_strike": 3},
+        ),
+    )
+
+    FeintService.refill_hand(meta, hand_size=1)
+
+    assert meta.feints.hand == {}
+    assert meta.tokens["hit"] == 10
+
+    meta.exchange_counter = 3
+    FeintService.refill_hand(meta, hand_size=1)
+
+    assert set(meta.feints.hand) == {"measured_strike"}
 
 
 def beast_actor(actor_id: int | str, team: str, hp: int = 100) -> ActorSnapshot:
@@ -474,6 +514,23 @@ async def test_collector_pairs_exchange_moves() -> None:
     assert ai_tasks == []
     assert winner is None
     assert data.transferred[0].partner_move is not None
+
+
+@pytest.mark.unit
+async def test_collector_dispatches_existing_action_queue_backlog() -> None:
+    data = FakeDataService(
+        battle_meta(),
+        {"1": {"exchange": {}}, "2": {"exchange": {}}},
+        {"1": [], "2": []},
+        action_queue_size=1,
+    )
+
+    batch_size, ai_tasks, winner = await CombatCollector(data).collect_actions("c1")
+
+    assert batch_size > 0
+    assert ai_tasks == []
+    assert winner is None
+    assert data.transferred == []
 
 
 @pytest.mark.unit
@@ -1379,17 +1436,17 @@ def test_executor_basic_ability_hit_log_uses_ability_event_text() -> None:
         move_id="m1",
         char_id=1,
         strategy="instant",
-        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+        payload=InstantPayload(ability_id="basic_break_stance", target_id=2),
     )
     action = CombatActionDTO(action_type="instant", move=move)
     result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
-    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="basic_punish_mistake"))
+    result.events.append(CombatEventDTO(type="CAST", source_id=1, target_id=2, action_id="basic_break_stance"))
 
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.ability.basic_punish_mistake.target.hit.humanoid"
-    assert entry["text"] == "удар в окно наказывает A2"
+    assert entry["catalog_key"] == "combat.ability.basic_break_stance.target.hit.humanoid"
+    assert entry["text"] == "A1 ломает устойчивость A2"
     assert "(F)" not in entry["text"]
 
 
@@ -1400,7 +1457,7 @@ def test_executor_basic_ability_no_resource_log_uses_ability_event_text() -> Non
         move_id="m1",
         char_id=1,
         strategy="instant",
-        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+        payload=InstantPayload(ability_id="basic_break_stance", target_id=2),
     )
     action = CombatActionDTO(action_type="instant", move=move)
     result = InteractionResultDTO(source_id=1, target_id=2, skip_reason="NO_RESOURCE")
@@ -1408,8 +1465,8 @@ def test_executor_basic_ability_no_resource_log_uses_ability_event_text() -> Non
     CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
 
     entry = ctx.pending_logs[0]
-    assert entry["catalog_key"] == "combat.ability.basic_punish_mistake.no_resource"
-    assert entry["text"] == "A1 видит ошибку, но не успевает её наказать"
+    assert entry["catalog_key"] == "combat.ability.basic_break_stance.no_resource"
+    assert entry["text"] == "A1 не удерживает темп для сбития стойки"
     assert "(F)" not in entry["text"]
 
 
@@ -1417,8 +1474,8 @@ def test_executor_basic_ability_no_resource_log_uses_ability_event_text() -> Non
 @pytest.mark.asyncio
 async def test_basic_debuff_strike_logs_hit_text_not_runtime_fallback() -> None:
     source = actor(1, "a")
-    source.meta.en = 100
-    source.meta.tokens.update({"tempo": 2, "hit": 3})
+    source.meta.stamina = 100
+    source.meta.tokens.update({"tempo": 3, "hit": 2})
     target = actor(2, "b")
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
     move = CombatMoveDTO(
@@ -1612,6 +1669,7 @@ async def test_session_integration_round_trips_stamina_state() -> None:
             "max_stamina": 80,
             "tokens": {},
             "token_progress": {"blood": 7},
+            "ability_cooldowns": {"basic_break_stance": 5},
         },
         {},
         {},
@@ -1624,10 +1682,12 @@ async def test_session_integration_round_trips_stamina_state() -> None:
     assert snapshot.meta.stamina == 37
     assert snapshot.meta.max_stamina == 80
     assert snapshot.meta.token_progress == {"blood": 7}
+    assert snapshot.meta.ability_cooldowns == {"basic_break_stance": 5}
 
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": snapshot})
     snapshot.meta.stamina = 12
     snapshot.meta.token_progress["blood"] = 3
+    snapshot.meta.ability_cooldowns["basic_break_stance"] = 4
 
     await integration.commit_session(ctx, ["m1"])
 
@@ -1635,6 +1695,7 @@ async def test_session_integration_round_trips_stamina_state() -> None:
     assert updates["1"]["state"]["stamina"] == 12
     assert updates["1"]["state"]["max_stamina"] == 80
     assert updates["1"]["state"]["token_progress"] == {"blood": 3}
+    assert updates["1"]["state"]["ability_cooldowns"] == {"basic_break_stance": 4}
 
 
 @pytest.mark.unit
@@ -1806,7 +1867,9 @@ def test_ability_service_applies_basic_hit_feint_weapon_technique_bonus() -> Non
     bonus = source.raw.modifiers["physical_damage_bonus"]
     source_id = next(iter(bonus["temp"]))
     assert bonus["temp"][source_id] == "+4"
-    assert source_id.startswith(f"feint:{source.statuses.abilities[0].uid}:measured_strike")
+    assert source.statuses.abilities == []
+    assert source_id.startswith("feint:")
+    assert ":measured_strike:" in source_id
 
 
 @pytest.mark.unit
@@ -3520,23 +3583,23 @@ def test_ability_service_applies_ability_cost_and_pipeline_flags() -> None:
 @pytest.mark.unit
 def test_ability_service_applies_basic_gift_combat_token_costs() -> None:
     source = actor(1, "a")
-    source.meta.en = 100
-    source.meta.tokens.update({"tempo": 2, "hit": 3})
+    source.meta.tokens.update({"tempo": 3, "hit": 2})
     target = actor(2, "b")
     move = CombatMoveDTO(
         move_id="m1",
         char_id=1,
         strategy="instant",
-        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+        payload=InstantPayload(ability_id="basic_break_stance", target_id=2),
     )
     ctx = PipelineContextDTO()
 
     AbilityService().pre_process(ctx, move, source, target)
 
     assert ctx.result.skip_reason is None
-    assert ctx.result.resource_changes["en"]["cost"] == "-10"
-    assert ctx.result.resource_changes["tempo"]["cost"] == "-2"
-    assert ctx.result.resource_changes["hit"]["cost"] == "-3"
+    assert ctx.result.resource_changes["tempo"]["cost"] == "-3"
+    assert ctx.result.resource_changes["hit"]["cost"] == "-2"
+    assert "stamina" not in ctx.result.resource_changes
+    assert "en" not in ctx.result.resource_changes
     assert "gift" not in ctx.result.resource_changes
     assert ctx.flags.meta.source_type == "main_hand"
     assert ctx.stages.check_accuracy is False
@@ -3551,8 +3614,7 @@ def test_ability_service_applies_basic_gift_combat_token_costs() -> None:
 @pytest.mark.unit
 def test_basic_combat_token_instant_uses_main_hand_base_damage_without_magic_stats() -> None:
     source = actor(1, "a")
-    source.meta.en = 100
-    source.meta.tokens.update({"tempo": 2, "hit": 3})
+    source.meta.tokens.update({"tempo": 2, "crit": 2})
     source.stats = stats(
         {
             "main_hand_damage_base": 20.0,
@@ -3567,7 +3629,7 @@ def test_basic_combat_token_instant_uses_main_hand_base_damage_without_magic_sta
         move_id="m1",
         char_id=1,
         strategy="instant",
-        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+        payload=InstantPayload(ability_id="basic_expose_weakness", target_id=2),
     )
     ctx = PipelineContextDTO()
     ctx.result.source_id = source.char_id
@@ -3584,8 +3646,7 @@ def test_basic_combat_token_instant_uses_main_hand_base_damage_without_magic_sta
 @pytest.mark.unit
 def test_basic_break_stance_applies_flat_damage_down_from_skill_damage_for_four_exchanges() -> None:
     source = actor(1, "a")
-    source.meta.en = 100
-    source.meta.tokens.update({"tempo": 2, "hit": 3})
+    source.meta.tokens.update({"tempo": 3, "hit": 2})
     source.stats = stats({"main_hand_damage_base": 20.0})
     target = actor(2, "b")
     move = CombatMoveDTO(
@@ -3598,8 +3659,9 @@ def test_basic_break_stance_applies_flat_damage_down_from_skill_damage_for_four_
 
     AbilityService().pre_process(ctx, move, source, target)
 
-    assert source.statuses.abilities
-    active = source.statuses.abilities[-1]
+    assert source.statuses.abilities == []
+    active = target.statuses.effects[-1]
+    assert active.effect_id == "basic_break_stance"
     assert active.expire_at_exchange == source.meta.exchange_counter + 4
     assert active.modified_keys == ["physical_damage_bonus"]
     assert target.raw.modifiers["physical_damage_bonus"]["temp"][active.modified_sources["physical_damage_bonus"][0]] == (
@@ -3619,7 +3681,6 @@ def test_basic_expose_weakness_applies_evasion_down_before_cap_for_three_exchang
 
     monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
     source = actor(1, "a")
-    source.meta.en = 100
     source.meta.tokens.update({"tempo": 2, "crit": 2})
     target = actor(2, "b")
     target.raw.modifiers["evasion"] = {"base": 1.0, "source": {}, "temp": {}}
@@ -3634,8 +3695,9 @@ def test_basic_expose_weakness_applies_evasion_down_before_cap_for_three_exchang
 
     AbilityService().pre_process(ctx, move, source, target)
 
-    assert source.statuses.abilities
-    active = source.statuses.abilities[-1]
+    assert source.statuses.abilities == []
+    active = target.statuses.effects[-1]
+    assert active.effect_id == "basic_expose_weakness"
     assert active.expire_at_exchange == source.meta.exchange_counter + 3
     assert active.modified_keys == ["evasion"]
     assert target.raw.modifiers["evasion"]["temp"][active.modified_sources["evasion"][0]] == "-0.5"
@@ -3653,14 +3715,13 @@ def test_basic_expose_weakness_applies_evasion_down_before_cap_for_three_exchang
 @pytest.mark.unit
 def test_ability_service_rejects_basic_gift_when_combat_token_missing() -> None:
     source = actor(1, "a")
-    source.meta.en = 100
     source.meta.tokens.update({"tempo": 1})
     target = actor(2, "b")
     move = CombatMoveDTO(
         move_id="m1",
         char_id=1,
         strategy="instant",
-        payload=InstantPayload(ability_id="basic_punish_mistake", target_id=2),
+        payload=InstantPayload(ability_id="basic_break_stance", target_id=2),
     )
     ctx = PipelineContextDTO()
 
@@ -3668,6 +3729,359 @@ def test_ability_service_rejects_basic_gift_when_combat_token_missing() -> None:
 
     assert ctx.result.skip_reason == "NO_RESOURCE"
     assert ctx.result.resource_changes == {}
+
+
+@pytest.mark.unit
+def test_basic_wipe_blood_applies_symbiote_scaled_regen_and_parry_buff() -> None:
+    source = actor(1, "a")
+    source.meta.en = 20
+    source.meta.tokens.update({"blood": 3, "block": 1, "gift": 1})
+    source.raw.modifiers["hp_regen"] = {"base": 3.0, "source": {}, "temp": {}}
+    source.raw.modifiers["parry"] = {"base": 0.10, "source": {}, "temp": {}}
+    source.raw.modifiers["parry_cap"] = {"base": 0.50, "source": {}, "temp": {}}
+    StatsEngine.ensure_stats(source)
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_wipe_blood", target_id=1),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.skip_reason is None
+    assert ctx.result.resource_changes["en"]["cost"] == "-5"
+    assert ctx.result.resource_changes["gift"]["cost"] == "-1"
+    assert ctx.result.resource_changes["blood"]["cost"] == "-3"
+    assert ctx.result.resource_changes["block"]["cost"] == "-1"
+    assert "hp" not in ctx.result.resource_changes
+    assert ctx.phases.run_calculator is False
+    assert [ability.ability_id for ability in source.statuses.abilities] == ["basic_wipe_blood"]
+    assert source.statuses.effects == []
+    assert source.raw.modifiers["hp_regen"]["temp"] == {}
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert source.statuses.abilities == []
+    active = source.statuses.effects[-1]
+    assert active.effect_id == "basic_wipe_blood"
+    assert active.expire_at_exchange == source.meta.exchange_counter + 3
+    assert active.modified_keys == ["hp_regen", "parry", "parry_cap"]
+    assert source.raw.modifiers["hp_regen"]["temp"][active.modified_sources["hp_regen"][0]] == "+3"
+    assert source.raw.modifiers["parry"]["temp"][active.modified_sources["parry"][0]] == "+0.05"
+    assert source.raw.modifiers["parry_cap"]["temp"][active.modified_sources["parry_cap"][0]] == "+0.05"
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.hp_regen == pytest.approx(6.0)
+    assert source.stats.mods.parry == pytest.approx(0.15)
+    assert source.stats.mods.parry_cap == pytest.approx(0.55)
+
+
+@pytest.mark.unit
+def test_basic_last_push_applies_symbiote_scaled_regen_and_accuracy_cap_buff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.99, False
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+    source = actor(1, "a")
+    source.meta.en = 20
+    source.meta.tokens.update({"blood": 3, "parry": 1, "gift": 1})
+    source.raw.modifiers["hp_regen"] = {"base": 4.0, "source": {}, "temp": {}}
+    source.raw.modifiers["accuracy"] = {"base": 0.30, "source": {}, "temp": {}}
+    source.raw.modifiers["accuracy_cap"] = {"base": 0.0, "source": {}, "temp": {}}
+    StatsEngine.ensure_stats(source)
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_last_push", target_id=1),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.skip_reason is None
+    assert ctx.result.resource_changes["en"]["cost"] == "-5"
+    assert ctx.result.resource_changes["gift"]["cost"] == "-1"
+    assert ctx.result.resource_changes["blood"]["cost"] == "-3"
+    assert ctx.result.resource_changes["parry"]["cost"] == "-1"
+    assert "hp" not in ctx.result.resource_changes
+    assert ctx.phases.run_calculator is False
+    assert [ability.ability_id for ability in source.statuses.abilities] == ["basic_last_push"]
+    assert source.statuses.effects == []
+    assert source.raw.modifiers["hp_regen"]["temp"] == {}
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert source.statuses.abilities == []
+    active = source.statuses.effects[-1]
+    assert active.effect_id == "basic_last_push"
+    assert active.expire_at_exchange == source.meta.exchange_counter + 3
+    assert active.modified_keys == ["accuracy", "accuracy_cap", "hp_regen"]
+    assert source.raw.modifiers["hp_regen"]["temp"][active.modified_sources["hp_regen"][0]] == "+4"
+    assert source.raw.modifiers["accuracy"]["temp"][active.modified_sources["accuracy"][0]] == "+0.03"
+    assert source.raw.modifiers["accuracy_cap"]["temp"][active.modified_sources["accuracy_cap"][0]] == "+0.03"
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.hp_regen == pytest.approx(8.0)
+    assert source.stats.mods.accuracy == pytest.approx(0.33)
+    assert source.stats.mods.accuracy_cap == pytest.approx(0.03)
+
+    accuracy_ctx = PipelineContextDTO()
+    accuracy_result = InteractionResultDTO(source_id=1, target_id=2)
+    accuracy_step.run(source.stats, stats(), accuracy_ctx, accuracy_result)
+
+    assert captured_chances == [pytest.approx(0.93)]
+
+
+@pytest.mark.unit
+def test_basic_slip_pain_applies_symbiote_scaled_regen_and_absorb_from_evasion() -> None:
+    source = actor(1, "a")
+    source.meta.en = 20
+    source.meta.tokens.update({"blood": 3, "dodge": 1, "gift": 1})
+    source.raw.modifiers["hp_regen"] = {"base": 3.0, "source": {}, "temp": {}}
+    source.raw.modifiers["evasion"] = {"base": 0.40, "source": {}, "temp": {}}
+    source.raw.modifiers["incoming_damage_absorb_pct"] = {"base": 0.0, "source": {}, "temp": {}}
+    StatsEngine.ensure_stats(source)
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_slip_pain", target_id=1),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.skip_reason is None
+    assert ctx.result.resource_changes["en"]["cost"] == "-5"
+    assert ctx.result.resource_changes["gift"]["cost"] == "-1"
+    assert ctx.result.resource_changes["blood"]["cost"] == "-3"
+    assert ctx.result.resource_changes["dodge"]["cost"] == "-1"
+    assert ctx.phases.run_calculator is False
+    assert [ability.ability_id for ability in source.statuses.abilities] == ["basic_slip_pain"]
+    assert source.statuses.effects == []
+    assert source.raw.modifiers["hp_regen"]["temp"] == {}
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert source.statuses.abilities == []
+    active = source.statuses.effects[-1]
+    assert active.effect_id == "basic_slip_pain"
+    assert active.expire_at_exchange == source.meta.exchange_counter + 3
+    assert active.modified_keys == ["hp_regen", "incoming_damage_absorb_pct"]
+    assert source.raw.modifiers["hp_regen"]["temp"][active.modified_sources["hp_regen"][0]] == "+3"
+    assert source.raw.modifiers["incoming_damage_absorb_pct"]["temp"][
+        active.modified_sources["incoming_damage_absorb_pct"][0]
+    ] == "+0.05"
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.hp_regen == pytest.approx(6.0)
+    assert source.stats.mods.incoming_damage_absorb_pct == pytest.approx(0.05)
+
+
+@pytest.mark.unit
+def test_basic_blood_hunger_applies_damage_and_vampiric_power_buff_without_regen() -> None:
+    source = actor(1, "a")
+    source.meta.en = 20
+    source.meta.tokens.update({"tempo": 5, "pressure": 5, "gift": 1})
+    source.raw.modifiers["hp_regen"] = {"base": 4.0, "source": {}, "temp": {}}
+    source.raw.modifiers["physical_damage_bonus"] = {"base": 0.0, "source": {}, "temp": {}}
+    source.raw.modifiers["vampiric_power"] = {"base": 0.0, "source": {}, "temp": {}}
+    StatsEngine.ensure_stats(source)
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_blood_hunger", target_id=1),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.skip_reason is None
+    assert "en" not in ctx.result.resource_changes
+    assert ctx.result.resource_changes["gift"]["cost"] == "-1"
+    assert "blood" not in ctx.result.resource_changes
+    assert ctx.result.resource_changes["tempo"]["cost"] == "-5"
+    assert ctx.result.resource_changes["pressure"]["cost"] == "-5"
+    assert ctx.flags.damage.vampiric is True
+    assert ctx.phases.run_calculator is False
+    assert [ability.ability_id for ability in source.statuses.abilities] == ["basic_blood_hunger"]
+    assert source.statuses.effects == []
+    assert source.raw.modifiers["physical_damage_bonus"]["temp"] == {}
+    assert source.raw.modifiers["vampiric_power"]["temp"] == {}
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert source.statuses.abilities == []
+    active = source.statuses.effects[-1]
+    assert active.effect_id == "basic_blood_hunger"
+    assert active.expire_at_exchange == source.meta.exchange_counter + 5
+    assert active.modified_keys == ["physical_damage_bonus", "vampiric_power"]
+    assert source.raw.modifiers["hp_regen"]["temp"] == {}
+    assert source.raw.modifiers["physical_damage_bonus"]["temp"][active.modified_sources["physical_damage_bonus"][0]] == (
+        "+2"
+    )
+    assert source.raw.modifiers["vampiric_power"]["temp"][active.modified_sources["vampiric_power"][0]] == "+0.15"
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.hp_regen == pytest.approx(4.0)
+    assert source.stats.mods.physical_damage_bonus == pytest.approx(2.0)
+    assert source.stats.mods.vampiric_power == pytest.approx(0.15)
+
+
+@pytest.mark.unit
+def test_basic_cleave_gift_applies_three_exchange_cleave_buff() -> None:
+    source = actor(1, "a")
+    source.meta.tokens.update({"hit": 3, "pressure": 3, "gift": 3})
+    source.raw.modifiers["cleave_damage_mult"] = {"base": 0.0, "source": {}, "temp": {}}
+    source.raw.modifiers["cleave_target_count"] = {"base": 0.0, "source": {}, "temp": {}}
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="instant",
+        payload=InstantPayload(ability_id="basic_cleave_gift", target_id=1),
+    )
+    ctx = PipelineContextDTO()
+
+    AbilityService().pre_process(ctx, move, source, target)
+
+    assert ctx.result.skip_reason is None
+    assert ctx.result.resource_changes["gift"]["cost"] == "-3"
+    assert ctx.result.resource_changes["hit"]["cost"] == "-3"
+    assert ctx.result.resource_changes["pressure"]["cost"] == "-3"
+    assert "en" not in ctx.result.resource_changes
+    assert ctx.phases.run_calculator is False
+    assert [ability.ability_id for ability in source.statuses.abilities] == ["basic_cleave_gift"]
+    assert source.statuses.effects == []
+    assert source.raw.modifiers["cleave_damage_mult"]["temp"] == {}
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert source.statuses.abilities == []
+    active = source.statuses.effects[-1]
+    assert active.effect_id == "basic_cleave_gift"
+    assert active.expire_at_exchange == source.meta.exchange_counter + 3
+    assert active.modified_keys == ["cleave_damage_mult", "cleave_target_count"]
+    assert source.raw.modifiers["cleave_damage_mult"]["temp"][active.modified_sources["cleave_damage_mult"][0]] == (
+        "+0.3"
+    )
+    assert source.raw.modifiers["cleave_target_count"]["temp"][active.modified_sources["cleave_target_count"][0]] == (
+        "+2"
+    )
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.cleave_damage_mult == pytest.approx(0.30)
+    assert source.stats.mods.cleave_target_count == pytest.approx(2.0)
+
+
+@pytest.mark.unit
+def test_vampiric_post_process_heals_from_final_damage_with_fixed_base_chance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_chances: list[float] = []
+
+    def capture_roll(chance: float) -> tuple[float | None, bool]:
+        captured_chances.append(chance)
+        return 0.50, True
+
+    monkeypatch.setattr(MathCore, "roll_chance", staticmethod(capture_roll))
+    source = actor(1, "a", hp=80)
+    source.raw.modifiers["vampiric_power"] = {"base": 0.15, "source": {}, "temp": {}}
+    source.raw.modifiers["vampiric_trigger_chance"] = {"base": 0.10, "source": {}, "temp": {}}
+    source.raw.modifiers["vampiric_trigger_cap"] = {"base": 0.85, "source": {}, "temp": {}}
+    target = actor(2, "b")
+    move = CombatMoveDTO(
+        move_id="m1",
+        char_id=1,
+        strategy="exchange",
+        payload=ExchangePayload(target_id=2),
+    )
+    ctx = PipelineContextDTO()
+    ctx.result.source_id = source.char_id
+    ctx.result.target_id = target.char_id
+    ctx.result.is_hit = True
+    ctx.result.damage_final = 100
+    ctx.flags.damage.vampiric = True
+
+    AbilityService().post_process(ctx, source, target, move)
+
+    assert captured_chances == [pytest.approx(0.85)]
+    assert ctx.result.lifesteal_amount == 15
+    assert ctx.result.healing_final == 15
+    assert ctx.result.resource_applications[-1].resource == "hp"
+    assert ctx.result.resource_applications[-1].reason == "vampiric"
+    assert ctx.result.resource_applications[-1].value == "+15"
+    assert ctx.result.checks[-1].stage == "vampiric"
+    assert ctx.result.checks[-1].details["power"] == pytest.approx(0.15)
+
+
+@pytest.mark.unit
+def test_modifier_application_can_build_clamped_absorb_from_evasion() -> None:
+    source = actor(1, "a")
+    source.raw.modifiers["evasion"] = {"base": 0.40, "source": {}, "temp": {}}
+    source.raw.modifiers["incoming_damage_absorb_pct"] = {"base": 0.0, "source": {}, "temp": {}}
+    StatsEngine.ensure_stats(source)
+
+    applied = ModifierApplicationService.apply(
+        applications=[
+            ModifierApplicationDTO(
+                modifier_id="incoming_damage_absorb_pct_add",
+                target_actor="self",
+                value_mode="source_modifier_scaled_clamped",
+                source_modifier_id="evasion",
+                value_override=0.03,
+                value_multiplier=0.05,
+                value_cap=0.15,
+                scope="duration",
+                duration_exchanges=3,
+                scale_value_with_symbiote=True,
+            )
+        ],
+        owner="ability",
+        owner_uid="absorb-test",
+        owner_id="basic_dodge_absorb",
+        source=source,
+        target=None,
+        symbiote_ability_mult=1.0,
+    )
+
+    assert applied.modified_keys == {"incoming_damage_absorb_pct"}
+    source_id = applied.modified_sources["incoming_damage_absorb_pct"][0]
+    assert source.raw.modifiers["incoming_damage_absorb_pct"]["temp"][source_id] == "+0.05"
+    StatsEngine.ensure_stats(source)
+    assert source.stats is not None
+    assert source.stats.mods.incoming_damage_absorb_pct == pytest.approx(0.05)
+
+
+@pytest.mark.unit
+def test_incoming_damage_absorb_pct_reduces_final_damage() -> None:
+    source = actor(1, "a")
+    source.stats = stats({"main_hand_damage_base": 100.0, "main_hand_damage_spread": 0.0})
+    target = actor(2, "b")
+    target.stats = stats({"incoming_damage_absorb_pct": 0.10, "armor": 0.0, "physical_resistance": 0.0})
+    ctx = PipelineContextDTO()
+    result = InteractionResultDTO(source_id=1, target_id=2)
+
+    damage_step.run(source.stats, target.stats, ctx, result)
+
+    assert result.damage_final == 90
+    assert result.damage_trace is not None
+    assert result.damage_trace.details["incoming_damage_absorb_pct"] == pytest.approx(0.10)
+    assert result.damage_trace.details["incoming_damage_absorbed"] == pytest.approx(10.0)
+    assert result.damage_trace.details["after_incoming_absorb"] == pytest.approx(90.0)
 
 
 @pytest.mark.unit
@@ -3895,6 +4309,59 @@ def test_feint_service_refill_uses_random_free_pool_when_purchase_group_slot_is_
 
 
 @pytest.mark.unit
+def test_feint_service_refill_skips_feints_with_active_exclusive_prep_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    source.meta.feints.arsenal = ["cheap_parry_counter", "other_parry_tool"]
+    source.meta.tokens = {"parry": 10}
+
+    fake_feints = {
+        "cheap_parry_counter": {
+            "cost": {"parry": 3},
+            "preparation_effects": [{"id": "prep_perfect_riposte", "target_actor": "source"}],
+        },
+        "other_parry_tool": {
+            "cost": {"parry": 3},
+            "preparation_effects": [{"id": "prep_second_breath", "target_actor": "source"}],
+        },
+    }
+    fake_effect_channels = {
+        "prep_counter_on_parry": "next_parry.counter",
+        "prep_perfect_riposte": "next_parry.counter",
+        "prep_second_breath": "next_parry.heal",
+    }
+
+    def fake_get_feint_catalog_entry(feint_id: str):
+        data = fake_feints[feint_id]
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                feint_id=feint_id,
+                cost=SimpleNamespace(tactics=data["cost"]),
+                purchase_group="basic",
+                preparation_effects=data["preparation_effects"],
+            )
+        )
+
+    def fake_get_effect_catalog_entry(effect_id: str):
+        return SimpleNamespace(technical=SimpleNamespace(exclusive_channel=fake_effect_channels.get(effect_id)))
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_feint_catalog_entry", fake_get_feint_catalog_entry)
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_effect_catalog_entry", fake_get_effect_catalog_entry)
+
+    FeintService.refill_hand(
+        source.meta,
+        hand_size=2,
+        active_effect_ids={"prep_counter_on_parry"},
+    )
+
+    assert source.meta.feints.hand == {"other_parry_tool": {"parry": 3}}
+    assert source.meta.tokens == {"parry": 7}
+
+
+@pytest.mark.unit
 def test_session_integration_recovers_feint_arsenal_from_loadout() -> None:
     snapshot = CombatSessionIntegration(None)._build_snapshot(
         "1",
@@ -3926,6 +4393,58 @@ def test_feint_service_reroll_preserves_pinned_and_refunds_unpinned() -> None:
     assert source.meta.feints.hand == {"future_feint_placeholder": {"hit": 2}}
     assert source.meta.feints.pinned == "future_feint_placeholder"
     assert source.meta.tokens["hit"] == 3
+
+
+@pytest.mark.unit
+def test_mechanics_service_ignores_status_application_with_active_exclusive_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.statuses.effects.append(
+        ActiveEffectDTO(
+            uid="existing_counter",
+            effect_id="prep_counter_on_parry",
+            source_id=2,
+            expire_at_exchange=999,
+        )
+    )
+    incoming = ActiveEffectDTO(
+        uid="incoming_riposte",
+        effect_id="prep_perfect_riposte",
+        source_id=2,
+        expire_at_exchange=999,
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2)
+    result.status_applications.append(
+        CombatStatusApplicationDTO(
+            actor_id=target.char_id,
+            source_id=target.char_id,
+            effect_id=incoming.effect_id,
+            active_effect=incoming.model_dump(mode="json"),
+        )
+    )
+
+    fake_effect_channels = {
+        "prep_counter_on_parry": "next_parry.counter",
+        "prep_perfect_riposte": "next_parry.counter",
+    }
+
+    def fake_get_effect_catalog_entry(effect_id: str):
+        return SimpleNamespace(
+            technical=SimpleNamespace(
+                exclusive_channel=fake_effect_channels.get(effect_id),
+                modifier_applications=[],
+            )
+        )
+
+    monkeypatch.setattr(CombatCatalogIntegrator, "get_effect_catalog_entry", fake_get_effect_catalog_entry)
+
+    MechanicsService().apply_interaction_result(PipelineContextDTO(), source, target, result)
+
+    assert [effect.effect_id for effect in target.statuses.effects] == ["prep_counter_on_parry"]
 
 
 @pytest.mark.unit
@@ -4139,11 +4658,17 @@ async def test_start_announcement_publishes_once_from_collector_context() -> Non
     await publish_combat_start_announcement({"redis_client_internal": redis}, data_service, "combat-1")
 
     assert len(redis.xadds) == 1
+    payload = redis.xadds[0][0][1]
+    assert payload["type"] == "player.notice"
+    assert payload["template_key"] == "combat.started"
+    assert payload["presentation"] == "system_chat"
+    assert json.loads(payload["character_ids"]) == [1]
+    assert json.loads(payload["variables"])["participants"] == (
+        "Команда 1: Hero[42/100] против Команда 2: Wolf[0/60]"
+    )
     encoded = str(redis.xadds[0])
-    assert "chat.combat_message" in encoded
+    assert "chat.combat_message" not in encoded
     assert "chat.combat_log_message" not in encoded
-    assert "БОЙ НАЧАЛСЯ" in encoded
-    assert "Бой начался: Команда 1: Hero[42/100] против Команда 2: Wolf[0/60]." in encoded
 
 
 @pytest.mark.unit
@@ -4164,12 +4689,16 @@ async def test_final_announcement_uses_finalization_snapshot() -> None:
     await publish_combat_final_announcement({"redis_client_internal": redis}, finalization)
 
     assert len(redis.xadds) == 1
+    payload = redis.xadds[0][0][1]
+    variables = json.loads(payload["variables"])
+    assert payload["type"] == "player.notice"
+    assert payload["template_key"] == "combat.finished"
+    assert payload["presentation"] == "system_chat"
+    assert variables["outcome"] == "победила Команда 1: Hero[42/100] на ходу 12"
+    assert variables["participants"] == "Команда 1: Hero[42/100]; Команда 2: Wolf[0/60]"
     encoded = str(redis.xadds[0])
-    assert "chat.combat_message" in encoded
+    assert "chat.combat_message" not in encoded
     assert "chat.combat_log_message" not in encoded
-    assert "БОЙ ЗАВЕРШЕН" in encoded
-    assert "Бой завершен на ходу 12. Победила Команда 1: Hero[42/100]." in encoded
-    assert "Участники: Команда 1: Hero[42/100]; Команда 2: Wolf[0/60]." in encoded
 
 
 @pytest.mark.unit
@@ -4652,6 +5181,7 @@ async def test_executor_resolves_aoe_feint_secondaries_as_unidirectional_hits(
                 target=TargetType.ALL_ENEMIES,
                 target_count=3,
                 secondary_damage_mult=0.75,
+                cost=SimpleNamespace(tactics={"hit": 1}),
             )
         )
 
@@ -4712,6 +5242,123 @@ async def test_executor_resolves_aoe_feint_secondaries_as_unidirectional_hits(
     assert ctx.actors["3"].meta.exchange_counter == 0
     assert ctx.actors["4"].meta.exchange_counter == 0
     assert ctx.pending_target_returns == [{"source_id": "1", "target_id": "2"}]
+
+
+@pytest.mark.unit
+async def test_executor_resolves_multi_target_instant_ability_with_damage_penalty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str, dict[str, Any]]] = []
+
+    async def fixed_result(self, source, target, move, exchange_count=0, external_mods=None):
+        mods = dict(external_mods or {})
+        calls.append((str(source.char_id), str(target.char_id), mods))
+        return InteractionResultDTO(source_id=source.char_id, target_id=target.char_id, is_hit=True, damage_final=10)
+
+    monkeypatch.setattr(CombatPipeline, "calculate", fixed_result)
+
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta().model_copy(
+            update={
+                "teams": {"a": [1], "b": [2, 3, 4]},
+                "actors_info": {"1": "player", "2": "ai", "3": "ai", "4": "ai"},
+            }
+        ),
+        actors={"1": actor(1, "a"), "2": actor(2, "b"), "3": actor(3, "b"), "4": actor(4, "b")},
+    )
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="basic_splinter_strike", target_id=[2, 3, 4]),
+            targets=[2, 3, 4],
+        ),
+    )
+
+    await CombatExecutor().process_batch(ctx, [action])
+
+    assert calls == [
+        ("1", "2", {"action_mode": "unidirectional", "damage_mult": 0.5}),
+        ("1", "3", {"action_mode": "unidirectional", "damage_mult": 0.5}),
+        ("1", "4", {"action_mode": "unidirectional", "damage_mult": 0.5}),
+    ]
+
+
+@pytest.mark.unit
+async def test_executor_resolves_self_instant_targets_when_collector_did_not_prefill_targets() -> None:
+    source = actor(1, "a")
+    source.meta.en = 20
+    source.meta.tokens.update({"tempo": 5, "pressure": 5, "gift": 1})
+    source.raw.modifiers["hp_regen"] = {"base": 4.0, "source": {}, "temp": {}}
+    source.raw.modifiers["physical_damage_bonus"] = {"base": 0.0, "source": {}, "temp": {}}
+    source.raw.modifiers["vampiric_power"] = {"base": 0.0, "source": {}, "temp": {}}
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta(),
+        actors={"1": source, "2": actor(2, "b")},
+    )
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="basic_blood_hunger", target_id=1),
+        ),
+    )
+
+    await CombatExecutor().process_batch(ctx, [action])
+
+    assert source.statuses.abilities == []
+    assert [effect.effect_id for effect in source.statuses.effects] == ["basic_blood_hunger"]
+    assert source.raw.modifiers["vampiric_power"]["temp"]
+    assert source.meta.tokens.get("blood", 0) == 0
+    assert source.meta.tokens["tempo"] == 0
+    assert source.meta.tokens["pressure"] == 0
+    assert source.meta.tokens["gift"] == 0
+    assert source.meta.ability_cooldowns["basic_blood_hunger"] == 11
+
+
+@pytest.mark.unit
+async def test_executor_cleave_buff_splashes_final_damage_to_extra_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fixed_result(self, source, target, move, exchange_count=0, external_mods=None):
+        return InteractionResultDTO(
+            source_id=source.char_id,
+            target_id=target.char_id,
+            is_hit=True,
+            damage_final=100,
+        )
+
+    monkeypatch.setattr(CombatPipeline, "calculate", fixed_result)
+    source = actor(1, "a")
+    source.raw.modifiers["cleave_damage_mult"] = {"base": 0.30, "source": {}, "temp": {}}
+    source.raw.modifiers["cleave_target_count"] = {"base": 2.0, "source": {}, "temp": {}}
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta().model_copy(
+            update={
+                "teams": {"a": [1], "b": [2, 3, 4]},
+                "actors_info": {"1": "player", "2": "ai", "3": "ai", "4": "ai"},
+            }
+        ),
+        actors={"1": source, "2": actor(2, "b"), "3": actor(3, "b"), "4": actor(4, "b")},
+    )
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+        is_forced=True,
+    )
+
+    await CombatExecutor().process_batch(ctx, [action])
+
+    assert ctx.actors["2"].meta.hp == 0
+    assert ctx.actors["3"].meta.hp == 70
+    assert ctx.actors["4"].meta.hp == 70
 
 
 @pytest.mark.unit

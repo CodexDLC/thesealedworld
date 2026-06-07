@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -20,12 +21,14 @@ from src.backend.features.combat.dto import (
     InstantPayload,
     PipelineContextDTO,
 )
+from src.backend.features.combat.dto.pipeline import CombatCheckTraceDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator as GameData
 from src.backend.features.combat.runtime.engine.effect_factory import EffectFactory
 from src.backend.features.combat.runtime.engine.feint_service import FeintService
 from src.backend.features.combat.runtime.engine.math_core import MathCore
 from src.backend.features.combat.runtime.engine.modifier_application_service import ModifierApplicationService
 from src.backend.features.combat.runtime.engine.pipeline_mutation_service import PipelineMutationService
+from src.backend.features.combat.runtime.engine.preparation_exclusivity import effect_exclusive_channels
 from src.backend.features.combat.runtime.engine.ranged_position import RangedPositionService
 from src.backend.features.combat.runtime.engine.stats_engine import StatsEngine
 from src.backend.features.combat.runtime.engine.trigger_activation import activate_trigger
@@ -149,7 +152,10 @@ class AbilityService:
         # 3. [EXECUTE EFFECTS]
         self._apply_queued_effects(ctx, source, target)
 
-        # 4. [PASSIVE COMBAT RESOURCE REGEN]
+        # 4. [VAMPIRIC SUSTAIN]
+        self._register_vampiric_lifesteal(ctx, source)
+
+        # 5. [PASSIVE COMBAT RESOURCE REGEN]
         self._register_combat_hp_regen(ctx, source)
         self._register_combat_stamina_regen(ctx, source)
 
@@ -299,6 +305,11 @@ class AbilityService:
             ability_entry = GameData.get_ability_catalog_entry(action_id)
             if ability_entry:
                 config = ability_entry.technical
+                if AbilityService.is_ability_on_cooldown(actor, config.ability_id):
+                    ctx.phases.run_calculator = False
+                    ctx.result.skip_reason = "COOLDOWN"
+                    log.bind(ability_id=config.ability_id).debug("AbilityServiceCooldownActive")
+                    return
                 cost_ok = AbilityService._check_ability_cost(actor, config.cost)
                 if cost_ok:
                     AbilityService._register_ability_cost(ctx, config.cost)
@@ -353,17 +364,51 @@ class AbilityService:
         modified_keys: list[str] = []
         modified_sources: dict[str, list[str]] = {}
 
-        if config.modifier_applications:
+        active_id = action_id
+        if mode == "ability":
+            active_id = getattr(config, "ability_id", action_id)
+        elif mode == "feint":
+            active_id = getattr(config, "feint_id", action_id)
+
+        modifier_applications = list(config.modifier_applications or [])
+        duration_applications = [
+            application for application in modifier_applications if application.scope == "duration"
+        ]
+        immediate_applications = [
+            application for application in modifier_applications if application.scope != "duration"
+        ]
+        materialize_status_after_calc = AbilityService._materializes_status_after_calc(
+            mode=mode,
+            config=config,
+            duration_applications=duration_applications,
+        )
+        if materialize_status_after_calc:
+            ctx.phases.run_calculator = False
+
+        if modifier_applications and AbilityService._uses_source_stats(modifier_applications):
+            StatsEngine.ensure_stats(actor)
+
+        if immediate_applications:
             applied_modifiers = ModifierApplicationService.apply(
-                applications=config.modifier_applications,
+                applications=immediate_applications,
                 owner=mode,
                 owner_uid=ability_uid,
                 owner_id=action_id,
                 source=actor,
                 target=target,
+                symbiote_ability_mult=AbilityService._symbiote_ability_mult(config),
             )
             modified_keys = sorted(set(modified_keys) | applied_modifiers.modified_keys)
             AbilityService._merge_modified_sources(modified_sources, applied_modifiers.modified_sources)
+
+        if duration_applications and not materialize_status_after_calc:
+            AbilityService._materialize_modifier_status_effects(
+                applications=duration_applications,
+                config=config,
+                source=actor,
+                target=target,
+                action_id=active_id,
+            )
 
         bonus_per_tier = float(getattr(config, "hit_damage_bonus_per_tier", 0.0))
         if mode == "feint" and bonus_per_tier > 0:
@@ -395,24 +440,22 @@ class AbilityService:
         effects = getattr(config, "effects", None)
         if effects:
             payload_effects["is_hit"] = effects
+        if materialize_status_after_calc:
+            payload_effects["post_calc_status"] = {
+                "modifier_applications": [application.model_dump(mode="json") for application in duration_applications],
+            }
 
-        # Determine ID for ActiveAbilityDTO
-        active_id = action_id
-        if mode == "ability":
-            active_id = getattr(config, "ability_id", action_id)
-        elif mode == "feint":
-            active_id = getattr(config, "feint_id", action_id)
-
-        active_ability = ActiveAbilityDTO(
-            uid=ability_uid,
-            ability_id=active_id,  # type: ignore # Pydantic validator handles this usually
-            source_id=actor.char_id,
-            expire_at_exchange=AbilityService._ability_expire_exchange(actor.meta.exchange_counter, config),
-            modified_keys=modified_keys,
-            modified_sources=modified_sources,
-            payload={"effects": payload_effects},
-        )
-        actor.statuses.abilities.append(active_ability)
+        if payload_effects:
+            active_ability = ActiveAbilityDTO(
+                uid=ability_uid,
+                ability_id=active_id,  # type: ignore # Pydantic validator handles this usually
+                source_id=actor.char_id,
+                expire_at_exchange=AbilityService._ability_expire_exchange(actor.meta.exchange_counter, config),
+                modified_keys=modified_keys,
+                modified_sources=modified_sources,
+                payload={"effects": payload_effects},
+            )
+            actor.statuses.abilities.append(active_ability)
 
         if config.pipeline_mutations:
             if hasattr(config.pipeline_mutations, "preset") and config.pipeline_mutations.preset:
@@ -446,6 +489,91 @@ class AbilityService:
         if config.override_damage:
             ctx.override_damage = config.override_damage
 
+    @staticmethod
+    def _materialize_modifier_status_effects(
+        *,
+        applications: list[ModifierApplicationDTO],
+        config: AbilityTechnicalDTO | FeintTechnicalDTO,
+        source: ActorSnapshot,
+        target: ActorSnapshot | None,
+        action_id: str,
+    ) -> None:
+        grouped: dict[str, list[ModifierApplicationDTO]] = {}
+        for application in applications:
+            grouped.setdefault(application.target_actor, []).append(application)
+
+        for target_actor_key, grouped_applications in grouped.items():
+            effect_target = AbilityService._modifier_status_target(
+                target_actor_key,
+                source=source,
+                target=target,
+            )
+            if effect_target is None:
+                continue
+
+            effect_uid = str(uuid.uuid4())
+            applied_modifiers = ModifierApplicationService.apply(
+                applications=grouped_applications,
+                owner="effect",
+                owner_uid=effect_uid,
+                owner_id=action_id,
+                source=source,
+                target=effect_target,
+                symbiote_ability_mult=AbilityService._symbiote_ability_mult(config),
+            )
+            if not applied_modifiers.modified_keys:
+                continue
+
+            active_effect = ActiveEffectDTO(
+                uid=effect_uid,
+                effect_id=action_id,
+                source_id=source.char_id,
+                active_from_exchange=effect_target.meta.exchange_counter,
+                expire_at_exchange=AbilityService._ability_expire_exchange(effect_target.meta.exchange_counter, config),
+                modified_keys=sorted(applied_modifiers.modified_keys),
+                modified_sources=applied_modifiers.modified_sources,
+            )
+            AbilityService._replace_modifier_status_effect(effect_target, active_effect)
+
+    @staticmethod
+    def _modifier_status_target(
+        target_actor_key: str,
+        *,
+        source: ActorSnapshot,
+        target: ActorSnapshot | None,
+    ) -> ActorSnapshot | None:
+        if target_actor_key in {"self", "attacker"}:
+            return source
+        if target_actor_key in {"target", "defender"}:
+            return target
+        return None
+
+    @staticmethod
+    def _replace_modifier_status_effect(actor: ActorSnapshot, active_effect: ActiveEffectDTO) -> None:
+        kept_effects: list[ActiveEffectDTO] = []
+        for existing in actor.statuses.effects:
+            if existing.effect_id != active_effect.effect_id:
+                kept_effects.append(existing)
+                continue
+            if existing.modified_sources:
+                ModifierApplicationService.remove_temp_sources(actor, existing.modified_sources)
+        actor.statuses.effects = kept_effects
+        actor.statuses.effects.append(active_effect)
+
+    @staticmethod
+    def _materializes_status_after_calc(
+        *,
+        mode: Literal["ability", "feint"],
+        config: AbilityTechnicalDTO | FeintTechnicalDTO,
+        duration_applications: list[ModifierApplicationDTO],
+    ) -> bool:
+        if mode != "ability" or not duration_applications:
+            return False
+        target = getattr(config, "target", None)
+        target_value = getattr(target, "value", target)
+        preset = getattr(getattr(config, "pipeline_mutations", None), "preset", None)
+        return str(target_value).lower() == "self" and str(preset).upper() == "BUFF"
+
     # ==============================================================================
     # UNIVERSAL LOGIC HANDLER (POST-CALC)
     # ==============================================================================
@@ -459,6 +587,30 @@ class AbilityService:
         to_remove = []
 
         for ability in source.statuses.abilities:
+            status_payload = ability.payload.get("effects", {}).get("post_calc_status")
+            if isinstance(status_payload, dict):
+                applications_raw = status_payload.get("modifier_applications")
+                applications = (
+                    [
+                        ModifierApplicationDTO.model_validate(application)
+                        for application in applications_raw
+                        if isinstance(application, dict)
+                    ]
+                    if isinstance(applications_raw, list)
+                    else []
+                )
+                ability_entry = GameData.get_ability_catalog_entry(ability.ability_id)
+                if ability_entry and applications:
+                    AbilityService._materialize_modifier_status_effects(
+                        applications=applications,
+                        config=ability_entry.technical,
+                        source=source,
+                        target=target,
+                        action_id=ability.ability_id,
+                    )
+                to_remove.append(ability)
+                continue
+
             if ability.expire_at_exchange <= current_exchange:
                 if ability.modified_sources:
                     ModifierApplicationService.remove_temp_sources(source, ability.modified_sources)
@@ -626,6 +778,22 @@ class AbilityService:
                     delta=-reflected_damage,
                     source_effect_id=effect_id,
                     tags=["prepared_reaction", "shield", "blood", "reflect", f"defender:{actor.char_id}"],
+                )
+            )
+            return
+
+        if effect_id == "prep_dual_crimson_lock":
+            reflected_damage = int(max(1, round(max(0, ctx.result.damage_final) * 0.50)))
+            ctx.result.reflected_damage += reflected_damage
+            ctx.result.resource_facts.append(
+                CombatResourceFactDTO(
+                    actor_id=ctx.result.source_id,
+                    owner="source",
+                    resource="hp",
+                    reason="prepared_reflect",
+                    delta=-reflected_damage,
+                    source_effect_id=effect_id,
+                    tags=["prepared_reaction", "dual_wield", "blood", "reflect", f"defender:{actor.char_id}"],
                 )
             )
             return
@@ -802,6 +970,52 @@ class AbilityService:
                 )
                 continue
 
+            if effect_id == "shield_blood_heal":
+                params_raw = effect_data.get("params", {})
+                params = params_raw if isinstance(params_raw, dict) else {}
+                max_hp = max(0, int(effect_target.meta.max_hp or 0))
+                missing_hp = max(0, max_hp - int(effect_target.meta.hp or 0))
+                ratio = AbilityService._float_param(params, "heal_max_hp_ratio", default=0.15)
+                heal_amount = min(missing_hp, max(1, int(round(max_hp * ratio))))
+                if heal_amount <= 0:
+                    continue
+                ctx.result.healing_final += heal_amount
+                ctx.result.resource_applications.append(
+                    CombatResourceApplicationDTO(
+                        actor_id=effect_target.char_id,
+                        owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                        resource="hp",
+                        reason="shield_blood_heal",
+                        value=f"+{heal_amount}",
+                        source_effect_id="shield_blood_heal",
+                        tags=["shield", "blood", "heal"],
+                    )
+                )
+                ctx.result.effect_facts.append(
+                    CombatEffectFactDTO(
+                        actor_id=effect_target.char_id,
+                        owner=AbilityService._fact_owner(ctx, effect_target.char_id),
+                        effect_id="shield_blood_heal",
+                        action="apply",
+                        value=heal_amount,
+                        resource="hp",
+                        source_trigger_id=effect_data.get("source_trigger_id"),
+                        tags=["shield", "blood", "heal"],
+                    )
+                )
+                ctx.result.events.append(
+                    CombatEventDTO(
+                        type="HEAL",
+                        source_id=source.char_id,
+                        target_id=effect_target.char_id,
+                        value=heal_amount,
+                        resource="hp",
+                        action_id="shield_blood_heal",
+                        tags=["BLOOD", "SHIELD"],
+                    )
+                )
+                continue
+
             if effect_id == "restore_hp":
                 val = effect_data.get("params", {}).get("value", 0)
                 ctx.result.healing_final += val
@@ -912,6 +1126,9 @@ class AbilityService:
                 active_effect.active_from_exchange = active_from_exchange
                 active_effect.expire_at_exchange = active_from_exchange + duration
 
+            if AbilityService._skip_or_refresh_exclusive_effect(effect_target, active_effect):
+                continue
+
             if config.modifier_applications:
                 applied_modifiers = ModifierApplicationService.apply(
                     applications=config.modifier_applications,
@@ -954,6 +1171,24 @@ class AbilityService:
                     type="APPLY_EFFECT", source_id=source.char_id, target_id=effect_target.char_id, action_id=effect_id
                 )
             )
+
+    @staticmethod
+    def _skip_or_refresh_exclusive_effect(effect_target: ActorSnapshot, active_effect: ActiveEffectDTO) -> bool:
+        same_effect = next(
+            (existing for existing in effect_target.statuses.effects if existing.effect_id == active_effect.effect_id),
+            None,
+        )
+        if same_effect is not None:
+            same_effect.expire_at_exchange = max(same_effect.expire_at_exchange, active_effect.expire_at_exchange)
+            return True
+
+        incoming_channels = effect_exclusive_channels(active_effect.effect_id)
+        if not incoming_channels:
+            return False
+        return any(
+            incoming_channels & effect_exclusive_channels(existing.effect_id)
+            for existing in effect_target.statuses.effects
+        )
 
     @staticmethod
     def _effect_application_passes_resistance(
@@ -1030,6 +1265,79 @@ class AbilityService:
         if delta <= 0:
             return
         ctx.result.resource_changes.setdefault("hp", {})["combat_regen"] = f"+{delta}"
+
+    @staticmethod
+    def _register_vampiric_lifesteal(ctx: PipelineContextDTO, source: ActorSnapshot) -> None:
+        if not source.is_alive:
+            return
+        if not ctx.flags.mechanics.apply_sustain:
+            return
+        if not ctx.flags.damage.vampiric:
+            return
+        if not ctx.result.is_hit or ctx.result.damage_final <= 0:
+            return
+
+        StatsEngine.ensure_stats(source)
+        if not source.stats:
+            return
+
+        power = max(0.0, min(1.0, float(source.stats.mods.vampiric_power or 0.0)))
+        if power <= 0:
+            return
+        cap = max(0.0, min(1.0, float(source.stats.mods.vampiric_trigger_cap or 1.0)))
+        bonus_chance = max(0.0, float(source.stats.mods.vampiric_trigger_chance or 0.0))
+        chance = min(cap, 0.80 + bonus_chance)
+        roll, passed = MathCore.roll_chance(chance)
+        ctx.result.checks.append(
+            CombatCheckTraceDTO(
+                stage="vampiric",
+                chance=chance,
+                roll=roll,
+                passed=passed,
+                details={"power": power, "cap": cap, "bonus_chance": bonus_chance},
+            )
+        )
+        if not passed:
+            return
+
+        heal_amount = int(ctx.result.damage_final * power)
+        if heal_amount <= 0:
+            return
+        ctx.result.lifesteal_amount += heal_amount
+        ctx.result.healing_final += heal_amount
+        ctx.result.resource_applications.append(
+            CombatResourceApplicationDTO(
+                actor_id=source.char_id,
+                owner=AbilityService._fact_owner(ctx, source.char_id),
+                resource="hp",
+                reason="vampiric",
+                value=f"+{heal_amount}",
+                source_effect_id="vampiric",
+                tags=["vampiric", "lifesteal"],
+            )
+        )
+        ctx.result.effect_facts.append(
+            CombatEffectFactDTO(
+                actor_id=source.char_id,
+                owner=AbilityService._fact_owner(ctx, source.char_id),
+                effect_id="vampiric",
+                action="apply",
+                value=heal_amount,
+                resource="hp",
+                tags=["vampiric", "lifesteal"],
+            )
+        )
+        ctx.result.events.append(
+            CombatEventDTO(
+                type="HEAL",
+                source_id=source.char_id,
+                target_id=source.char_id,
+                value=heal_amount,
+                resource="hp",
+                action_id="vampiric",
+                tags=["VAMPIRIC"],
+            )
+        )
 
     @staticmethod
     def _combat_stamina_regen_delta(value: float) -> int:
@@ -1149,9 +1457,34 @@ class AbilityService:
             token_costs["gift"] = token_costs.get("gift", 0) + cost.gift_tokens
         return (
             actor.meta.en >= cost.energy
+            and actor.meta.stamina >= cost.stamina
             and actor.meta.hp >= cost.hp
             and all(actor.meta.tokens.get(token, 0) >= amount for token, amount in token_costs.items())
         )
+
+    @staticmethod
+    def is_ability_on_cooldown(actor: ActorSnapshot, ability_id: str) -> bool:
+        until = int(actor.meta.ability_cooldowns.get(str(ability_id), 0) or 0)
+        return until > int(actor.meta.exchange_counter)
+
+    @staticmethod
+    def apply_ability_cooldown(actor: ActorSnapshot, ability_id: str) -> None:
+        ability_entry = GameData.get_ability_catalog_entry(ability_id)
+        if ability_entry is None:
+            return
+        cooldown = AbilityService._ability_cooldown_exchanges(ability_entry.technical)
+        if cooldown <= 0:
+            return
+        actor.meta.ability_cooldowns[str(ability_id)] = int(actor.meta.exchange_counter) + cooldown
+
+    @staticmethod
+    def _ability_cooldown_exchanges(config: AbilityTechnicalDTO) -> int:
+        explicit = getattr(config, "cooldown_exchanges", None)
+        if explicit is not None:
+            return max(0, int(explicit))
+        token_total = max(0, int(getattr(config.cost, "gift_tokens", 0) or 0))
+        token_total += sum(max(0, int(amount)) for amount in dict(config.cost.tokens).values())
+        return token_total
 
     @staticmethod
     def _register_ability_cost(ctx: PipelineContextDTO, cost: AbilityCostDTO) -> None:
@@ -1159,6 +1492,10 @@ class AbilityService:
             if "en" not in ctx.result.resource_changes:
                 ctx.result.resource_changes["en"] = {}
             ctx.result.resource_changes["en"]["cost"] = f"-{cost.energy}"
+        if cost.stamina > 0:
+            if "stamina" not in ctx.result.resource_changes:
+                ctx.result.resource_changes["stamina"] = {}
+            ctx.result.resource_changes["stamina"]["cost"] = f"-{cost.stamina}"
         if cost.hp > 0:
             if "hp" not in ctx.result.resource_changes:
                 ctx.result.resource_changes["hp"] = {}
@@ -1185,11 +1522,28 @@ class AbilityService:
     @staticmethod
     def _ability_expire_exchange(current_exchange: int, config: AbilityTechnicalDTO | FeintTechnicalDTO) -> int:
         expire_at_exchange = current_exchange
+        symbiote_ability_mult = AbilityService._symbiote_ability_mult(config)
         for application in config.modifier_applications:
             if application.scope == "duration":
                 duration = application.duration_exchanges or 1
+                if application.scale_duration_with_symbiote:
+                    duration = max(duration, math.floor(duration * symbiote_ability_mult))
                 expire_at_exchange = max(expire_at_exchange, current_exchange + duration)
         return expire_at_exchange
+
+    @staticmethod
+    def _symbiote_ability_mult(config: AbilityTechnicalDTO | FeintTechnicalDTO | EffectTechnicalDTO) -> float:
+        try:
+            return float(getattr(config, "symbiote_ability_mult", 1.0) or 1.0)
+        except (TypeError, ValueError):
+            return 1.0
+
+    @staticmethod
+    def _uses_source_stats(applications: list[ModifierApplicationDTO]) -> bool:
+        return any(
+            application.value_mode in {"source_main_hand_damage_multiplier", "source_modifier_multiplier"}
+            for application in applications
+        )
 
     @staticmethod
     def _ability_default_outcome(config: AbilityTechnicalDTO | FeintTechnicalDTO) -> str:

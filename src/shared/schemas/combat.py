@@ -256,6 +256,7 @@ class CombatActorCardDTO(CombatJsonDTO):
     weapon_type: str | None = None
     quick_items: list[dict[str, Any]] = Field(default_factory=list)
     known_abilities: list[str] = Field(default_factory=list)
+    ability_cooldowns: dict[str, int] = Field(default_factory=dict)
     tokens: dict[str, int] = Field(default_factory=dict)
     active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
     active_abilities: list[CombatAbilityBadgeDTO] = Field(default_factory=list)

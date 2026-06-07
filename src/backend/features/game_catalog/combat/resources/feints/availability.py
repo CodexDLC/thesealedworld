@@ -11,9 +11,10 @@ BASIC_FEINTS: tuple[str, ...] = (
     "blade_dance",
     "foresight_parry",
     "second_breath",
-    "perfect_riposte",
     "press_defense",
+    "press_defense_advanced",
     "basic_seize_tempo",
+    "measured_strike_advanced",
 )
 
 BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
@@ -35,7 +36,11 @@ SWORD_WEAPON_FEINTS: tuple[str, ...] = (
     "sword_hard_bind",
     "sword_cut_angle",
     "sword_clean_path",
-    "sword_blade_whirl",
+    "sword_cross_arc",
+    "sword_full_circle",
+    "sword_low_angle_advanced",
+    "sword_clean_path_advanced",
+    "sword_full_circle_advanced",
 )
 
 FENCING_WEAPON_FEINTS: tuple[str, ...] = (
@@ -47,6 +52,10 @@ FENCING_WEAPON_FEINTS: tuple[str, ...] = (
     "fencing_slip_guard",
     "fencing_inside_line",
     "fencing_line_flurry",
+    "fencing_storm_lattice",
+    "fencing_corner_entry_advanced",
+    "fencing_hidden_entry_advanced",
+    "fencing_storm_lattice_advanced",
 )
 
 POLEARM_WEAPON_FEINTS: tuple[str, ...] = (
@@ -58,7 +67,11 @@ POLEARM_WEAPON_FEINTS: tuple[str, ...] = (
     "polearm_pinning_point",
     "polearm_locked_distance",
     "polearm_line_cleave",
+    "polearm_field_sweep",
     "polearm_topple_strike",
+    "polearm_pinning_point_advanced",
+    "polearm_locked_distance_advanced",
+    "polearm_field_sweep_advanced",
 )
 
 MACING_WEAPON_FEINTS: tuple[str, ...] = (
@@ -69,15 +82,24 @@ MACING_WEAPON_FEINTS: tuple[str, ...] = (
     "macing_break_stance",
     "macing_guard_cracker",
     "macing_shock_sweep",
+    "macing_earthshatter",
+    "macing_skullbreaker_advanced",
+    "macing_break_stance_advanced",
+    "macing_earthshatter_advanced",
 )
 
 ARCHERY_WEAPON_FEINTS: tuple[str, ...] = (
     "arrow_rain",
+    "arrow_fan",
     "snap_shot",
     "headshot",
     "piercing_arrow",
     "precise_weak_spot",
     "quiet_weak_spot",
+    "snap_shot_advanced",
+    "headshot_advanced",
+    "piercing_arrow_advanced",
+    "arrow_rain_advanced",
 )
 
 RANGED_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -87,6 +109,7 @@ RANGED_TACTICAL_FEINTS: tuple[str, ...] = (
     "open_distance",
     "blinding_shot",
     "ranged_covering_volley",
+    "ranged_terrain_read",
 )
 
 SHIELD_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -101,6 +124,15 @@ SHIELD_TACTICAL_FEINTS: tuple[str, ...] = (
     "blood_wall_crash",
     "scarlet_riposte",
     "red_line_bash",
+    "shield_anti_dispel_brace",
+    "shield_focused_pressure",
+    "shield_blood_ward",
+    "read_tactic_advanced",
+    "shield_blood_mend",
+    "shield_aegis_break",
+    "concussion_advanced",
+    "shield_line_bash_advanced",
+    "shield_aegis_break_advanced",
 )
 
 TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -111,6 +143,12 @@ TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
     "answering_stance",
     "closed_distance",
     "hidden_agility",
+    "2h_brace_to_blade",
+    "2h_blade_to_break",
+    "2h_break_to_step",
+    "2h_press_to_parry",
+    "2h_blood_to_crit",
+    "2h_perfect_riposte",
     "push_stance",
     "ignore_guard",
     "open_wound",
@@ -118,7 +156,13 @@ TWO_HANDED_TACTICAL_FEINTS: tuple[str, ...] = (
     "hidden_strength",
     "lucky_break",
     "two_handed_whirl",
+    "two_handed_devastation",
     "two_handed_momentum_strike",
+    "heavy_swing_advanced",
+    "ignore_guard_advanced",
+    "lucky_break_advanced",
+    "two_handed_whirl_advanced",
+    "two_handed_devastation_advanced",
 )
 
 DUAL_WIELD_TACTICAL_FEINTS: tuple[str, ...] = (
@@ -128,12 +172,22 @@ DUAL_WIELD_TACTICAL_FEINTS: tuple[str, ...] = (
     "torn_rhythm",
     "bind_blade",
     "offhand_over",
+    "dual_blade_mill_v2",
+    "dual_split_targets",
+    "dual_chain_follow",
+    "dual_paired_open",
+    "dual_cross_lock",
+    "dual_blade_vise",
+    "dual_crimson_lock",
     "open_vein",
     "silent_puncture",
     "answering_series",
-    "blade_mill",
     "blade_loop",
+    "dual_cross_slash",
     "dual_blade_whirl",
+    "open_vein_advanced",
+    "silent_puncture_advanced",
+    "dual_blade_whirl_advanced",
 )
 
 SKILL_FEINT_UNLOCKS: dict[str, tuple[tuple[float, tuple[str, ...]], ...]] = {

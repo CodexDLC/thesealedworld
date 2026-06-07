@@ -18,6 +18,7 @@ class AbilityCostDTO(BaseModel):
     """
 
     energy: int = 0  # Мана / Энергия
+    stamina: int = 0  # Выносливость
     hp: int = 0  # Здоровье (Кровавая магия)
     gift_tokens: int = 0  # Спец. ресурс Дара
     tokens: dict[str, int] = Field(default_factory=dict)  # Боевые токены: tempo, blood, hit, crit, etc.
@@ -44,10 +45,12 @@ class AbilityTechnicalDTO(BaseModel):
 
     # === COST ===
     cost: AbilityCostDTO = Field(default_factory=AbilityCostDTO)
+    cooldown_exchanges: int | None = None
 
     # === TARGETING ===
     target: TargetType = TargetType.SINGLE_ENEMY
     target_count: int = 1
+    secondary_damage_mult: float = 0.5
 
     # === PIPELINE CONFIG ===
 
@@ -75,6 +78,10 @@ class AbilityTechnicalDTO(BaseModel):
 
     # Stable semantic hints for AI scoring and reports. They do not change runtime math.
     ai_tags: list[str] = Field(default_factory=list)
+
+    # Placeholder multiplier. Runtime currently defaults to 1.0; later this can
+    # be resolved from symbiote tier data before applying scaled modifiers.
+    symbiote_ability_mult: float = 1.0
 
 
 class AbilityCatalogEntryDTO(CombatCatalogEntryDTO):

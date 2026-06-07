@@ -22,6 +22,16 @@ def apply(
     state.total_damage *= ctx.mods.damage_mult
     state.total_damage = max(0.0, state.total_damage)
 
+    state.incoming_damage_absorb_pct = max(
+        0.0,
+        min(1.0, float(getattr(def_.mods, "incoming_damage_absorb_pct", 0.0) or 0.0)),
+    )
+    if state.incoming_damage_absorb_pct > 0.0 and state.total_damage > 0.0:
+        before_absorb = state.total_damage
+        state.total_damage *= 1.0 - state.incoming_damage_absorb_pct
+        state.incoming_damage_absorbed = before_absorb - state.total_damage
+    state.after_incoming_absorb = state.total_damage
+
     damage_channel_enabled = ctx.flags.damage.physical or ctx.flags.damage.pure or state.elemental_damage_enabled
     if damage_channel_enabled and state.raw_damage > 0.0:
         state.total_damage = max(1.0, state.total_damage)

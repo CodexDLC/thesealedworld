@@ -104,7 +104,7 @@ def test_scenario_set_covers_policy_noise_and_archetype_behaviour() -> None:
         "archetype_duelist_counter_defence",
         "basic_blood_heal",
         "basic_break_stance_instant",
-        "basic_energy_discipline",
+        "basic_stamina_discipline",
     } <= set(scenarios)
     assert scenarios["stamina_discipline"].expected[0].expected_feint_id == "sword_blade_bind"
     assert scenarios["sticky_target_focus"].expected[0].target_id == "sticky_previous"
@@ -112,7 +112,7 @@ def test_scenario_set_covers_policy_noise_and_archetype_behaviour() -> None:
     assert scenarios["variety_after_repeat"].expected[0].expected_feint_id == "macing_break_stance"
     assert scenarios["basic_blood_heal"].expected[0].expected_ability_id == "basic_wipe_blood"
     assert scenarios["basic_break_stance_instant"].expected[0].expected_ability_id == "basic_break_stance"
-    assert scenarios["basic_energy_discipline"].expected[0].expected_ability_id == "basic_punish_mistake"
+    assert scenarios["basic_stamina_discipline"].expected[0].expected_ability_id == "basic_break_stance"
 
 
 @pytest.mark.unit
@@ -244,7 +244,7 @@ def test_required_prep_dispel_missing_is_a_hard_synthetic_failure() -> None:
 
 @pytest.mark.unit
 def test_required_exact_instant_ability_mismatch_is_a_synthetic_failure() -> None:
-    source = next(s for s in default_scenario_set(seed=0) if s.name == "basic_energy_discipline")
+    source = next(s for s in default_scenario_set(seed=0) if s.name == "basic_stamina_discipline")
     scenario = SyntheticScenario(
         name="expects_expensive_finish_instant",
         bot=source.bot,
@@ -253,7 +253,7 @@ def test_required_exact_instant_ability_mismatch_is_a_synthetic_failure() -> Non
             ScenarioTarget(
                 source.targets[0].meta.id,
                 frozenset({"damage_tag"}),
-                expected_ability_id="basic_finish_moment",
+                expected_ability_id="basic_expose_weakness",
                 reward_weight=2.0,
             ),
         ],

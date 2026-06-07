@@ -11,6 +11,10 @@ from typing import Any
 
 from src.backend.features.combat.dto.actor import ActorMetaDTO
 from src.backend.features.combat.integrations import CombatCatalogIntegrator
+from src.backend.features.combat.runtime.engine.preparation_exclusivity import (
+    active_effect_ids_exclusive_channels,
+    feint_preparation_exclusive_channels,
+)
 
 FEINT_STAMINA_PER_TOKEN = 3
 FEINT_PURCHASE_GROUP_ORDER = ("weapon", "tactical", "basic")
@@ -25,7 +29,12 @@ class FeintService:
     """
 
     @staticmethod
-    def refill_hand(actor: ActorMetaDTO, hand_size: int = 3) -> None:
+    def refill_hand(
+        actor: ActorMetaDTO,
+        hand_size: int = 3,
+        *,
+        active_effect_ids: set[str] | frozenset[str] | None = None,
+    ) -> None:
         """
         Пополняет руку до hand_size финтов.
         Временно списывает токены за добавленные финты.
@@ -43,6 +52,7 @@ class FeintService:
         if actor.feints.get_hand_size() >= hand_size:
             return
 
+        blocked_channels = active_effect_ids_exclusive_channels(active_effect_ids or ())
         occupied_groups = FeintService._occupied_purchase_groups(actor)
         for group in FEINT_PURCHASE_GROUP_ORDER:
             if actor.feints.get_hand_size() >= hand_size:
@@ -50,7 +60,7 @@ class FeintService:
             if group in occupied_groups:
                 continue
 
-            candidate = FeintService._best_affordable_in_group(actor, group)
+            candidate = FeintService._best_affordable_in_group(actor, group, blocked_channels=blocked_channels)
             if candidate is None:
                 continue
 
@@ -58,14 +68,19 @@ class FeintService:
             occupied_groups.add(group)
 
         while actor.feints.get_hand_size() < hand_size:
-            available_pool = FeintService._fallback_pool_by_purchase_priority(actor)
+            available_pool = FeintService._fallback_pool_by_purchase_priority(actor, blocked_channels=blocked_channels)
             if not available_pool:
                 return
 
             FeintService._reserve_feint(actor, random.choice(available_pool))  # nosec B311
 
     @staticmethod
-    def reroll_hand(actor: ActorMetaDTO, hand_size: int = 3) -> None:
+    def reroll_hand(
+        actor: ActorMetaDTO,
+        hand_size: int = 3,
+        *,
+        active_effect_ids: set[str] | frozenset[str] | None = None,
+    ) -> None:
         """
         Обновляет руку после размена.
 
@@ -84,7 +99,7 @@ class FeintService:
             FeintService._return_tokens(actor.tokens, cost)
             actor.feints.remove_from_hand(feint_id)
 
-        FeintService.refill_hand(actor, hand_size=hand_size)
+        FeintService.refill_hand(actor, hand_size=hand_size, active_effect_ids=active_effect_ids)
 
     @staticmethod
     def return_to_hand(actor: ActorMetaDTO, feint_key: str, cost: dict[str, int]) -> None:
@@ -132,13 +147,21 @@ class FeintService:
     # === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
     @staticmethod
-    def _available_feints(actor: ActorMetaDTO) -> list[tuple[str, Any]]:
+    def _available_feints(
+        actor: ActorMetaDTO,
+        *,
+        blocked_channels: frozenset[str] = frozenset(),
+    ) -> list[tuple[str, Any]]:
         available: list[tuple[str, Any]] = []
         for feint_id in actor.feints.arsenal:
             if actor.feints.is_in_hand(feint_id):
                 continue
+            if FeintService.is_on_cooldown(actor, feint_id):
+                continue
             feint_entry = CombatCatalogIntegrator.get_feint_catalog_entry(feint_id)
             if not feint_entry:
+                continue
+            if blocked_channels and feint_preparation_exclusive_channels(feint_entry) & blocked_channels:
                 continue
             cost_dict = dict(feint_entry.technical.cost.tactics)
             if FeintService._can_afford(actor.tokens, cost_dict):
@@ -156,10 +179,15 @@ class FeintService:
         return groups
 
     @staticmethod
-    def _best_affordable_in_group(actor: ActorMetaDTO, group: str) -> str | None:
+    def _best_affordable_in_group(
+        actor: ActorMetaDTO,
+        group: str,
+        *,
+        blocked_channels: frozenset[str] = frozenset(),
+    ) -> str | None:
         best_feint_id: str | None = None
         best_cost = -1
-        for feint_id, feint_entry in FeintService._available_feints(actor):
+        for feint_id, feint_entry in FeintService._available_feints(actor, blocked_channels=blocked_channels):
             if FeintService._purchase_group(feint_entry) != group:
                 continue
             total_cost = FeintService._total_cost(feint_entry.technical.cost.tactics)
@@ -169,8 +197,12 @@ class FeintService:
         return best_feint_id
 
     @staticmethod
-    def _fallback_pool_by_purchase_priority(actor: ActorMetaDTO) -> list[str]:
-        available = FeintService._available_feints(actor)
+    def _fallback_pool_by_purchase_priority(
+        actor: ActorMetaDTO,
+        *,
+        blocked_channels: frozenset[str] = frozenset(),
+    ) -> list[str]:
+        available = FeintService._available_feints(actor, blocked_channels=blocked_channels)
         for group in FEINT_PURCHASE_GROUP_ORDER:
             group_pool = [
                 feint_id for feint_id, feint_entry in available if FeintService._purchase_group(feint_entry) == group
@@ -189,6 +221,18 @@ class FeintService:
             return
         actor.feints.add_to_hand(feint_id, cost_dict)
         FeintService._deduct_tokens(actor.tokens, cost_dict)
+
+    @staticmethod
+    def apply_cooldown(actor: ActorMetaDTO, feint_id: str, cooldown_exchanges: int) -> None:
+        cooldown = max(0, int(cooldown_exchanges))
+        if cooldown <= 0:
+            return
+        actor.feints.cooldowns[str(feint_id)] = int(actor.exchange_counter) + cooldown
+
+    @staticmethod
+    def is_on_cooldown(actor: ActorMetaDTO, feint_id: str) -> bool:
+        until = int(actor.feints.cooldowns.get(str(feint_id), 0) or 0)
+        return until > int(actor.exchange_counter)
 
     @staticmethod
     def _purchase_group(feint_entry: Any) -> str:

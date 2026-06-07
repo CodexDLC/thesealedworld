@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.backend.features.monsters.resources.visuals import version_generated_asset_url
+from src.backend.features.monsters.resources.visuals import version_generated_asset_url, version_visual_image_urls
 
 
 class MonsterCombatActorInputBuilder:
@@ -20,12 +20,16 @@ class MonsterCombatActorInputBuilder:
     def build_snapshot(self, monster: Any) -> dict[str, Any]:
         actor_input = self.build_input(monster)
         meta = dict(actor_input.get("meta") or {})
-        avatar_url = _monster_avatar_url(monster)
+        source = dict(actor_input.get("source") or {})
+        visual = _monster_visual(monster)
+        if visual:
+            source["visual"] = version_visual_image_urls(visual)
+        avatar_url = _monster_avatar_url(visual)
         if avatar_url:
-            meta.setdefault("avatar_url", avatar_url)
+            meta["avatar_url"] = avatar_url
         return {
             "meta": meta,
-            "source": dict(actor_input.get("source") or {}),
+            "source": source,
             "status": dict(actor_input.get("status") or {}),
             "combat": {
                 "math_model": dict(actor_input.get("raw") or {}),
@@ -35,16 +39,20 @@ class MonsterCombatActorInputBuilder:
         }
 
 
-def _monster_avatar_url(monster: Any) -> str | None:
+def _monster_visual(monster: Any) -> dict[str, Any]:
     actor_document = getattr(monster, "actor_document", None)
     if not isinstance(actor_document, dict):
-        return None
+        return {}
     base_projection = actor_document.get("base_projection")
     if not isinstance(base_projection, dict):
-        return None
+        return {}
     visual = base_projection.get("visual")
     if not isinstance(visual, dict):
-        return None
+        return {}
+    return dict(visual)
+
+
+def _monster_avatar_url(visual: dict[str, Any]) -> str | None:
     for key in ("image_url", "generated_image_url", "placeholder_image_url"):
         value = visual.get(key)
         if value:

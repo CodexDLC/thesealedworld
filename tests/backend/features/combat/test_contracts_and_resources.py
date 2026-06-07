@@ -212,35 +212,48 @@ def test_feint_costs_do_not_require_counter_token() -> None:
 
 def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() -> None:
     expected_costs = {
-        "basic_punish_mistake": {"tempo": 2, "hit": 3},
-        "basic_finish_moment": {"tempo": 2, "crit": 2},
-        "basic_break_stance": {"tempo": 2, "hit": 3},
-        "basic_expose_weakness": {"tempo": 2, "crit": 2},
-        "basic_wipe_blood": {"blood": 1},
-        "basic_grit_teeth": {"blood": 1},
-        "basic_bloody_answer": {"blood": 1, "hit": 3},
-        "basic_last_push": {"blood": 1, "tempo": 2},
+        "basic_break_stance": {"stamina": 0, "energy": 0, "gift_tokens": 0, "tokens": {"tempo": 3, "hit": 2}},
+        "basic_expose_weakness": {"stamina": 0, "energy": 0, "gift_tokens": 0, "tokens": {"tempo": 2, "crit": 2}},
+        "basic_wipe_blood": {"stamina": 0, "energy": 5, "gift_tokens": 1, "tokens": {"blood": 3, "block": 1}},
+        "basic_last_push": {"stamina": 0, "energy": 5, "gift_tokens": 1, "tokens": {"blood": 3, "parry": 1}},
+        "basic_slip_pain": {"stamina": 0, "energy": 5, "gift_tokens": 1, "tokens": {"blood": 3, "dodge": 1}},
+        "basic_blood_hunger": {
+            "stamina": 0,
+            "energy": 0,
+            "gift_tokens": 1,
+            "tokens": {"tempo": 5, "pressure": 5},
+        },
+        "basic_splinter_strike": {"stamina": 0, "energy": 5, "gift_tokens": 1, "tokens": {"hit": 3}},
+        "basic_cleave_gift": {
+            "stamina": 0,
+            "energy": 0,
+            "gift_tokens": 3,
+            "tokens": {"hit": 3, "pressure": 3},
+        },
     }
 
     assert tuple(expected_costs) == BASIC_GIFT_ABILITY_IDS
 
-    for ability_id, token_costs in expected_costs.items():
+    for ability_id, costs in expected_costs.items():
         entry = get_ability_catalog_entry(ability_id)
         assert entry is not None
         assert entry.key == f"combat.ability.{ability_id}"
         assert entry.technical.source == AbilitySource.COMBAT
-        assert entry.technical.cost.energy == 10
-        assert entry.technical.cost.gift_tokens == 0
-        assert entry.technical.cost.tokens == token_costs
+        assert entry.technical.cost.energy == costs["energy"]
+        assert entry.technical.cost.stamina == costs["stamina"]
+        assert entry.technical.cost.gift_tokens == costs.get("gift_tokens", 0)
+        assert entry.technical.cost.tokens == costs["tokens"]
         assert entry.descriptive.variants["humanoid"].display_name
 
-    for ability_id in (
+    for removed_ability_id in (
         "basic_punish_mistake",
         "basic_finish_moment",
-        "basic_break_stance",
-        "basic_expose_weakness",
+        "basic_grit_teeth",
         "basic_bloody_answer",
     ):
+        assert get_ability_catalog_entry(removed_ability_id) is None
+
+    for ability_id in ("basic_break_stance", "basic_expose_weakness"):
         entry = get_ability_catalog_entry(ability_id)
         assert entry is not None
         assert entry.technical.override_damage is None
@@ -251,42 +264,105 @@ def test_basic_gift_abilities_are_runtime_resources_with_combat_token_costs() ->
 
     wipe_blood = get_ability_catalog_entry("basic_wipe_blood")
     last_push = get_ability_catalog_entry("basic_last_push")
+    slip_pain = get_ability_catalog_entry("basic_slip_pain")
+    blood_hunger = get_ability_catalog_entry("basic_blood_hunger")
+    splinter_strike = get_ability_catalog_entry("basic_splinter_strike")
+    cleave_gift = get_ability_catalog_entry("basic_cleave_gift")
 
     assert wipe_blood is not None
-    assert wipe_blood.technical.override_damage == (6.0, 10.0)
+    assert wipe_blood.technical.symbiote_ability_mult == 1.0
+    assert wipe_blood.technical.override_damage is None
+    assert [app.modifier_id for app in wipe_blood.technical.modifier_applications] == [
+        "hp_regen_add",
+        "parry_add",
+        "parry_cap_add",
+    ]
+    assert [app.duration_exchanges for app in wipe_blood.technical.modifier_applications] == [3, 3, 3]
+    assert all(app.scale_value_with_symbiote for app in wipe_blood.technical.modifier_applications)
+    assert all(app.scale_duration_with_symbiote for app in wipe_blood.technical.modifier_applications)
     assert last_push is not None
-    assert last_push.technical.override_damage == (8.0, 12.0)
-    assert [app.modifier_id for app in last_push.technical.modifier_applications] == ["physical_damage_bonus_add"]
+    assert last_push.technical.symbiote_ability_mult == 1.0
+    assert last_push.technical.override_damage is None
+    assert [app.modifier_id for app in last_push.technical.modifier_applications] == [
+        "hp_regen_add",
+        "accuracy_add",
+        "accuracy_cap_add",
+    ]
+    assert [app.duration_exchanges for app in last_push.technical.modifier_applications] == [3, 3, 3]
+    assert all(app.scale_value_with_symbiote for app in last_push.technical.modifier_applications)
+    assert all(app.scale_duration_with_symbiote for app in last_push.technical.modifier_applications)
+    assert slip_pain is not None
+    assert slip_pain.technical.symbiote_ability_mult == 1.0
+    assert slip_pain.technical.override_damage is None
+    assert [app.modifier_id for app in slip_pain.technical.modifier_applications] == [
+        "hp_regen_add",
+        "incoming_damage_absorb_pct_add",
+    ]
+    assert [app.duration_exchanges for app in slip_pain.technical.modifier_applications] == [3, 3]
+    assert all(app.scale_value_with_symbiote for app in slip_pain.technical.modifier_applications)
+    assert all(app.scale_duration_with_symbiote for app in slip_pain.technical.modifier_applications)
+    assert blood_hunger is not None
+    assert blood_hunger.technical.symbiote_ability_mult == 1.0
+    assert blood_hunger.technical.override_damage is None
+    assert blood_hunger.technical.pipeline_mutations is not None
+    assert blood_hunger.technical.pipeline_mutations.preset == "BUFF"
+    assert [app.mutation_id for app in blood_hunger.technical.pipeline_mutations.applications] == ["damage.vampiric"]
+    assert [app.modifier_id for app in blood_hunger.technical.modifier_applications] == [
+        "physical_damage_bonus_add",
+        "vampiric_power_add",
+    ]
+    assert [app.duration_exchanges for app in blood_hunger.technical.modifier_applications] == [5, 5]
+    assert all(app.scale_value_with_symbiote for app in blood_hunger.technical.modifier_applications)
+    assert all(app.scale_duration_with_symbiote for app in blood_hunger.technical.modifier_applications)
+    assert splinter_strike is not None
+    assert splinter_strike.technical.target.value == "random_enemy"
+    assert splinter_strike.technical.target_count == 3
+    assert splinter_strike.technical.secondary_damage_mult == 0.5
+    assert cleave_gift is not None
+    assert [app.modifier_id for app in cleave_gift.technical.modifier_applications] == [
+        "cleave_damage_mult_add",
+        "cleave_target_count_add",
+    ]
+    assert [app.duration_exchanges for app in cleave_gift.technical.modifier_applications] == [3, 3]
 
 
 def test_public_ability_catalog_exposes_tooltip_payload() -> None:
     catalog = CombatResourceCatalogService.load_default().all_public_text()
 
-    punish = catalog["abilities"]["basic_punish_mistake"]
     break_stance = catalog["abilities"]["basic_break_stance"]
     expose_weakness = catalog["abilities"]["basic_expose_weakness"]
-    bloody_answer = catalog["abilities"]["basic_bloody_answer"]
 
-    assert punish["title"] == "Наказать ошибку"
-    assert punish["description"] == "Тратит темп и попадание, чтобы нанести быстрый урон."
-    assert punish["cost"] == {"energy": 10, "hp": 0, "gift_tokens": 0, "tokens": {"tempo": 2, "hit": 3}}
-    assert punish["target_label"] == "Один враг"
-    assert "Тип: тактический удар" in punish["mechanics"]
-    assert "Урон оружия: x1.2" in punish["mechanics"]
-    assert not any("18-22" in item for item in punish["mechanics"])
+    for removed_ability_id in (
+        "basic_punish_mistake",
+        "basic_finish_moment",
+        "basic_grit_teeth",
+        "basic_bloody_answer",
+    ):
+        assert removed_ability_id not in catalog["abilities"]
 
     assert break_stance["target_label"] == "Один враг"
+    assert break_stance["cost"] == {
+        "energy": 0,
+        "stamina": 0,
+        "hp": 0,
+        "gift_tokens": 0,
+        "tokens": {"tempo": 3, "hit": 2},
+    }
     assert "Тип: тактический удар" in break_stance["mechanics"]
     assert "Урон оружия: x1.2" in break_stance["mechanics"]
     assert "Цель получает: физический урон -25% урона умения на 4 размена" in break_stance["mechanics"]
 
     assert expose_weakness["description"] == "Тратит темп и критический момент, чтобы подавить уклонение цели."
+    assert expose_weakness["cost"] == {
+        "energy": 0,
+        "stamina": 0,
+        "hp": 0,
+        "gift_tokens": 0,
+        "tokens": {"tempo": 2, "crit": 2},
+    }
     assert "Тип: тактический удар" in expose_weakness["mechanics"]
     assert "Урон оружия: x1.2" in expose_weakness["mechanics"]
     assert "Цель получает: уклонение -0.5 на 3 размена" in expose_weakness["mechanics"]
-
-    assert "Урон оружия: x1.2" in bloody_answer["mechanics"]
-    assert "Эффект: кровотечение на 2 размена, сила 0.75" in bloody_answer["mechanics"]
 
 
 def test_ability_gift_and_item_catalog_entries_split_technical_and_descriptive() -> None:

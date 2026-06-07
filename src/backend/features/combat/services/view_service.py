@@ -552,10 +552,11 @@ class CombatViewService:
             weapon_type=self._weapon_type(loadout),
             quick_items=self._quick_items(loadout),
             known_abilities=[str(ability_id) for ability_id in loadout.get("known_abilities", []) if ability_id],
+            ability_cooldowns=self._ability_cooldowns(meta),
             tokens=tokens,
             active_effects=self._effects(statuses),
             active_abilities=self._abilities(statuses),
-            feints=self._feints(meta),
+            feints=self._feints(meta, statuses),
             stat_sheet=self._stat_sheet(actor, actor_id=str(meta.get("id") or actor_id), actor_name=actor_name),
         )
 
@@ -603,15 +604,11 @@ class CombatViewService:
                 ),
             )
             actions.extend(
-                CombatActionOptionDTO(
-                    action="instant",
-                    label=ability_id,
-                    enabled=enabled and self._ability_enabled(hero, ability_id),
-                    target_id=self._ability_target_id(ability_id, target, hero),
+                self._ability_action_option(
+                    hero=hero,
+                    target=target,
                     ability_id=ability_id,
-                    feint_id=None,
-                    catalog_ref="abilities",
-                    reason="action_registered" if not enabled else None,
+                    base_enabled=enabled,
                 )
                 for ability_id in hero.known_abilities
             )
@@ -793,10 +790,48 @@ class CombatViewService:
         ability = entry.technical
         return (
             hero.vitals.energy_current >= ability.cost.energy
+            and hero.vitals.stamina_current >= ability.cost.stamina
             and hero.vitals.hp_current >= ability.cost.hp
             and hero.tokens.get("gift", 0) >= ability.cost.gift_tokens
             and all(hero.tokens.get(token, 0) >= amount for token, amount in ability.cost.tokens.items())
         )
+
+    @classmethod
+    def _ability_action_option(
+        cls,
+        *,
+        hero: CombatActorCardDTO,
+        target: CombatActorCardDTO,
+        ability_id: str,
+        base_enabled: bool,
+    ) -> CombatActionOptionDTO:
+        cooldown_active = cls._ability_on_cooldown(hero, ability_id)
+        enabled = base_enabled and not cooldown_active and cls._ability_enabled(hero, ability_id)
+        reason = None
+        if not base_enabled:
+            reason = "action_registered"
+        elif cooldown_active:
+            reason = "cooldown"
+        return CombatActionOptionDTO(
+            action="instant",
+            label=ability_id,
+            enabled=enabled,
+            target_id=cls._ability_target_id(ability_id, target, hero),
+            ability_id=ability_id,
+            feint_id=None,
+            catalog_ref="abilities",
+            reason=reason,
+        )
+
+    @staticmethod
+    def _ability_on_cooldown(hero: CombatActorCardDTO, ability_id: str) -> bool:
+        return int(hero.ability_cooldowns.get(str(ability_id), 0) or 0) > int(hero.exchange_counter)
+
+    @classmethod
+    def _ability_cooldowns(cls, meta: dict[str, Any]) -> dict[str, int]:
+        cooldowns_raw = meta.get("ability_cooldowns")
+        cooldowns = cooldowns_raw if isinstance(cooldowns_raw, dict) else {}
+        return {str(key): cls._int(value) for key, value in cooldowns.items()}
 
     @staticmethod
     def _ability_target_id(
@@ -1228,18 +1263,29 @@ class CombatViewService:
     @staticmethod
     def _effect_catalog_badge_fields(effect_id: str) -> dict[str, str | None]:
         entry = CombatCatalogIntegrator.get_effect_catalog_entry(effect_id)
-        if entry is None:
+        if entry is not None:
+            description = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
+            if description is None:
+                return {}
+            return {
+                "title": description.display_name,
+                "description": description.tooltip or description.short_description,
+                "duration_label": CombatViewService._reactive_effect_duration_label(
+                    list(entry.technical.react_on_outcomes),
+                    consume_on_reaction=entry.technical.consume_on_reaction,
+                ),
+            }
+
+        ability_entry = CombatCatalogIntegrator.get_ability_catalog_entry(effect_id)
+        if ability_entry is None:
             return {}
-        description = entry.descriptive.variants.get(entry.descriptive.default_taxonomy)
+        description = ability_entry.descriptive.variants.get(ability_entry.descriptive.default_taxonomy)
         if description is None:
             return {}
         return {
             "title": description.display_name,
             "description": description.tooltip or description.short_description,
-            "duration_label": CombatViewService._reactive_effect_duration_label(
-                list(entry.technical.react_on_outcomes),
-                consume_on_reaction=entry.technical.consume_on_reaction,
-            ),
+            "duration_label": None,
         }
 
     @staticmethod
@@ -1278,7 +1324,11 @@ class CombatViewService:
         return result
 
     @staticmethod
-    def _feints(meta: dict[str, Any]) -> list[CombatFeintOptionDTO]:
+    def _feints(meta: dict[str, Any], statuses: dict[str, Any]) -> list[CombatFeintOptionDTO]:
+        from src.backend.features.combat.runtime.engine.preparation_exclusivity import (
+            active_effect_ids_exclusive_channels,
+            feint_preparation_exclusive_channels,
+        )
         from src.backend.features.game_catalog.combat.resources.feints import get_feint_catalog_entry
 
         feints_raw = meta.get("feints")
@@ -1286,9 +1336,26 @@ class CombatViewService:
         hand_raw = feints.get("hand")
         hand = hand_raw if isinstance(hand_raw, dict) else {}
         pinned = str(feints.get("pinned")) if feints.get("pinned") is not None else None
+        effects_raw = statuses.get("effects")
+        effects = effects_raw if isinstance(effects_raw, list) else []
+        current_exchange = CombatViewService._int(meta.get("exchange_counter"))
+        active_effect_ids = {
+            str(item.get("effect_id"))
+            for item in effects
+            if isinstance(item, dict)
+            and item.get("effect_id")
+            and CombatViewService._int(item.get("expire_at_exchange")) > current_exchange
+        }
+        blocked_channels = active_effect_ids_exclusive_channels(active_effect_ids)
         options: list[CombatFeintOptionDTO] = []
         for feint_id, cost in hand.items():
             entry = get_feint_catalog_entry(str(feint_id))
+            if (
+                blocked_channels
+                and entry is not None
+                and feint_preparation_exclusive_channels(entry) & blocked_channels
+            ):
+                continue
             purchase_group = "basic"
             icon = ""
             if entry is not None:

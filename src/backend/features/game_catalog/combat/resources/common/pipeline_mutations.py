@@ -106,6 +106,7 @@ PIPELINE_MUTATION_CONTRACT_DEFINITIONS: tuple[PipelineMutationContractDTO, ...] 
     _contract("damage.arcane", "flags.damage.arcane", "bool", True),
     _contract("damage.nature", "flags.damage.nature", "bool", True),
     _contract("damage.healing", "flags.damage.healing", "bool", True),
+    _contract("damage.vampiric", "flags.damage.vampiric", "bool", True),
     # State flags.
     _contract("reflect_block_state", "flags.state.is_reflect_block", "bool", True),
     _contract("open_combo", "flags.state.open_combo", "bool", True),

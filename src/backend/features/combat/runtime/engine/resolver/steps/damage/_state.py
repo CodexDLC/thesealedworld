@@ -64,3 +64,6 @@ class DamageState:
 
     # Final clamp.
     incoming_damage_cap: int = 0
+    incoming_damage_absorb_pct: float = 0.0
+    incoming_damage_absorbed: float = 0.0
+    after_incoming_absorb: float = 0.0

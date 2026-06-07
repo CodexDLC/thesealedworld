@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import time
+from datetime import UTC, datetime
 from typing import Any
 
-from codex_platform.streams.codec import encode_stream_payload
 from loguru import logger as log
 
-from src.backend.config.settings import settings
 from src.backend.infrastructure.combat.managers import CombatAnnouncementManager
+from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher, RawStreamNoticeProducer
 
 
 async def publish_combat_start_announcement(ctx: dict[str, Any], data_service: Any, session_id: str) -> None:
@@ -34,15 +35,16 @@ async def publish_combat_start_announcement(ctx: dict[str, Any], data_service: A
     if not team_summaries:
         return
 
-    content = "Бой начался: " + " против ".join(team_summaries) + "."
-    await _publish_announcement(
+    participants = " против ".join(team_summaries)
+    await _publish_system_notice(
         redis,
-        session_id=session_id,
         recipients=recipients,
         kind="start",
-        label="БОЙ НАЧАЛСЯ",
-        content=content,
-        result={"teams": teams},
+        publish=lambda publisher, recipient_ids: publisher.combat_started(
+            recipient_ids,
+            time_text=_time_text(meta.get("started_at") or meta.get("start_time")),
+            participants=participants,
+        ),
     )
 
 
@@ -71,27 +73,25 @@ async def publish_combat_final_announcement(ctx: dict[str, Any], finalization: d
     winner = str(finalization.get("winner_team") or "")
     last_turn = report.get("last_turn")
 
-    turn_text = f" на ходу {last_turn}" if last_turn is not None else ""
     if winner == "draw":
-        lead = f"Бой завершен{turn_text}. Ничья."
+        outcome = _with_turn("ничья", last_turn)
     else:
         winner_summary = _team_summary(winner, teams.get(winner), actors, final=True)
-        lead = f"Бой завершен{turn_text}. Победила {winner_summary}."
+        outcome = _with_turn(f"победила {winner_summary}", last_turn)
 
     team_summaries = _team_summaries(teams, actors, final=True)
-    content = lead
-    if team_summaries:
-        content += " Участники: " + "; ".join(team_summaries) + "."
+    participants = "; ".join(team_summaries) if team_summaries else "данные участников уточняются"
 
-    await _publish_announcement(
+    await _publish_system_notice(
         redis,
-        session_id=session_id,
         recipients=recipients,
         kind="final",
-        label="БОЙ ЗАВЕРШЕН",
-        content=content,
-        result={"teams": teams, "actors": actors, "winner_team": winner, "last_turn": last_turn},
-        global_turn=last_turn,
+        publish=lambda publisher, recipient_ids: publisher.combat_finished(
+            recipient_ids,
+            time_text=_time_text(finalization.get("finished_at")),
+            outcome=outcome,
+            participants=participants,
+        ),
     )
 
 
@@ -103,47 +103,20 @@ async def _claim_once(announcements: CombatAnnouncementManager, session_id: str,
         return False
 
 
-async def _publish_announcement(
+async def _publish_system_notice(
     redis: Any,
     *,
-    session_id: str,
     recipients: list[str],
     kind: str,
-    label: str,
-    content: str,
-    result: dict[str, Any],
-    global_turn: Any = None,
+    publish: Any,
 ) -> None:
-    payload = {
-        "scope_id": session_id,
-        "recipients": recipients,
-        "content": content,
-        "template": {"text": content},
-        "variables": {},
-        "result": result,
-        "presentation": {
-            "render": "combat_log",
-            "variant": "combat_announcement",
-            "separator": {
-                "label": label,
-                "key": f"combat:{session_id}:announcement:{kind}",
-            },
-        },
-        "meta": {
-            "combat_session_id": session_id,
-            "announcement": kind,
-            "global_turn": global_turn,
-        },
-    }
+    recipient_ids = [int(recipient) for recipient in recipients if str(recipient).isdigit()]
+    if not recipient_ids:
+        return
     try:
-        await redis.xadd(
-            settings.game_stream_name,
-            encode_stream_payload({"type": "chat.combat_message", **payload}),
-            maxlen=settings.game_stream_maxlen,
-            approximate=True,
-        )
+        await publish(PlayerNoticePublisher(RawStreamNoticeProducer(redis)), recipient_ids)
     except Exception:
-        log.bind(session_id=session_id, kind=kind).exception("CombatAnnouncementPublishFailed")
+        log.bind(recipients=recipients, kind=kind).exception("CombatAnnouncementPublishFailed")
 
 
 def _team_summaries(teams: Any, actors: dict[str, Any], *, final: bool) -> list[str]:
@@ -193,6 +166,20 @@ def _player_recipients(actor_ids: list[str], actors: dict[str, Any]) -> list[str
         if actor_id.isdigit():
             recipients.append(actor_id)
     return list(dict.fromkeys(recipients))
+
+
+def _time_text(value: Any) -> str:
+    timestamp = _optional_int(value)
+    if timestamp is None:
+        timestamp = int(time.time())
+    return datetime.fromtimestamp(timestamp, tz=UTC).strftime("%H:%M")
+
+
+def _with_turn(outcome: str, last_turn: Any) -> str:
+    turn = _optional_int(last_turn)
+    if turn is None:
+        return outcome
+    return f"{outcome} на ходу {turn}"
 
 
 def _team_label(team: str) -> str:

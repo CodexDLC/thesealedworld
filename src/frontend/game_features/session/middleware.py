@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import httpx
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -68,6 +69,24 @@ class GameTokenRefreshMiddleware(BaseHTTPMiddleware):
                 base_url=settings.backend_base_url,
             )
             tokens = await api.refresh_token(refresh_token)
+        except httpx.HTTPStatusError as exc:
+            # 4xx from backend means the token / session itself is bad — clear
+            # the cookies so the next request gets a clean login redirect.
+            # Everything else (502, timeout, connection refused) is transient:
+            # leave the cookies alone so the next request retries with the
+            # same refresh token instead of force-logging the player out.
+            status_code = exc.response.status_code
+            if 400 <= status_code < 500:
+                logger.bind(status=status_code).warning("FrontendGameTokenRefreshRejected")
+                request.state.clear_game_token_cookies = True
+            else:
+                logger.bind(status=status_code).warning("FrontendGameTokenRefreshUnavailable")
+            return
+        except (httpx.RequestError, ConnectionError, TimeoutError) as exc:
+            # Pure network/transport failure -> backend unreachable, not auth.
+            # Do NOT clear cookies; the next refresh attempt may succeed.
+            logger.bind(error=str(exc)).warning("FrontendGameTokenRefreshUnavailable")
+            return
         except Exception as exc:
             logger.bind(error=str(exc)).warning("FrontendGameTokenRefreshRejected")
             request.state.clear_game_token_cookies = True

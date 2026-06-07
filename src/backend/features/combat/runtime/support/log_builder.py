@@ -44,6 +44,10 @@ class CombatLogBuilder:
             target_id=target_id,
         )
         cls._apply_combat_text_variables(variables, template, action_id=action_id)
+        if template.get("outcome") == "controlled":
+            controlled_actor = cls._actor_ref(ctx, cls._controlled_actor_id(result) or source_id)
+            if controlled_actor is not None:
+                variables["target"] = str(controlled_actor.get("name") or variables.get("target") or "NO_TARGET")
         text = cls._render_combat_text(template, variables)
         text = cls._append_reflect_text(text, result=result, source=source, target=target)
         catalog = cls._combat_text_catalog_fields(template)
@@ -1271,6 +1275,13 @@ class CombatLogBuilder:
         for event in result.events:
             if event.target_id is not None:
                 return event.target_id
+        return None
+
+    @staticmethod
+    def _controlled_actor_id(result: InteractionResultDTO) -> int | str | None:
+        for fact in result.effect_facts:
+            if "control" in set(getattr(fact, "tags", []) or []):
+                return getattr(fact, "actor_id", None)
         return None
 
     @staticmethod

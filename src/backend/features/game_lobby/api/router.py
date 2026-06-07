@@ -175,10 +175,16 @@ async def refresh_game_token(
     # this character. If a newer login claimed the slot, refuse to mint a new
     # access token so the old device cannot resurrect itself.
     claims = decode_game_refresh_token(dto.refresh_token)
-    current_session = await request.app.state.game_session_lock.current(claims.character_id)
+    lock = request.app.state.game_session_lock
+    current_session = await lock.current(claims.character_id)
     if claims.session_id is None or current_session != claims.session_id:
         raise SessionReplacedException()
-    return refresh_game_token_pair(dto.refresh_token)
+    pair = refresh_game_token_pair(dto.refresh_token)
+    # Keep the lock TTL rolling for active players. Without this the lock
+    # silently expires after its own TTL even while the player is online,
+    # and the next refresh would see current_session=None -> 409.
+    await lock.claim(claims.character_id, claims.session_id)
+    return pair
 
 
 @router.get("/status", response_model=CharacterStatusDTO)

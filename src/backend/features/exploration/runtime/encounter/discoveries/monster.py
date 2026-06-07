@@ -38,6 +38,7 @@ class MonsterDiscoveryBuilder:
             loc_id,
             budget,
             force_single_family=True,
+            threat_mitigation_skill=hunting_skill,
             scope_id=encounter_id,
             correlation_id=encounter_id,
         )

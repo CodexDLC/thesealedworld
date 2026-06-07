@@ -44,7 +44,7 @@ BASIC_HIT_FEINTS_TECHNICAL = {
         cost=FeintCostDTO(tactics={"hit": 3, "tempo": 1}),
         target=TargetType.SINGLE_ENEMY,
         pipeline_mutations=[pipeline_mutation("ignore_miss")],
-        applicability_tags=[*_BASIC_HIT_TAGS, "tempo", "tier_1", "punish"],
+        applicability_tags=[*_BASIC_HIT_TAGS, "tempo", "tier_1"],
         hit_damage_bonus_per_tier=2,
         effects=[{"id": "debuff_accuracy", "target_actor": "target"}],
     ),
@@ -67,9 +67,9 @@ _BASIC_HIT_TEXTS = {
         "Базовый hit-финт: дорогой надежный удар с высоким бонусным уроном.",
     ),
     "measured_strike_advanced": (
-        "Карательный выверенный удар",
-        "наказывая промах противника провести надежный удар и сбить ему точность",
-        "Карательный базовый hit-финт: тратит темп, надежный удар с бонусом и сбивает точность цели.",
+        "Темповый выверенный удар",
+        "используя окно темпа провести надежный удар и сбить точность",
+        "Базовый hit-финт: тратит темп, надежный удар с бонусом и сбивает точность цели.",
     ),
 }
 

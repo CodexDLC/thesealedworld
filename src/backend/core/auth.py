@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from src.backend.core.exceptions import AuthException, PermissionDeniedException, SessionReplacedException
-from src.backend.core.game_auth import GameTokenClaims, decode_game_access_token
+from src.backend.core.game_auth import GAME_TOKEN_AUDIENCE, GameTokenClaims, decode_game_access_token
 from src.backend.core.security import decode_access_token
 from src.shared.schemas.auth import AuthenticatedUser
 
@@ -69,6 +69,9 @@ def require_game_character_scope(request: Request, user: AuthenticatedUser, char
 
 
 def _looks_like_game_token(token: str) -> bool:
+    """Route token to game decoder only if the unverified payload claims the
+    game audience and token type. The actual signature + audience guard is
+    enforced by ``decode_game_access_token``; this is just dispatch."""
     try:
         _, payload_raw, _ = token.split(".")
         import base64
@@ -79,4 +82,6 @@ def _looks_like_game_token(token: str) -> bool:
     except Exception:
         return False
     token_type = payload.get("token_type")
-    return token_type in {"game_access", "game_refresh"}
+    if token_type not in {"game_access", "game_refresh"}:
+        return False
+    return payload.get("aud") == GAME_TOKEN_AUDIENCE

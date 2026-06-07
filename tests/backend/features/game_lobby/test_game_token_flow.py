@@ -4,14 +4,19 @@ from uuid import uuid4
 
 import pytest
 
-from src.backend.core.exceptions import BusinessLogicException
-from src.backend.core.game_auth import decode_game_access_token
+from src.backend.core.exceptions import BusinessLogicException, SessionReplacedException
+from src.backend.core.game_auth import (
+    GameTokenRefreshRequestDTO,
+    create_game_refresh_token,
+    decode_game_access_token,
+)
 from src.backend.features.game_lobby.api.router import (
     bootstrap_lobby_for_site_user,
     check_lobby_character_name_for_site_user,
     create_lobby_character_for_site_user,
     delete_lobby_character_for_site_user,
     get_lobby_population_stats,
+    refresh_game_token,
     release_lobby_character_for_site_user,
     select_lobby_character_for_site_user,
 )
@@ -213,6 +218,60 @@ async def test_release_character_for_site_user_uses_internal_user_context() -> N
     user, character_id = service.release_character.await_args.args
     assert user.id == user_id
     assert character_id == 7
+
+
+def _request_with_lock_current(*, current_value: str | None) -> tuple[SimpleNamespace, AsyncMock]:
+    """Fake Request exposing both ``current`` and ``claim`` on game_session_lock."""
+    claim = AsyncMock()
+    current = AsyncMock(return_value=current_value)
+    state = SimpleNamespace(game_session_lock=SimpleNamespace(current=current, claim=claim))
+    request = SimpleNamespace(app=SimpleNamespace(state=state))
+    return request, claim
+
+
+@pytest.mark.unit
+async def test_refresh_game_token_touches_lock_on_success() -> None:
+    """Active players must keep their slot: each refresh re-claims the lock
+    with the same session_id so its TTL rolls forward. Without this the lock
+    silently expires while the refresh token is still valid, and the next
+    refresh would see current=None and raise SessionReplacedException."""
+    user_id = uuid4()
+    refresh_token_value = create_game_refresh_token(
+        user_id=user_id,
+        character_id=7,
+        session_id="sess-A",
+    )
+    request, claim = _request_with_lock_current(current_value="sess-A")
+
+    pair = await refresh_game_token(
+        request,
+        GameTokenRefreshRequestDTO(refresh_token=refresh_token_value),
+        object(),
+    )
+
+    new_claims = decode_game_access_token(pair.access_token)
+    assert new_claims.session_id == "sess-A"
+    claim.assert_awaited_once_with(7, "sess-A")
+
+
+@pytest.mark.unit
+async def test_refresh_game_token_rejects_stale_session_without_touching_lock() -> None:
+    user_id = uuid4()
+    refresh_token_value = create_game_refresh_token(
+        user_id=user_id,
+        character_id=7,
+        session_id="sess-OLD",
+    )
+    request, claim = _request_with_lock_current(current_value="sess-NEW")
+
+    with pytest.raises(SessionReplacedException):
+        await refresh_game_token(
+            request,
+            GameTokenRefreshRequestDTO(refresh_token=refresh_token_value),
+            object(),
+        )
+
+    claim.assert_not_awaited()
 
 
 @pytest.mark.unit

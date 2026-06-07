@@ -18,6 +18,12 @@ from src.backend.core.exceptions import AuthException, PermissionDeniedException
 
 GameTokenType = Literal["game_access", "game_refresh"]
 
+# Audience claim that pins this token to the game/realtime domain. The site
+# auth path (authx) never sets `aud`, so without this check a site-issued JWT
+# could pass as a game token (same SECRET_KEY, same HS256). The decode path
+# rejects any payload whose `aud` is not exactly this value.
+GAME_TOKEN_AUDIENCE = "tbmmorpg:game"  # nosec B105 - JWT audience marker, not a secret.
+
 
 class GameTokenPairDTO(BaseModel):
     access_token: str
@@ -34,6 +40,7 @@ class GameTokenClaims(BaseModel):
     sub: uuid.UUID
     character_id: int
     session_id: str | None = None
+    aud: str | None = None
     exp: int
     iat: int
     jti: str | None = None
@@ -143,6 +150,7 @@ def _encode_game_token(
         "sub": str(user_id),
         "character_id": character_id,
         "session_id": session_id,
+        "aud": GAME_TOKEN_AUDIENCE,
         "iat": int(now.timestamp()),
         "exp": int((now + expires_delta).timestamp()),
         "jti": uuid.uuid4().hex,
@@ -173,6 +181,12 @@ def _decode_game_token(token: str, *, expected_type: GameTokenType) -> GameToken
 
     payload: dict[str, Any] = json.loads(_b64url_decode(payload_raw))
     claims = GameTokenClaims.model_validate(payload)
+    # Audience guard: refuse any token (even one signed with the same
+    # SECRET_KEY) that wasn't minted for the game domain. Without this, a
+    # site-auth JWT could pass here as long as its payload happened to carry
+    # token_type + character_id.
+    if claims.aud != GAME_TOKEN_AUDIENCE:
+        raise AuthException("Invalid game token audience")
     if claims.token_type != expected_type:
         raise AuthException("Invalid game token type")
     if datetime.now(UTC).timestamp() >= claims.exp:

@@ -226,7 +226,10 @@ services:
       FRONTEND_SURFACE: play
       BACKEND_BASE_URL: http://backend:8001
       SITE_BASE_URL: http://thesealed.localhost:8080
-      REALTIME_WS_URL: ws://127.0.0.1:8002
+      # WS handshake MUST use the same origin as the page so the browser
+      # sends `tbmmorpg_game_access_token` (host-only cookie) on the upgrade.
+      # nginx routes /ws/realtime on play.thesealed.localhost to chat:8002.
+      REALTIME_WS_URL: ws://play.thesealed.localhost:8080
       AUTH_COOKIE_DOMAIN: .thesealed.localhost
       SITE_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_site  # pragma: allowlist secret
       GAME_DATABASE_URL: postgresql+asyncpg://tbmmorpg:tbmmorpg_dev@postgres:5432/tbmmorpg_game  # pragma: allowlist secret
@@ -336,7 +339,6 @@ services:
       uvicorn src.backend.chat.app:app
       --host 0.0.0.0
       --port 8002
-      --reload
       --log-level info
     depends_on:
       postgres:

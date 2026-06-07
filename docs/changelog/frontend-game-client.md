@@ -5,6 +5,18 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Realtime keepalive now refreshes stale existing game-token cookies before
+  reconnecting the chat WebSocket.
+- Realtime supervisor now reconnects the htmx-ws socket after game-token
+  keepalive recovers from auth-class WebSocket closes.
+- Realtime supervisor now replies to backend heartbeat pings through the
+  htmx-ws public sender, preventing healthy chat sockets from timing out.
+- Gameplay session entry now reissues missing game-token cookies before
+  rendering the realtime chat socket, and local chat no longer reloads on
+  unrelated backend file edits.
+- Realtime WebSocket recovery no longer closes fresh sockets on browser
+  online/visibility events, and stale sockets now close with an htmx reconnect
+  code.
 - Gameplay client recovery now nudges stale realtime sockets after tab/network
   resume, suppresses `None` asset URLs, and flags fallback combat icons in dev.
 - Combat and session UI now expose debug starter-rift reset controls, realtime

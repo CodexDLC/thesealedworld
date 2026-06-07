@@ -52,6 +52,10 @@ class CombatInvalidMovePayloadError(CombatActionRejectedError):
     code = "combat_invalid_move_payload"
 
 
+class CombatActorControlledError(CombatActionRejectedError):
+    code = "combat_actor_controlled"
+
+
 class CombatFeintUnavailableError(CombatActionRejectedError):
     code = "combat_feint_unavailable"
 

@@ -4,6 +4,14 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Realtime chat now logs client close codes and message-send receipt metadata
+  without exposing message bodies or tokens.
+- Archery feints now include blood-and-tempo sinks for a forced critical shot
+  and a defensive pain backstep that stabilizes ranged position.
+- Two-handed converter feints now prepare parry/crit/dodge outcomes instead of
+  describing direct token grants.
+- Tempo-cost feints no longer use punishment/vengeance wording or the `punish`
+  badge tag in public descriptions.
 - Feint generation no longer exposes `basic_seize_tempo` through the basic
   archery known-feint set.
 - Combat logs now group multi-target area ability results, cover feint/beast and

@@ -1250,7 +1250,8 @@ def test_game_runtime_loads_before_alpine_initializes():
 def test_chat_template_uses_normalized_websocket_endpoint():
     template = Path("src/frontend/templates/shared/chat/main.html").read_text(encoding="utf-8")
 
-    assert 'ws-connect="{{ realtime_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}' in template
+    assert 'ws-connect="{{ realtime_ws_endpoint }}?char_id={{ char_id }}' in template
+    assert "?token=" not in template
     assert "chat_ws_endpoint" not in template
     assert "/ws/chat" not in template
 

@@ -12,6 +12,7 @@ from src.backend.features.combat.dto.action import CombatMoveDTO
 from src.backend.features.combat.dto.ids import ActorIdLike, normalize_actor_id
 from src.backend.features.combat.dto.worker import CollectorSignalDTO
 from src.backend.features.combat.exceptions import (
+    CombatActorControlledError,
     CombatFeintUnavailableError,
     CombatInvalidMovePayloadError,
     CombatTargetRequiredError,
@@ -85,6 +86,17 @@ class CombatTurnManager:
             afk_level = 0
         else:
             afk_level = int(state_dict.get("afk_level", 0))
+
+        if action_type in {"attack", "exchange", "instant", "item"}:
+            control_state = await self._actor_control_state(session_id, char_id)
+            if control_state.get("can_act") is False:
+                raise CombatActorControlledError(
+                    "Actor is controlled and cannot act",
+                    context={
+                        "effect_id": str(control_state.get("effect_id") or "control"),
+                        "reason": "controlled",
+                    },
+                )
 
         # 3. Создаем типизированную 'пулю' (DTO)
         try:
@@ -438,6 +450,32 @@ class CombatTurnManager:
         except (TypeError, ValueError):
             return False
 
+    async def _actor_control_state(self, session_id: str, actor_id: ActorIdLike) -> dict[str, Any]:
+        get_actor = getattr(self.combat_sessions, "get_actor", None)
+        actor = await get_actor(session_id, actor_id) if get_actor is not None else None
+        if not isinstance(actor, dict):
+            return {"can_act": True}
+        meta_raw = actor.get("meta")
+        meta = meta_raw if isinstance(meta_raw, dict) else {}
+        statuses_raw = actor.get("statuses")
+        statuses = statuses_raw if isinstance(statuses_raw, dict) else {}
+        current_exchange = self._int(meta.get("exchange_counter"))
+        effects_raw = statuses.get("effects")
+        effects = effects_raw if isinstance(effects_raw, list) else []
+        for item in effects:
+            if not isinstance(item, dict):
+                continue
+            expires = self._optional_int(item.get("expire_at_exchange"))
+            if expires is not None and expires <= current_exchange:
+                continue
+            control_raw = item.get("control")
+            control = control_raw if isinstance(control_raw, dict) else {}
+            behavior_raw = control.get("source_behavior")
+            behavior = behavior_raw if isinstance(behavior_raw, dict) else {}
+            if behavior.get("can_act") is False:
+                return {"can_act": False, "effect_id": str(item.get("effect_id") or "control")}
+        return {"can_act": True}
+
     @staticmethod
     def _defer_after(seconds: int | float) -> datetime:
         return datetime.now(UTC) + timedelta(seconds=seconds)
@@ -448,6 +486,15 @@ class CombatTurnManager:
             return int(value or 0)
         except (TypeError, ValueError):
             return 0
+
+    @staticmethod
+    def _optional_int(value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
 
 def calculate_move_timeout_seconds(*, afk_level: int, actor_count: int, min_timeout: float) -> float:

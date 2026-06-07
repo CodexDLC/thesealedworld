@@ -2,10 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.backend.config.settings import settings
 from src.backend.infrastructure.redis.keys import GameSessionLockKey
 
 if TYPE_CHECKING:
     from codex_platform.redis_service import RedisService
+
+
+def _default_ttl_seconds() -> int:
+    # Lock must outlive the refresh token, otherwise an active player whose
+    # access token expires mid-session can't refresh: the lock would be gone
+    # and the refresh endpoint would treat the slot as released, kicking the
+    # player to the lobby even though no one else claimed it.
+    return max(60, int(settings.game_refresh_token_expire_minutes) * 60)
 
 
 class GameSessionLockManager:
@@ -17,17 +26,17 @@ class GameSessionLockManager:
     stale ``session_id`` in their JWT can be rejected by comparing against
     ``current(char_id)``.
 
-    Backed by a Redis string key ``game:ac_sess:{char_id}`` with the same
-    6-hour TTL as ``CharacterSessionManager`` (the runtime AC document) so the
-    lock expires together with the playable state it guards.
+    Backed by a Redis string key ``game:ac_sess:{char_id}`` whose TTL is
+    aligned with ``settings.game_refresh_token_expire_minutes`` so the lock
+    stays alive as long as the refresh token can mint new access tokens.
+    The refresh endpoint must call :meth:`touch` (or re-``claim``) on every
+    successful refresh to keep the TTL rolling forward for active players.
     """
 
-    DEFAULT_TTL_SECONDS = 6 * 60 * 60
-
-    def __init__(self, redis: RedisService, *, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
+    def __init__(self, redis: RedisService, *, ttl_seconds: int | None = None) -> None:
         self.redis = redis
         self.key = GameSessionLockKey()
-        self.ttl_seconds = ttl_seconds
+        self.ttl_seconds = ttl_seconds if ttl_seconds is not None else _default_ttl_seconds()
 
     def build_key(self, char_id: int) -> str:
         return self.key.build(char_id=char_id)

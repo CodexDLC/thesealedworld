@@ -233,9 +233,6 @@ window.GameCatalogCache = {
         if (tags.has('tempo')) {
             badges.push({ kind: 'tactical', icon: 'token-tempo', label: 'Темп' });
         }
-        if (tags.has('punish')) {
-            badges.push({ kind: 'tactical', icon: 'token-counter', label: 'Кара' });
-        }
         if (tags.has('parry_window')) {
             badges.push({ kind: 'tactical', icon: 'token-parry', label: 'Парирование' });
         }

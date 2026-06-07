@@ -171,12 +171,6 @@ class TestAuthService:
         with pytest.raises(RefreshTokenNotFoundError):
             await service.refresh_token("ghost")
 
-    async def test_refresh_token_invalid(self, service, persistence):
-        persistence.get_refresh_token = AsyncMock(return_value=None)
-        from src.shared.exceptions import AuthException
-        with pytest.raises(AuthException, match="Invalid refresh token"):
-            await service.refresh_token("invalid")
-
     async def test_refresh_token_expired(self, service, persistence):
         from datetime import UTC, timedelta
         db_token = MagicMock(expires_at=datetime.now(UTC) - timedelta(days=1))

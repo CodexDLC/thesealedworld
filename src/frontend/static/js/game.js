@@ -240,9 +240,6 @@ window.GameCatalogCache = {
         if (tags.has('tempo')) {
             badges.push({ kind: 'tactical', icon: 'token-tempo', label: 'Темп' });
         }
-        if (tags.has('punish')) {
-            badges.push({ kind: 'tactical', icon: 'token-counter', label: 'Кара' });
-        }
         if (tags.has('parry_window')) {
             badges.push({ kind: 'tactical', icon: 'token-parry', label: 'Парирование' });
         }
@@ -1544,17 +1541,21 @@ document.addEventListener('htmx:load', function() {
     const AUTH_CODES = new Set([4001, 4003, 4004]);
     const SESSION_REPLACED_CODE = 4002;
     const MAX_AUTH_RETRIES = 3;
+    const HTMX_RECONNECT_CODE = 1012;
 
 
 
 
     const LIVENESS_RESET_MS = 5000;
+    const STALE_CONNECTING_MS = 10000;
+    const STALE_OPEN_MS = 45000;
     const KEEPALIVE_URL = '/game/keepalive';
     const LOBBY_URL = '/game-lobby?reason=session_lost';
 
     let authFailures = 0;
     let keepalivePending = null;
     let openedAt = 0;
+    let lastActivityAt = 0;
     let livenessResetTimer = null;
     let currentSocket = null;
 
@@ -1583,8 +1584,20 @@ document.addEventListener('htmx:load', function() {
         }
     }
 
+    function reconnectSocket(detail) {
+        const socketWrapper = detail && detail.socketWrapper;
+        if (!socketWrapper || typeof socketWrapper.reconnect !== 'function') return;
+        try {
+            socketWrapper.reconnect();
+        } catch (_) {
+
+
+        }
+    }
+
     function onWsClose(detail) {
         clearLivenessTimer();
+        currentSocket = null;
         const code = detail && detail.event ? detail.event.code : null;
         if (code === SESSION_REPLACED_CODE) {
             bailToLobby();
@@ -1596,7 +1609,9 @@ document.addEventListener('htmx:load', function() {
                 bailToLobby();
                 return;
             }
-            consumeKeepalive();
+            consumeKeepalive().then((ok) => {
+                if (ok) reconnectSocket(detail);
+            });
             return;
         }
 
@@ -1609,7 +1624,9 @@ document.addEventListener('htmx:load', function() {
 
     function onWsOpen(evt) {
         openedAt = Date.now();
-        currentSocket = (evt && evt.detail && evt.detail.socketWrapper) ? evt.detail.socketWrapper.socket : null;
+        lastActivityAt = openedAt;
+        const event = evt && evt.detail ? evt.detail.event : null;
+        currentSocket = event ? (event.target || event.currentTarget || null) : null;
         clearLivenessTimer();
 
 
@@ -1626,11 +1643,14 @@ document.addEventListener('htmx:load', function() {
     function nudgeReconnectIfStale() {
         if (!currentSocket) return;
         const state = currentSocket.readyState;
+        const ageMs = Date.now() - openedAt;
+        const idleMs = Date.now() - (lastActivityAt || openedAt);
 
 
-        if (state === 0 || state === 1) {
+
+        if ((state === 0 && ageMs >= STALE_CONNECTING_MS) || (state === 1 && idleMs >= STALE_OPEN_MS)) {
             try {
-                currentSocket.close();
+                currentSocket.close(HTMX_RECONNECT_CODE, 'stale realtime socket');
             } catch (_) {
 
             }
@@ -1650,6 +1670,7 @@ document.addEventListener('htmx:load', function() {
     function onWsAfterMessage(evt) {
         const message = evt && evt.detail ? evt.detail.message : null;
         if (!message) return;
+        lastActivityAt = Date.now();
 
 
 
@@ -1662,10 +1683,10 @@ document.addEventListener('htmx:load', function() {
             return;
         }
         if (!parsed || parsed.type !== 'ping') return;
-        const socket = evt.detail.socketWrapper && evt.detail.socketWrapper.socket;
-        if (!socket || socket.readyState !== 1 ) return;
+        const socketWrapper = evt.detail.socketWrapper;
+        if (!socketWrapper || typeof socketWrapper.sendImmediately !== 'function') return;
         try {
-            socket.send(JSON.stringify({ type: 'pong' }));
+            socketWrapper.sendImmediately(JSON.stringify({ type: 'pong' }));
         } catch (_) {
 
         }
@@ -1684,11 +1705,13 @@ document.addEventListener('htmx:load', function() {
             authFailures,
             keepalivePending: !!keepalivePending,
             openedAt,
+            lastActivityAt,
         }),
         _reset: () => {
             authFailures = 0;
             keepalivePending = null;
             openedAt = 0;
+            lastActivityAt = 0;
             currentSocket = null;
             clearLivenessTimer();
         },

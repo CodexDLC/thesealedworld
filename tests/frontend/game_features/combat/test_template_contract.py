@@ -1190,7 +1190,7 @@ def test_combat_vm_exposes_full_token_strip_from_backend_key_values():
     assert screen.token_bar[0].catalog_key == "tempo"
 
 
-def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
+def test_combat_vm_uses_physical_icons_for_basic_ability_slots_only():
     dashboard = CombatDashboardDTO(
         session_id="combat-1",
         turn_number=3,
@@ -1204,10 +1204,59 @@ def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
         available_actions=[
             CombatActionOptionDTO(
                 action="instant",
+                label="Кровавый голод",
+                enabled=True,
+                target_id="1",
+                ability_id="basic_blood_hunger",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Рассечь даром",
+                enabled=True,
+                target_id="2",
+                ability_id="basic_cleave_gift",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Слабое место",
+                enabled=True,
+                target_id="2",
+                ability_id="basic_expose_weakness",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Скользнуть сквозь боль",
+                enabled=True,
+                target_id="1",
+                ability_id="basic_slip_pain",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
                 label="Сбить стойку",
                 enabled=True,
                 target_id="2",
                 ability_id="basic_break_stance",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Сколочный удар",
+                enabled=True,
+                target_id="2",
+                ability_id="basic_splinter_strike",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Стереть кровь",
+                enabled=True,
+                target_id="1",
+                ability_id="basic_wipe_blood",
+            ),
+            CombatActionOptionDTO(
+                action="instant",
+                label="Последний рывок",
+                enabled=True,
+                target_id="1",
+                ability_id="basic_last_push",
             ),
             CombatActionOptionDTO(
                 action="instant",
@@ -1223,7 +1272,24 @@ def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
 
     icons = {action.ability_id: action.icon_url for action in screen.ability_options}
     assert icons["basic_break_stance"].endswith("/abilities/basic_break_stance.svg")
+    assert icons["basic_expose_weakness"].endswith("/abilities/basic_expose_weakness.svg")
+    assert icons["basic_splinter_strike"].endswith("/abilities/basic_splinter_strike.svg")
+    assert icons["basic_cleave_gift"].endswith("/abilities/basic_cleave_gift.svg")
+    assert icons["basic_wipe_blood"].endswith("/abilities/basic_wipe_blood.svg")
+    assert icons["basic_slip_pain"].endswith("/abilities/basic_slip_pain.svg")
+    assert icons["basic_last_push"].endswith("/abilities/basic_last_push.svg")
+    assert icons["basic_blood_hunger"].endswith("/abilities/basic_blood_hunger.svg")
     assert icons["fireball"].endswith("/gift-token.svg")
+    assert [action.ability_id for action in screen.ability_options[:8]] == [
+        "basic_break_stance",
+        "basic_expose_weakness",
+        "basic_splinter_strike",
+        "basic_cleave_gift",
+        "basic_wipe_blood",
+        "basic_slip_pain",
+        "basic_last_push",
+        "basic_blood_hunger",
+    ]
 
 
 def test_combat_vm_effect_badge_shows_remaining_turns_not_absolute_expire_exchange():

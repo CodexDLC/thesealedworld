@@ -3,14 +3,14 @@ DEATH_COMMON_PHRASES = {
         # --- cause: damage (generic physical kill, source omitted) ---
         "death.common.damage.fall": {
             "kind": "death",
-            "text": "{target} падает и больше не поднимается.",
-            "variables": ["target"],
+            "text": "{target} получает {damage} урона, падает и больше не поднимается.",
+            "variables": ["target", "damage"],
             "tags": ["death", "damage", "generic"],
         },
         "death.common.damage.last_stand": {
             "kind": "death",
-            "text": "{target} делает последний шаг и рушится.",
-            "variables": ["target"],
+            "text": "{target} получает {damage} урона, делает последний шаг и рушится.",
+            "variables": ["target", "damage"],
             "tags": ["death", "damage", "generic"],
         },
         "death.common.damage.overkill": {

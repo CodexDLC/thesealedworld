@@ -144,7 +144,7 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="weapon_flat_armor_gap_crit",
             display_name="Щель в броне",
-            short_description="Критический укол получает шанс пройти мимо плоской брони.",
+            short_description="Критический укол получает шанс пройти мимо брони.",
             humanoid_event_texts=CombatEventTextSetDTO(
                 crit_proc=["{source} ищет щель в броне {target}."],
             ),
@@ -166,7 +166,7 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="weapon_flat_armor_bypass_crit",
             display_name="Обход брони",
-            short_description="Критический укол полностью обходит плоскую броню.",
+            short_description="Критический укол полностью обходит броню.",
             humanoid_event_texts=CombatEventTextSetDTO(
                 crit_proc=["{source} проводит укол мимо брони {target}."],
             ),
@@ -191,7 +191,7 @@ WEAPON_TRIGGER_CATALOG: list[TriggerCatalogEntryDTO] = [
             resource_type="trigger",
             resource_id="weapon_flat_armor_crush_crit",
             display_name="Смятие брони",
-            short_description="Критический тяжелый удар сильнее подавляет плоскую броню.",
+            short_description="Критический тяжелый удар сильнее подавляет броню.",
             humanoid_event_texts=CombatEventTextSetDTO(
                 crit_proc=["{source} сминает защиту {target} тяжелым ударом."],
             ),

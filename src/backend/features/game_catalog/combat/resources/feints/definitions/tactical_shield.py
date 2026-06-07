@@ -114,7 +114,7 @@ TACTICAL_SHIELD_FEINTS_TECHNICAL = {
         feint_id="read_tactic_advanced",
         cost=FeintCostDTO(tactics={"hit": 1, "block": 2, "tempo": 1}),
         target=TargetType.SINGLE_ENEMY,
-        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "tempo", "dispel", "preparation_purge", "punish"],
+        applicability_tags=[*_TACTICAL_SHIELD_TAGS, "tempo", "dispel", "preparation_purge"],
         purchase_group="tactical",
         effects=[
             {"id": "dispel_preparations", "target_actor": "target"},
@@ -207,10 +207,10 @@ _TACTICAL_SHIELD_TEXTS = {
         "и закрывает следующий удар кровавой защитой",
     ),
     "read_tactic_advanced": (
-        "Карательная разгадка",
-        "наказывая подготовку противника сорвать её и сбить ему точность",
-        "Карательный щитовой финт: тратит темп, снимает подготовленные приемы с цели и сбивает ей точность.",
-        "наказывая подготовку противника",
+        "Темповая разгадка",
+        "используя окно темпа сорвать подготовку и сбить точность",
+        "Щитовой финт: тратит темп, снимает подготовленные приемы с цели и сбивает ей точность.",
+        "используя окно темпа против подготовки",
         "и срывает подготовку и сбивает точность цели",
         "и срывает подготовку цели сокрушительной разгадкой",
     ),

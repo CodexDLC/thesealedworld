@@ -20,17 +20,21 @@
     const AUTH_CODES = new Set([4001, 4003, 4004]);
     const SESSION_REPLACED_CODE = 4002;
     const MAX_AUTH_RETRIES = 3;
+    const HTMX_RECONNECT_CODE = 1012;
     // Server does accept() then close(4001) so wsOpen fires every reject.
     // Reset the counter only when the socket is alive long enough to either
     // receive a message or stay open beyond this threshold; otherwise an
     // accept-then-close storm would never trip the retry cap.
     const LIVENESS_RESET_MS = 5000;
+    const STALE_CONNECTING_MS = 10000;
+    const STALE_OPEN_MS = 45000;
     const KEEPALIVE_URL = '/game/keepalive';
     const LOBBY_URL = '/game-lobby?reason=session_lost';
 
     let authFailures = 0;
     let keepalivePending = null;
     let openedAt = 0;
+    let lastActivityAt = 0;
     let livenessResetTimer = null;
     let currentSocket = null;
 
@@ -59,8 +63,20 @@
         }
     }
 
+    function reconnectSocket(detail) {
+        const socketWrapper = detail && detail.socketWrapper;
+        if (!socketWrapper || typeof socketWrapper.reconnect !== 'function') return;
+        try {
+            socketWrapper.reconnect();
+        } catch (_) {
+            // If reconnect itself fails, the next page-level navigation will
+            // create a fresh htmx-ws instance.
+        }
+    }
+
     function onWsClose(detail) {
         clearLivenessTimer();
+        currentSocket = null;
         const code = detail && detail.event ? detail.event.code : null;
         if (code === SESSION_REPLACED_CODE) {
             bailToLobby();
@@ -72,7 +88,16 @@
                 bailToLobby();
                 return;
             }
-            consumeKeepalive();
+            consumeKeepalive().then((ok) => {
+                // Keepalive returned non-2xx -> backend refused to refresh.
+                // The session is gone (either the refresh cookie expired or
+                // another tab claimed the slot); no point retrying further.
+                if (!ok) {
+                    bailToLobby();
+                    return;
+                }
+                reconnectSocket(detail);
+            });
             return;
         }
         // Non-auth close: if the socket was actually alive for a while, reset
@@ -85,7 +110,9 @@
 
     function onWsOpen(evt) {
         openedAt = Date.now();
-        currentSocket = (evt && evt.detail && evt.detail.socketWrapper) ? evt.detail.socketWrapper.socket : null;
+        lastActivityAt = openedAt;
+        const event = evt && evt.detail ? evt.detail.event : null;
+        currentSocket = event ? (event.target || event.currentTarget || null) : null;
         clearLivenessTimer();
         // If the socket stays open for LIVENESS_RESET_MS without an immediate
         // close, treat it as a healthy session and forget past auth failures.
@@ -102,11 +129,14 @@
     function nudgeReconnectIfStale() {
         if (!currentSocket) return;
         const state = currentSocket.readyState;
+        const ageMs = Date.now() - openedAt;
+        const idleMs = Date.now() - (lastActivityAt || openedAt);
         // CLOSED (3) or CLOSING (2): htmx-ws is already reconnecting; nothing to do.
-        // CONNECTING (0) for too long, or OPEN (1) but server-side dead — force close.
-        if (state === 0 || state === 1) {
+        // CONNECTING (0) for too long, or OPEN (1) with no server traffic past
+        // the heartbeat interval — force close with a code htmx-ws reconnects on.
+        if ((state === 0 && ageMs >= STALE_CONNECTING_MS) || (state === 1 && idleMs >= STALE_OPEN_MS)) {
             try {
-                currentSocket.close();
+                currentSocket.close(HTMX_RECONNECT_CODE, 'stale realtime socket');
             } catch (_) {
                 // Swallow — htmx-ws will try a fresh socket on the next tick.
             }
@@ -126,6 +156,7 @@
     function onWsAfterMessage(evt) {
         const message = evt && evt.detail ? evt.detail.message : null;
         if (!message) return;
+        lastActivityAt = Date.now();
         // Any inbound payload is proof of a healthy session — drop the
         // failure counter immediately (the LIVENESS_RESET_MS timer was a
         // fallback for sockets that never speak).
@@ -138,10 +169,10 @@
             return;
         }
         if (!parsed || parsed.type !== 'ping') return;
-        const socket = evt.detail.socketWrapper && evt.detail.socketWrapper.socket;
-        if (!socket || socket.readyState !== 1 /* OPEN */) return;
+        const socketWrapper = evt.detail.socketWrapper;
+        if (!socketWrapper || typeof socketWrapper.sendImmediately !== 'function') return;
         try {
-            socket.send(JSON.stringify({ type: 'pong' }));
+            socketWrapper.sendImmediately(JSON.stringify({ type: 'pong' }));
         } catch (_) {
             // Socket already dying; close handler will pick it up.
         }
@@ -160,11 +191,13 @@
             authFailures,
             keepalivePending: !!keepalivePending,
             openedAt,
+            lastActivityAt,
         }),
         _reset: () => {
             authFailures = 0;
             keepalivePending = null;
             openedAt = 0;
+            lastActivityAt = 0;
             currentSocket = null;
             clearLivenessTimer();
         },

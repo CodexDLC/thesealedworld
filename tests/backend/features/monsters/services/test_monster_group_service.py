@@ -201,8 +201,9 @@ def _generated_monster(
 
 
 class FakeLocationContext:
-    def __init__(self) -> None:
+    def __init__(self, *, danger: float = 0.0) -> None:
         self.calls: list[str] = []
+        self.danger = danger
 
     async def get_location_context(self, loc_id: str) -> MonsterLocationContext:
         self.calls.append(loc_id)
@@ -211,7 +212,7 @@ class FakeLocationContext:
             zone_id="D4_0_0",
             biome_id="city_ruins",
             tier=1,
-            danger=0.0,
+            danger=self.danger,
             tags=["city_ruins", "mana_leak"],
             raw_location={"world_zone": {"region_id": "D4", "id": "D4_0_0"}},
         )
@@ -390,6 +391,36 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
     assert result.previews[0].gear_score == expected_score
     assert result.previews[0].threat_rating == expected_score
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
+
+
+async def test_prepare_monster_group_hunting_mitigates_location_danger_budget_bonus() -> None:
+    storage = FakeStorage()
+    factory = FakeClanFactory(storage)
+    await _materialize_fake_pool_clan(storage, factory)
+    service = MonsterGroupService(
+        repository=storage,
+        location_context=FakeLocationContext(danger=1.0),  # type: ignore[arg-type]
+        actor_commitments=FakeActorCommitments(),  # type: ignore[arg-type]
+        factory=factory,  # type: ignore[arg-type]
+    )
+
+    result = await service.prepare_monster_group(
+        "45_45",
+        budget=100,
+        threat_mitigation_skill=1.0,
+        composition_policy={
+            "allowed_roles": ["minion"],
+            "min_units": 1,
+            "max_units": 1,
+            "role_caps": {"minion": 1, "veteran": 0, "elite": 0, "boss": 0},
+            "allow_repeated_members": False,
+        },
+        scope_id="encounter:test",
+        ttl=120,
+    )
+
+    assert result.target_budget == 100
+    assert result.adjusted_budget == 100
 
 
 async def test_prepare_monster_group_for_scope_skips_world_location_and_uses_pool_contract() -> None:

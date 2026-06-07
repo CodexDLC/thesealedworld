@@ -380,6 +380,42 @@ async def test_apply_finalize_effects_delegates_npc_effects_to_service() -> None
 
 
 @pytest.mark.unit
+async def test_apply_finalize_effects_keeps_repeated_npc_effect_types_distinct() -> None:
+    npc = MagicMock()
+    npc.apply_effects = AsyncMock(return_value={"applied": True, "duplicate": False})
+    integrator = ScenarioSystemIntegrator(
+        sessions=MagicMock(),
+        content=MagicMock(),
+        character_sessions=MagicMock(),
+        repo=MagicMock(),
+        events=MagicMock(),
+        npc=npc,
+    )
+
+    await integrator.apply_finalize_effects(
+        7,
+        {
+            "_effects": [
+                {"type": "npc.set_flag", "npc_key": "portal_pad_guide", "flag": "met", "value": True},
+                {
+                    "type": "npc.set_flag",
+                    "npc_key": "portal_pad_guide",
+                    "flag": "first_death_dialogue_seen",
+                    "value": True,
+                },
+            ]
+        },
+        quest_key="portal_guide_dialogue",
+    )
+
+    assert npc.apply_effects.await_count == 2
+    first_call, second_call = npc.apply_effects.await_args_list
+    assert first_call.kwargs["effects"][0]["flag"] == "met"
+    assert second_call.kwargs["effects"][0]["flag"] == "first_death_dialogue_seen"
+    assert first_call.kwargs["idempotency_key"] != second_call.kwargs["idempotency_key"]
+
+
+@pytest.mark.unit
 async def test_apply_finalize_effects_fails_required_tavern_effect() -> None:
     events = MagicMock()
     events.request = AsyncMock(return_value={"status": "error", "error": "db down"})

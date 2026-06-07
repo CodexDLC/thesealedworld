@@ -79,6 +79,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "backstep_shot",
         "blade_return",
         "blade_loop",
+        "blood_aim_crit",
         "dual_blade_mill_v2",
         "bind_blade",
         "blinding_shot",
@@ -122,6 +123,7 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
         "open_distance",
         "open_wound",
         "open_vein",
+        "pain_backstep",
         "2h_perfect_riposte",
         "piercing_arrow",
         "polearm_guard_intercept",
@@ -172,6 +174,8 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     assert catalog["feints"]["offhand_over"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
     assert catalog["feints"]["dual_blade_mill_v2"]["cost"]["tactics"] == {"hit": 5, "pressure": 4}
     assert catalog["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
+    assert catalog["feints"]["blood_aim_crit"]["cost"]["tactics"] == {"tempo": 3, "blood": 2}
+    assert catalog["feints"]["pain_backstep"]["cost"]["tactics"] == {"blood": 2, "tempo": 3}
     assert catalog["feints"]["sword_blade_bind"]["cost"]["tactics"] == {"hit": 3, "parry": 2}
     assert catalog["feints"]["sword_clean_path"]["cost"]["tactics"] == {"hit": 3, "crit": 5}
     assert catalog["feints"]["fencing_gap_probe"]["cost"]["tactics"] == {"hit": 3, "crit": 2}

@@ -518,13 +518,18 @@ class ScenarioSystemIntegrator:
             raise RuntimeError(f"Scenario finalize effects must be a list: quest_key={quest_key}")
 
         results: dict[str, Any] = {}
-        for effect in effects:
+        for index, effect in enumerate(effects):
             if not isinstance(effect, dict):
                 raise RuntimeError(f"Scenario finalize effect must be an object: quest_key={quest_key}")
             effect_type = str(effect.get("type") or "")
             required = bool(effect.get("required", True))
             try:
-                effect_result = await self._apply_finalize_effect(char_id, effect, quest_key=quest_key)
+                effect_result = await self._apply_finalize_effect(
+                    char_id,
+                    effect,
+                    quest_key=quest_key,
+                    effect_index=index,
+                )
             except Exception:
                 if required:
                     raise
@@ -536,7 +541,14 @@ class ScenarioSystemIntegrator:
             results.setdefault("effects", {})[effect_type] = effect_result
         return results
 
-    async def _apply_finalize_effect(self, char_id: int, effect: dict[str, Any], *, quest_key: str) -> dict[str, Any]:
+    async def _apply_finalize_effect(
+        self,
+        char_id: int,
+        effect: dict[str, Any],
+        *,
+        quest_key: str,
+        effect_index: int,
+    ) -> dict[str, Any]:
         effect_type = str(effect.get("type") or "")
         if effect_type.startswith("npc."):
             npc_key = str(effect.get("npc_key") or "")
@@ -544,7 +556,7 @@ class ScenarioSystemIntegrator:
                 raise RuntimeError("NPC service is not configured for scenario finalize effects")
             if not npc_key:
                 raise RuntimeError(f"NPC finalize effect requires npc_key: {effect!r}")
-            idempotency_key = f"scenario:{quest_key}:npc:{npc_key}:{effect_type}"
+            idempotency_key = f"scenario:{quest_key}:npc:{npc_key}:effect:{effect_index}:{effect_type}"
             return await self.npc.apply_effects(
                 character_id=char_id,
                 npc_key=npc_key,

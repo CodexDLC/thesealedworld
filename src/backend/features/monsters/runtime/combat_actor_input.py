@@ -40,29 +40,21 @@ class MonsterCombatActorInputBuilder:
 
 
 def _monster_visual(monster: Any) -> dict[str, Any]:
+    # Single source: PG ``metadata_["visual"]`` (writer — AI-таска ``tasks_ai.py``).
+    # Mongo ``base_projection.visual`` больше не источник — там застывший legacy-снимок.
     metadata = getattr(monster, "metadata_", None)
-    if isinstance(metadata, dict):
-        pg_visual = metadata.get("visual")
-        if isinstance(pg_visual, dict) and pg_visual:
-            return dict(pg_visual)
-    actor_document = getattr(monster, "actor_document", None)
-    if not isinstance(actor_document, dict):
+    if not isinstance(metadata, dict):
         return {}
-    base_projection = actor_document.get("base_projection")
-    if not isinstance(base_projection, dict):
-        return {}
-    visual = base_projection.get("visual")
-    if not isinstance(visual, dict):
-        return {}
-    return dict(visual)
+    visual = metadata.get("visual")
+    return dict(visual) if isinstance(visual, dict) else {}
 
 
 def _monster_avatar_url(visual: dict[str, Any]) -> str | None:
-    for key in ("image_url", "generated_image_url", "placeholder_image_url"):
-        value = visual.get(key)
-        if value:
-            return version_generated_asset_url(str(value), visual)
-    return None
+    # Один путь: image_url (placeholder или S3 — фронту всё равно, главное чтобы был валидный URL).
+    value = visual.get("image_url")
+    if not value:
+        return None
+    return version_generated_asset_url(str(value), visual)
 
 
 __all__ = ["MonsterCombatActorInputBuilder"]

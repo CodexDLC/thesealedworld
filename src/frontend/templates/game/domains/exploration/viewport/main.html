@@ -165,7 +165,8 @@
                     {% set enemy_intel = enemy.intel if enemy.intel is defined and enemy.intel else {} %}
                     {% set enemy_vitals = enemy_intel.vitals if enemy_intel.vitals is defined else {} %}
                     {% set enemy_visual = enemy.visual if enemy.visual is defined and enemy.visual else {} %}
-                    {% set enemy_image = enemy.image if enemy.image is defined and enemy.image else enemy_visual.image_url if enemy_visual.image_url is defined and enemy_visual.image_url else enemy_visual.generated_image_url if enemy_visual.generated_image_url is defined and enemy_visual.generated_image_url else enemy_visual.placeholder_image_url if enemy_visual.placeholder_image_url is defined and enemy_visual.placeholder_image_url else none %}
+                    {# Single field: enemy.image (или legacy enemy.visual.image_url). #}
+                    {% set enemy_image = enemy.image if enemy.image is defined and enemy.image else enemy_visual.image_url if enemy_visual.image_url is defined and enemy_visual.image_url else none %}
                     <div class="mobile-encounter-target-view" x-show="selected === {{ loop.index0 }}" {% if not loop.first %}x-cloak{% endif %}>
                         <div class="mobile-encounter-target-main">
                             <div class="mobile-encounter-target-art"
@@ -421,8 +422,13 @@
                     <script>
                         (function() {
                             const bgUrl = '{{ location_view.background_url if location_view.background_url is defined else "" }}';
-                            if (bgUrl) {
+                            // Reject literal "None"/"null"/"undefined" — старый бэк-рендер мог
+                            // подсунуть Python str(None) в localStorage, и потом combat-страница
+                            // делала `<div style="background-image: url('None')">` → 404 на /game/None.
+                            if (bgUrl && bgUrl !== 'None' && bgUrl !== 'null' && bgUrl !== 'undefined') {
                                 localStorage.setItem('combat_background_url', bgUrl);
+                            } else {
+                                localStorage.removeItem('combat_background_url');
                             }
                         })();
                     </script>

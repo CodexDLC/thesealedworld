@@ -99,6 +99,8 @@ ARCHERY_WEAPON_FEINTS: tuple[str, ...] = (
     "headshot_advanced",
     "piercing_arrow_advanced",
     "arrow_rain_advanced",
+    "blood_aim_crit",
+    "pain_backstep",
 )
 
 RANGED_TACTICAL_FEINTS: tuple[str, ...] = (

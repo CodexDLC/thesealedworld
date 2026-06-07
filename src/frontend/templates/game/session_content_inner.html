@@ -20,7 +20,11 @@
     <script>
         (function() {
             const bgUrl = localStorage.getItem('combat_background_url');
-            if (!bgUrl) {
+            // Reject legacy garbage values written by older builds: Python
+            // str(None) leaked the literal "None" into localStorage. Applying
+            // it as background-image caused the /game/None 404 spam.
+            if (!bgUrl || bgUrl === 'None' || bgUrl === 'null' || bgUrl === 'undefined') {
+                localStorage.removeItem('combat_background_url');
                 return;
             }
             const shellBg = document.getElementById('game-bg');

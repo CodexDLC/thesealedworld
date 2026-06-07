@@ -29,8 +29,22 @@ FEINT_STAMINA_PER_TOKEN = 3
 BASIC_ABILITY_ICON_FILES: dict[str, str] = {
     "basic_break_stance": "basic_break_stance",
     "basic_expose_weakness": "basic_expose_weakness",
+    "basic_splinter_strike": "basic_splinter_strike",
+    "basic_cleave_gift": "basic_cleave_gift",
     "basic_wipe_blood": "basic_wipe_blood",
+    "basic_slip_pain": "basic_slip_pain",
     "basic_last_push": "basic_last_push",
+    "basic_blood_hunger": "basic_blood_hunger",
+}
+BASIC_ABILITY_SLOT_ORDER: dict[str, int] = {
+    "basic_break_stance": 0,
+    "basic_expose_weakness": 1,
+    "basic_splinter_strike": 2,
+    "basic_cleave_gift": 3,
+    "basic_wipe_blood": 4,
+    "basic_slip_pain": 5,
+    "basic_last_push": 6,
+    "basic_blood_hunger": 7,
 }
 
 COMBAT_DISPLAY_TEXT_REPLACEMENTS: dict[str, str] = {
@@ -1504,6 +1518,8 @@ def _split_actions(
     for action in actions:
         if action.action == "exchange":
             primary = _action_vm(action, kind="attack", icon="attack")
+        elif action.action == "pass":
+            primary = _action_vm(action, kind="pass", icon="stun")
         elif action.ability_id:
             ability_icon = _ability_icon(action.ability_id)
             ability_fallback = _ability_icon_is_fallback(action.ability_id)
@@ -1518,7 +1534,8 @@ def _split_actions(
     for feint in hero.feints:
         stamina_cost = _feint_stamina_cost(feint.cost)
         has_concentration = hero.vitals.stamina_current >= stamina_cost
-        enabled = bool(primary.enabled if primary else False) and has_concentration
+        backend_enabled = bool(getattr(feint, "enabled", True))
+        enabled = bool(primary.enabled if primary else False) and has_concentration and backend_enabled
         feint_fallback = _feint_icon_is_fallback(feint.feint_id, feint.purchase_group)
         if feint_fallback:
             log.bind(
@@ -1541,10 +1558,11 @@ def _split_actions(
                 cost=feint.cost,
                 cost_items=_action_cost_items(feint.cost),
                 cost_tooltip=_feint_cost_tooltip(feint.cost),
-                reason=None if enabled else f"CONC {hero.vitals.stamina_current}/{stamina_cost}",
+                reason=getattr(feint, "reason", None)
+                or (None if enabled else f"CONC {hero.vitals.stamina_current}/{stamina_cost}"),
             )
         )
-    return primary, feints, abilities
+    return primary, feints, _ordered_ability_options(abilities)
 
 
 def _feint_stamina_cost(cost: dict[str, int]) -> int:
@@ -1568,6 +1586,17 @@ def _action_vm(action: CombatActionOptionDTO, *, kind: str, icon: str) -> Combat
         catalog=catalog,
         catalog_key=catalog_key,
     )
+
+
+def _ordered_ability_options(abilities: list[CombatActionVM]) -> list[CombatActionVM]:
+    indexed = list(enumerate(abilities))
+    indexed.sort(
+        key=lambda item: (
+            BASIC_ABILITY_SLOT_ORDER.get(str(item[1].ability_id or ""), len(BASIC_ABILITY_SLOT_ORDER) + item[0]),
+            item[0],
+        )
+    )
+    return [ability for _, ability in indexed]
 
 
 def _ability_icon(ability_id: str | None) -> str:

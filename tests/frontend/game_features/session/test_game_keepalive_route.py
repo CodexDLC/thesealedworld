@@ -1,9 +1,12 @@
 """Smoke tests for the ``/game/keepalive`` realtime supervisor hook.
 
-The route itself only returns 204; the value it provides is that its path
-matches ``GAME_TOKEN_REFRESH_PATH_PREFIXES``, so a call exercises the
-auto-refresh middleware and rotates the access cookie. These tests pin both
-contracts: the handler shape and the path-prefix match.
+The route is non-destructive: it relies on ``GameTokenRefreshMiddleware`` to
+rotate the access cookie via the refresh token (the path matches
+``GAME_TOKEN_REFRESH_PATH_PREFIXES``). When middleware can't recover the
+session we return 401 so the supervisor stops retrying and bails to lobby.
+
+Critically: this route MUST NOT mint a fresh ``session_id`` by re-selecting
+the character. Doing so causes a session-replaced ping-pong between tabs.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ def test_keepalive_path_is_covered_by_refresh_middleware() -> None:
 
 
 @pytest.mark.unit
-def test_keepalive_route_returns_204_no_content() -> None:
+def test_keepalive_returns_401_when_unauthenticated() -> None:
     from fastapi import FastAPI
 
     from src.frontend.game_features.session.routes.pages import router
@@ -36,5 +39,7 @@ def test_keepalive_route_returns_204_no_content() -> None:
     client = TestClient(app)
 
     response = client.get("/game/keepalive")
-    assert response.status_code == 204
-    assert response.content == b""
+    # No cookies, no active character → middleware can't refresh anything,
+    # so the supervisor must see a non-2xx and bail to the lobby instead of
+    # spinning a reconnect loop.
+    assert response.status_code == 401

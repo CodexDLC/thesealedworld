@@ -67,6 +67,7 @@ async def on_group_prepare_requested(payload: dict[str, Any]) -> None:
         budget = float(payload["budget"])
         preferred_family_id = _optional_str(payload.get("preferred_family_id"))
         force_single_family = _bool(payload.get("force_single_family"), default=True)
+        threat_mitigation_skill = _float(payload.get("threat_mitigation_skill"), default=0.0)
         scope_id = _optional_str(payload.get("scope_id"))
         ttl = int(payload.get("ttl") or 300)
 
@@ -99,6 +100,7 @@ async def on_group_prepare_requested(payload: dict[str, Any]) -> None:
                 budget=budget,
                 preferred_family_id=preferred_family_id,
                 force_single_family=force_single_family,
+                threat_mitigation_skill=threat_mitigation_skill,
                 scope_id=scope_id,
                 ttl=ttl,
             )
@@ -135,6 +137,13 @@ def _bool(value: Any, *, default: bool) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _float(value: Any, *, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 __all__ = ["MonsterEvents", "bind", "router"]

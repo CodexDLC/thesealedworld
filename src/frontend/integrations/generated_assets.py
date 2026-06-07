@@ -52,12 +52,12 @@ class S3GeneratedAssetReader:
                 return None
             raise
 
-        redirect_url = await asyncio.to_thread(
-            self.client.generate_presigned_url,
-            "get_object",
-            Params={"Bucket": self.bucket, "Key": safe_key},
-            ExpiresIn=_S3_PRESIGNED_ASSET_TTL_SECONDS,
-        )
+        # Бакет публичный (anonymous GetObject) → отдаём прямую ссылку без подписи.
+        # До этого использовали presigned URL с TTL 5 минут, что ломало картинки
+        # после 5 минут жизни вкладки (browser cache хранил 307 на истёкшую подпись
+        # → 403 от S3 → broken image, чинилось только Ctrl+F5).
+        endpoint = str(self.client.meta.endpoint_url).rstrip("/")
+        redirect_url = f"{endpoint}/{self.bucket}/{safe_key}"
         content_type = str(response.get("ContentType") or "application/octet-stream")
         return GeneratedAssetObject(content_type=content_type, redirect_url=redirect_url)
 
@@ -134,10 +134,14 @@ def build_generated_asset_response(
     redirect_url: str | None = None,
 ) -> Response:
     if redirect_url:
+        # 301 (permanent) + длинный max-age: S3 URL стабилен (asset_hash в имени файла,
+        # содержимое immutable). Раньше был 307 + 300с потому что presigned истекали;
+        # теперь подписи нет — храним кеш редиректа долго, картинку браузер скачивает
+        # один раз навсегда.
         return RedirectResponse(
             url=redirect_url,
-            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-            headers={"Cache-Control": "public, max-age=300"},
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
         )
     return Response(
         content=content,

@@ -72,7 +72,9 @@ ACTIVE_DUAL_WIELD_TACTICAL_FEINT_IDS = {
 
 ACTIVE_ARCHERY_WEAPON_FEINT_IDS = {
     "arrow_rain",
+    "blood_aim_crit",
     "headshot",
+    "pain_backstep",
     "piercing_arrow",
     "precise_weak_spot",
     "quiet_weak_spot",
@@ -251,6 +253,10 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("hidden_strength").technical.cost.tactics == {"hit": 3, "parry": 3}
     assert get_feint_catalog_entry("lucky_break").technical.cost.tactics == {"crit": 5}
     assert get_feint_catalog_entry("two_handed_whirl").technical.cost.tactics == {"hit": 5, "parry": 2}
+    assert get_feint_catalog_entry("2h_brace_to_blade").technical.cost.tactics == {"dodge": 3}
+    assert get_feint_catalog_entry("2h_blade_to_break").technical.cost.tactics == {"parry": 3}
+    assert get_feint_catalog_entry("2h_break_to_step").technical.cost.tactics == {"crit": 3}
+    assert get_feint_catalog_entry("2h_press_to_parry").technical.cost.tactics == {"pressure": 3}
     assert get_feint_catalog_entry("broken_step").technical.cost.tactics == {"hit": 2, "dodge": 1}
     assert get_feint_catalog_entry("shifting_line").technical.cost.tactics == {"hit": 3, "dodge": 2}
     assert get_feint_catalog_entry("empty_line").technical.cost.tactics == {"hit": 4, "dodge": 2}
@@ -272,6 +278,22 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
     assert get_feint_catalog_entry("piercing_arrow").technical.cost.tactics == {"hit": 5, "crit": 2}
     assert get_feint_catalog_entry("precise_weak_spot").technical.cost.tactics == {"crit": 5}
     assert get_feint_catalog_entry("quiet_weak_spot").technical.cost.tactics == {"hit": 2, "crit": 3}
+    assert get_feint_catalog_entry("blood_aim_crit").technical.cost.tactics == {"tempo": 3, "blood": 2}
+    assert get_feint_catalog_entry("pain_backstep").technical.cost.tactics == {"blood": 2, "tempo": 3}
+    assert [mutation.mutation_id for mutation in get_feint_catalog_entry("blood_aim_crit").technical.pipeline_mutations] == [
+        "force.crit"
+    ]
+    assert [
+        mutation.mutation_id for mutation in get_feint_catalog_entry("pain_backstep").technical.pipeline_mutations
+    ] == [
+        "ranged.current_position_min",
+        "ranged.next_position_min",
+        "ranged.damage_pressure_mult",
+        "ranged.enemy_pressure_mult",
+    ]
+    assert get_feint_catalog_entry("pain_backstep").technical.preparation_effects == [
+        {"id": "prep_archery_pain_backstep", "target_actor": "source"}
+    ]
     assert get_feint_catalog_entry("sword_measured_line").technical.cost.tactics == {"hit": 3}
     assert get_feint_catalog_entry("sword_blade_bind").technical.cost.tactics == {"hit": 3, "parry": 2}
     assert get_feint_catalog_entry("sword_hard_bind").technical.cost.tactics == {"hit": 3, "parry": 5}
@@ -400,6 +422,27 @@ def test_active_feint_catalog_contains_basic_and_shield_tactical_sets() -> None:
         get_feint_catalog_entry(feint_id).technical.purchase_group == "tactical"
         for feint_id in ACTIVE_RANGED_TACTICAL_FEINT_IDS - ranged_weapon_feint_ids
     )
+
+
+def test_two_handed_converters_prepare_outcomes_instead_of_granting_tokens() -> None:
+    brace = get_effect_catalog_entry("prep_2h_brace_to_blade").technical
+    assert brace.modifier_applications[0].modifier_id == "parry_mult"
+    assert brace.modifier_applications[0].value_override == 2.0
+
+    press = get_effect_catalog_entry("prep_2h_press_to_parry").technical
+    assert press.modifier_applications[0].modifier_id == "parry_mult"
+    assert press.modifier_applications[0].value_override == 3.0
+
+    blade = get_effect_catalog_entry("prep_2h_blade_to_break").technical
+    assert [mutation.mutation_id for mutation in blade.pipeline_mutations] == ["force.crit"]
+
+    step = get_effect_catalog_entry("prep_2h_break_to_step").technical
+    assert [mutation.mutation_id for mutation in step.pipeline_mutations] == ["force.dodge"]
+
+    for feint_id in ("2h_brace_to_blade", "2h_blade_to_break", "2h_break_to_step", "2h_press_to_parry"):
+        description = get_feint_catalog_entry(feint_id).descriptive.variants["humanoid"].short_description
+        assert "сразу даёт жетон" not in description
+        assert "бонусный жетон" not in description
 
 
 def test_mass_target_feints_use_all_enemies_and_secondary_damage_caps() -> None:

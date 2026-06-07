@@ -189,6 +189,32 @@ _prep_counter_on_dodge_catalog = EffectCatalogEntryDTO(
     ),
 )
 
+_prep_archery_pain_backstep_catalog = EffectCatalogEntryDTO(
+    key="combat.effect.prep_archery_pain_backstep",
+    technical=EffectTechnicalDTO(
+        effect_id="prep_archery_pain_backstep",
+        type=EffectType.BUFF,
+        duration=999,
+        pipeline_mutations=[pipeline_mutation("force.dodge")],
+        pipeline_mutation_role="target",
+        react_on_outcomes=["dodge"],
+        consume_on_reaction=True,
+        tags=["buff", "preparation", "archery", "blood", "tempo", "dodge", "retreat"],
+    ),
+    descriptive=build_combat_description(
+        resource_type="effects",
+        resource_id="prep_archery_pain_backstep",
+        icon="combat/effects/prep_archery_pain_backstep.svg",
+        display_name="Отход на боли",
+        short_description="Следующая атака уходит в уворот через подготовленный отход.",
+        humanoid_event_texts=CombatEventTextSetDTO(
+            apply_effect=["{target} переводит боль в готовый шаг отхода."],
+            expire_effect=["{target} уходит с линии через боль."],
+        ),
+        beast_event_texts=_BUFF_APPLY_BEAST,
+    ),
+)
+
 _prep_counter_on_parry_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_counter_on_parry",
     technical=EffectTechnicalDTO(
@@ -837,16 +863,29 @@ _prep_2h_hidden_agility_catalog = EffectCatalogEntryDTO(
 )
 
 
-def _simple_2h_prep_catalog(effect_id: str, display_name: str, short_description: str) -> EffectCatalogEntryDTO:
+def _simple_2h_prep_catalog(
+    effect_id: str,
+    display_name: str,
+    short_description: str,
+    *,
+    modifier_applications: list[ModifierApplicationDTO] | None = None,
+    pipeline_mutations: list | None = None,
+    pipeline_mutation_role: Literal["source", "target"] = "source",
+    react_on_outcomes: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> EffectCatalogEntryDTO:
     return EffectCatalogEntryDTO(
         key=f"combat.effect.{effect_id}",
         technical=EffectTechnicalDTO(
             effect_id=effect_id,
             type=EffectType.BUFF,
             duration=999,
-            react_on_outcomes=["hit", "crit", "miss", "dodge", "parry", "block"],
+            modifier_applications=modifier_applications or [],
+            pipeline_mutations=pipeline_mutations or [],
+            pipeline_mutation_role=pipeline_mutation_role,
+            react_on_outcomes=react_on_outcomes or ["hit", "crit", "miss", "dodge", "parry", "block"],
             consume_on_reaction=True,
-            tags=["buff", "preparation", "two_handed", "converter"],
+            tags=["buff", "preparation", "two_handed", "converter", *(tags or [])],
         ),
         descriptive=build_combat_description(
             resource_type="effects",
@@ -866,22 +905,49 @@ def _simple_2h_prep_catalog(effect_id: str, display_name: str, short_description
 _prep_2h_brace_to_blade_catalog = _simple_2h_prep_catalog(
     "prep_2h_brace_to_blade",
     "Перевод стойки",
-    "Подготовка-конвертер двуручного стиля.",
+    "Следующая входящая атака проходит против парирования x2.",
+    modifier_applications=[
+        ModifierApplicationDTO(
+            modifier_id="parry_mult",
+            value_override=2.0,
+            scope="duration",
+            duration_exchanges=999,
+        )
+    ],
+    pipeline_mutation_role="target",
+    tags=["dodge", "parry_boost"],
 )
 _prep_2h_blade_to_break_catalog = _simple_2h_prep_catalog(
     "prep_2h_blade_to_break",
     "Окно после защиты",
-    "Подготовка-конвертер двуручного стиля.",
+    "Следующая ваша точная атака становится критом.",
+    pipeline_mutations=[pipeline_mutation("force.crit")],
+    react_on_outcomes=["hit", "crit"],
+    tags=["parry", "crit", "forced_crit"],
 )
 _prep_2h_break_to_step_catalog = _simple_2h_prep_catalog(
     "prep_2h_break_to_step",
     "Уход после крита",
-    "Подготовка-конвертер двуручного стиля.",
+    "Следующая входящая атака уходит в уворот.",
+    pipeline_mutations=[pipeline_mutation("force.dodge")],
+    pipeline_mutation_role="target",
+    react_on_outcomes=["dodge"],
+    tags=["crit", "dodge", "forced_dodge"],
 )
 _prep_2h_press_to_parry_catalog = _simple_2h_prep_catalog(
     "prep_2h_press_to_parry",
     "Давление в защиту",
-    "Подготовка-конвертер двуручного стиля.",
+    "Следующая входящая атака проходит против парирования x3.",
+    modifier_applications=[
+        ModifierApplicationDTO(
+            modifier_id="parry_mult",
+            value_override=3.0,
+            scope="duration",
+            duration_exchanges=999,
+        )
+    ],
+    pipeline_mutation_role="target",
+    tags=["pressure", "parry_boost"],
 )
 _prep_2h_blood_to_crit_catalog = EffectCatalogEntryDTO(
     key="combat.effect.prep_2h_blood_to_crit",
@@ -1045,7 +1111,7 @@ _prep_dual_answering_series_counter_catalog = _dual_prep_catalog(
 
 _prep_dual_blade_mill_counter_catalog = _dual_prep_catalog(
     effect_id="prep_dual_blade_mill_counter",
-    display_name="Мельница двух рук",
+    display_name="Мельница двух клинков",
     short_description="Следующая успешная контратака наносит больше урона и запускает штатный offhand.",
     pipeline_mutations=[pipeline_mutation("damage_mult", 1.5)],
     pipeline_mutation_role="source",
@@ -1078,7 +1144,7 @@ _prep_dual_blade_loop_counter_catalog = _dual_prep_catalog(
 _prep_dual_split_targets_catalog = _dual_prep_catalog(
     effect_id="prep_dual_split_targets",
     display_name="Раздвоенная линия",
-    short_description="Подготовка координации двух рук.",
+    short_description="Подготовка координации двух клинков.",
     tags=["coordination", "multi_focus"],
 )
 
@@ -1095,7 +1161,7 @@ _prep_dual_chain_follow_catalog = _dual_prep_catalog(
 _prep_dual_paired_open_catalog = _dual_prep_catalog(
     effect_id="prep_dual_paired_open",
     display_name="Парное окно",
-    short_description="Подготовка критического окна для двух рук.",
+    short_description="Подготовка критического окна для двух клинков.",
     tags=["coordination", "crit_window"],
 )
 
@@ -1166,6 +1232,7 @@ BUFF_EFFECTS_CATALOG: dict[str, EffectCatalogEntryDTO] = {
     "buff_crit": _buff_crit_catalog,
     "buff_phys_dmg": _buff_phys_dmg_catalog,
     "prep_counter_on_dodge": _prep_counter_on_dodge_catalog,
+    "prep_archery_pain_backstep": _prep_archery_pain_backstep_catalog,
     "prep_counter_on_parry": _prep_counter_on_parry_catalog,
     "prep_foresight_parry": _prep_foresight_parry_catalog,
     "prep_second_breath": _prep_second_breath_catalog,

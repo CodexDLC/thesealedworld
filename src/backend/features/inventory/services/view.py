@@ -96,7 +96,7 @@ class InventoryViewService:
         "magic_damage": "Магический урон",
         "magic_penetration": "Пробитие магии",
         "magic_resist": "Магическая защита",
-        "magic_armor": "Магическая броня",
+        "magic_armor": "Магическая защита",
         "magical_damage_bonus": "Магический урон",
         "magical_penetration": "Пробитие магии",
         "magical_resistance": "Магическая защита",
@@ -937,6 +937,7 @@ class InventoryViewService:
     def _base_line_key(item: InventoryRuntimeItemDTO, key: str) -> str:
         if key != "power":
             return key
+        slot = item.slot or item.mechanics.get("slot") or (item.valid_slots[0] if item.valid_slots else "")
         if item.base_id == "belt":
             return "inventory_cell_capacity"
         if item.item_type == "weapon":
@@ -945,6 +946,13 @@ class InventoryViewService:
             return "armor"
         if item.item_type == "garment":
             return "defense"
+        if item.item_type == "accessory" and slot in {
+            EquippedSlot.AMULET.value,
+            EquippedSlot.EARRING.value,
+            EquippedSlot.RING_1.value,
+            EquippedSlot.RING_2.value,
+        }:
+            return "magic_armor"
         return "power"
 
     def _affix_lines(self, raw_affixes: object, *, fallback_tier: int = 0) -> list[InventoryAffixLineDTO]:

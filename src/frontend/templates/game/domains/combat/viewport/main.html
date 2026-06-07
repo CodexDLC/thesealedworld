@@ -476,9 +476,9 @@
                                                 hx-disabled-elt="this"
                                                 hx-vals='{"char_id": {{ char_id }}, "feint_id": "{% if not action.pinned %}{{ action.feint_id or "" }}{% endif %}"}'
                                                 aria-pressed="{{ 'true' if action.pinned else 'false' }}"
-                                                data-tippy-content="{{ 'Открепить прием' if action.pinned else 'Закрепить прием до следующего размена' }}"
+                                                data-tippy-content="{{ action.reason if not action.enabled else ('Открепить прием' if action.pinned else 'Закрепить прием до следующего размена') }}"
                                                 data-tippy-theme="game-hint"
-                                                {% if not action.feint_id %}disabled{% endif %}>
+                                                {% if not action.feint_id or not action.enabled %}disabled{% endif %}>
                                             <span>{{ '◆' if action.pinned else '◇' }}</span>
                                         </button>
                                         <button type="button"
@@ -534,22 +534,37 @@
                                 {% if combat_screen.primary_attack %}
                                     {% set primary_label = combat_screen.primary_attack.label %}
                                     {% set primary_target_id = combat_screen.primary_attack.target_id or '' %}
-                                    <button type="button"
-                                            class="game-action-button game-action-button--primary combat-primary-action"
-                                            :class="{ 'combat-primary-action--with-feint': selectedFeintId }"
-                                            hx-post="/game/combat/move"
-                                            hx-target="#main-content .shell-constrained"
-                                            hx-swap="innerHTML"
-                                            hx-disabled-elt="this"
-                                            hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": {{ primary_target_id | tojson }}}'
-                                            :hx-vals='JSON.stringify(Object.assign({char_id: {{ char_id }}, action: "exchange", target_id: {{ primary_target_id | tojson }}}, selectedFeintId ? {feint_id: selectedFeintId} : {}))'
-                                            @click="attackAfter()"
-                                            data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
-                                            data-tippy-theme="game-hint"
-                                            {% if not combat_screen.primary_attack.enabled %}disabled{% endif %}>
-                                        <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
-                                        <span x-text='selectedFeintId ? ("АТАКА С ПРИЁМОМ: " + (selectedFeintLabel || selectedFeintId)) : {{ primary_label | tojson }}'>{{ primary_label }}</span>
-                                    </button>
+                                    {% if combat_screen.primary_attack.kind == 'pass' %}
+                                        <button type="button"
+                                                class="game-action-button game-action-button--primary combat-primary-action combat-primary-action--waiting"
+                                                hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                                                hx-target="#main-content .shell-constrained"
+                                                hx-select="#main-content > .shell-constrained"
+                                                hx-swap="outerHTML"
+                                                hx-disabled-elt="this"
+                                                data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
+                                                data-tippy-theme="game-hint">
+                                            <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
+                                            <span>{{ primary_label }}</span>
+                                        </button>
+                                    {% else %}
+                                        <button type="button"
+                                                class="game-action-button game-action-button--primary combat-primary-action"
+                                                :class="{ 'combat-primary-action--with-feint': selectedFeintId }"
+                                                hx-post="/game/combat/move"
+                                                hx-target="#main-content .shell-constrained"
+                                                hx-swap="innerHTML"
+                                                hx-disabled-elt="this"
+                                                hx-vals='{"char_id": {{ char_id }}, "action": "exchange", "target_id": {{ primary_target_id | tojson }}}'
+                                                :hx-vals='JSON.stringify(Object.assign({char_id: {{ char_id }}, action: "exchange", target_id: {{ primary_target_id | tojson }}}, selectedFeintId ? {feint_id: selectedFeintId} : {}))'
+                                                @click="attackAfter()"
+                                                data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
+                                                data-tippy-theme="game-hint"
+                                                {% if not combat_screen.primary_attack.enabled %}disabled{% endif %}>
+                                            <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">
+                                            <span x-text='selectedFeintId ? ("АТАКА С ПРИЁМОМ: " + (selectedFeintLabel || selectedFeintId)) : {{ primary_label | tojson }}'>{{ primary_label }}</span>
+                                        </button>
+                                    {% endif %}
                                 {% else %}
                                     {% if combat_screen.action_state == 'WAITING_FOR_RESPONSES' %}
                                         <button type="button"

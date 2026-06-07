@@ -43,6 +43,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "blade_loop",
         "bind_blade",
         "blinding_shot",
+        "blood_aim_crit",
         "blood_wall_crash",
         "bloody_rebuke",
         "broken_step",
@@ -83,6 +84,7 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
         "open_distance",
         "open_wound",
         "open_vein",
+        "pain_backstep",
         "piercing_arrow",
         "polearm_guard_intercept",
         "polearm_hook_step",
@@ -136,6 +138,8 @@ def test_game_catalog_bootstrap_contains_safe_text_catalogs():
     assert payload.catalogs["feints"]["lucky_break"]["cost"]["tactics"] == {"crit": 5}
     assert payload.catalogs["feints"]["blade_loop"]["cost"]["tactics"] == {"hit": 6, "parry": 3, "pressure": 3}
     assert payload.catalogs["feints"]["snap_shot"]["cost"]["tactics"] == {"hit": 3}
+    assert payload.catalogs["feints"]["blood_aim_crit"]["cost"]["tactics"] == {"tempo": 3, "blood": 2}
+    assert payload.catalogs["feints"]["pain_backstep"]["cost"]["tactics"] == {"blood": 2, "tempo": 3}
     assert payload.catalogs["feints"]["sword_measured_line"]["cost"]["tactics"] == {"hit": 3}
     assert payload.catalogs["feints"]["sword_cut_angle"]["cost"]["tactics"] == {"hit": 3, "dodge": 5}
     assert payload.catalogs["feints"]["fencing_hidden_entry"]["cost"]["tactics"] == {"hit": 3, "dodge": 5}

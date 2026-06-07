@@ -589,6 +589,7 @@ async def test_open_window_maps_power_label_by_item_role(fake_redis_service, fak
                 slot="chest_garment",
                 mechanics={"valid_slots": ["chest_garment"], "power": 2},
             ),
+            _item("amulet-1", "accessory", slot="amulet", mechanics={"valid_slots": ["amulet"], "power": 1.6}),
         ],
     )
 
@@ -601,6 +602,9 @@ async def test_open_window_maps_power_label_by_item_role(fake_redis_service, fak
     assert any(line.label == "Урон" and line.value == "7" for line in rows["sword-1"].details)
     assert any(line.label == "Броня" and line.value == "3" for line in rows["helm-1"].details)
     assert any(line.label == "Защита" and line.value == "2" for line in rows["tunic-1"].details)
+    assert any(line.label == "Магическая защита" and line.value == "1.6" for line in rows["amulet-1"].details)
+    assert not any(line.label == "Магическая броня" and line.value == "1.6" for line in rows["amulet-1"].details)
+    assert not any(line.label == "Сила" and line.value == "1.6" for line in rows["amulet-1"].details)
 
 
 @pytest.mark.asyncio

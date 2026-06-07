@@ -534,22 +534,13 @@
             return String(url || "").includes("/static/images/monsters/families/");
         }
 
-        function uniqueImageCandidates(values) {
-            return values.filter((value, index, items) => value && items.indexOf(value) === index);
-        }
-
         function enemyImageCandidates(enemy) {
+            // Single source of truth: бэк отдаёт ``enemy.image`` (или
+            // ``enemy.visual.image_url`` для legacy DTO). Если поле пустое —
+            // картинки нет, фронт нарисует свой fallback (см. ``appendEnemyArtFallback``).
             const visual = enemy && typeof enemy.visual === "object" && enemy.visual !== null ? enemy.visual : {};
-            const generatedCandidates = [
-                enemy.image,
-                !isFamilyFallbackImage(visual.image_url) ? visual.image_url : null,
-                visual.generated_image_url,
-            ];
-            const fallbackCandidates = [
-                visual.placeholder_image_url,
-                isFamilyFallbackImage(visual.image_url) ? visual.image_url : null,
-            ];
-            return uniqueImageCandidates([...generatedCandidates, ...fallbackCandidates]);
+            const url = enemy.image || visual.image_url;
+            return url ? [url] : [];
         }
 
         function appendEnemyArtFallback(art, enemy, promptData) {

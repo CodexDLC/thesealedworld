@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.backend.features.combat.dto import CollectorSignalDTO, CombatMoveDTO, ExchangePayload, InstantPayload
 from src.backend.features.combat.dto.ids import normalize_actor_id
-from src.backend.features.combat.exceptions import CombatFeintUnavailableError, CombatSessionNotFoundError
+from src.backend.features.combat.exceptions import (
+    CombatActorControlledError,
+    CombatFeintUnavailableError,
+    CombatSessionNotFoundError,
+)
 from src.backend.features.combat.integrations import CombatSessionIntegration
 from src.backend.features.combat.services.result_archive_service import CombatResultArchiveService
 from src.backend.features.combat.services.turn_manager import CombatTurnManager, calculate_move_timeout_seconds
@@ -171,6 +175,11 @@ class CombatSessionService:
     ) -> CombatDashboardDTO:
         """Pin or unpin a feint inside the live runtime hand state."""
         combat_id = session_id or await self._resolve_session_id(char_id)
+        if await self._actor_is_controlled(combat_id, char_id):
+            raise CombatActorControlledError(
+                "Actor is controlled and cannot change feints",
+                context={"reason": "controlled"},
+            )
         success = await self.store.pin_feint(combat_id, char_id, body.feint_id)
         if not success:
             raise CombatFeintUnavailableError("Feint is not in hand", context={"feint_id": body.feint_id})
@@ -193,6 +202,13 @@ class CombatSessionService:
         move = self.turn_manager._build_move_dto(actor_id, str(payload.get("action") or "attack"), payload)
         await self.turn_manager.register_move_request(session_id, actor_id, payload)
         return move
+
+    async def _actor_is_controlled(self, session_id: str, actor_id: int) -> bool:
+        get_actor = getattr(self.store, "get_actor", None)
+        actor = await get_actor(session_id, actor_id) if get_actor is not None else None
+        if not isinstance(actor, dict):
+            return False
+        return CombatViewService._control_state(actor).get("can_act") is False
 
     async def register_moves_batch(self, session_id: str, actor_id: int, payloads: list[dict[str, Any]]) -> int:
         """Register multiple runtime intents, primarily for AI actors."""

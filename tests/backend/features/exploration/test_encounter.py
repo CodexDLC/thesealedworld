@@ -123,6 +123,7 @@ async def test_encounter_combat_generation():
     assert encounter.enemies[0].intel["vitals"]["hp"] == {"current": 12, "max": 12, "label": "12/12"}
     assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp?v=rat-scout-bytes"
     assert integration.prepare_monster_group.await_count == 1
+    assert integration.prepare_monster_group.await_args.kwargs["threat_mitigation_skill"] == 1.0
     assert integration.request_combat_session.await_count == 1
 
 

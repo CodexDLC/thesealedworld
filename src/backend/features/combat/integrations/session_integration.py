@@ -120,6 +120,12 @@ class CombatSessionIntegration:
     async def get_actor_state(self, session_id: str, actor_id: int | str) -> dict[str, Any] | None:
         return await self.combat_manager.get_actor_state(session_id, actor_id)
 
+    async def get_actor(self, session_id: str, actor_id: int | str) -> dict[str, Any] | None:
+        getter = getattr(self.combat_manager, "get_actor", None)
+        if getter is None:
+            return None
+        return await getter(session_id, actor_id)
+
     async def consume_feint(self, session_id: str, actor_id: int | str, feint_id: str) -> dict[str, int] | None:
         return await self.combat_manager.consume_feint_atomic(session_id, actor_id, feint_id)
 

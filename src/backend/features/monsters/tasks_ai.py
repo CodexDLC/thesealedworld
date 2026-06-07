@@ -127,12 +127,14 @@ class MonsterClanImageTaskHandler:
             raise ValueError(f"Generated clan not found: {clan_id}")
         metadata = dict(clan.metadata_ or {})
         visual = dict(metadata.get("visual") or {})
+        # Schema is minimised to ``{status, image_url, storage_key, asset_hash}``
+        # plus storage metadata required for regen. ``source``,
+        # ``generated_image_url`` and ``placeholder_image_url`` removed —
+        # they were duplicates and confused readers about which field was real.
         visual.update(
             {
                 "status": "generated",
-                "source": "ai_generated",
                 "image_url": result.generated_url,
-                "generated_image_url": result.generated_url,
                 "storage_key": result.storage_key,
                 "asset_hash": result.asset_hash or visual.get("asset_hash"),
                 "storage_backend": result.storage_backend,
@@ -178,12 +180,11 @@ class MonsterMemberImageTaskHandler:
             raise ValueError(f"Generated monster member not found: {member_id}")
         metadata = dict(member.metadata_ or {})
         visual = dict(metadata.get("visual") or {})
+        # Same minimised schema as MonsterClanImageTaskHandler.apply_result above.
         visual.update(
             {
                 "status": "generated",
-                "source": "ai_generated",
                 "image_url": result.generated_url,
-                "generated_image_url": result.generated_url,
                 "storage_key": result.storage_key,
                 "asset_hash": result.asset_hash or visual.get("asset_hash"),
                 "storage_backend": result.storage_backend,

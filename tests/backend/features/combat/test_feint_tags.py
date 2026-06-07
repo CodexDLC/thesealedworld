@@ -204,6 +204,7 @@ _ATTACKING_FEINTS: tuple[str, ...] = (
     "piercing_arrow",
     "precise_weak_spot",
     "quiet_weak_spot",
+    "blood_aim_crit",
 )
 
 

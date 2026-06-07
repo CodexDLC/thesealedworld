@@ -7,6 +7,8 @@ CHAT_CSS_DIR = Path("src/frontend/static/css/game/domains/chat")
 SESSION_CONTENT_TEMPLATE = Path("src/frontend/templates/game/session_content.html")
 COMBAT_VIEWPORT_TEMPLATE = Path("src/frontend/templates/game/domains/combat/viewport/main.html")
 GAME_MAIN_JS = Path("src/frontend/static/js/core/main.js")
+GAME_REALTIME_SUPERVISOR_JS = Path("src/frontend/static/js/core/realtime_supervisor.js")
+HTMX_WS_JS = Path("src/frontend/static/js/vendor/htmx-ws.js")
 GAME_CATALOG_JS = Path("src/frontend/static/js/core/catalog.js")
 TOOLTIPS_CSS = Path("src/frontend/static/css/game/components/tooltips.css")
 
@@ -68,6 +70,39 @@ def test_chat_template_silences_transport_ping_envelope() -> None:
     assert ping_idx < warn_idx
 
 
+def test_realtime_supervisor_only_nudges_stale_sockets_with_reconnect_code() -> None:
+    source = GAME_REALTIME_SUPERVISOR_JS.read_text(encoding="utf-8")
+
+    assert "const HTMX_RECONNECT_CODE = 1012;" in source
+    assert "const STALE_CONNECTING_MS = 10000;" in source
+    assert "const STALE_OPEN_MS = 45000;" in source
+    assert "event.target || event.currentTarget || null" in source
+    assert "currentSocket.close(HTMX_RECONNECT_CODE, 'stale realtime socket')" in source
+    assert "state === 0 && ageMs >= STALE_CONNECTING_MS" in source
+    assert "state === 1 && idleMs >= STALE_OPEN_MS" in source
+    assert "if (state === 0 || state === 1)" not in source
+
+
+def test_realtime_supervisor_replies_to_ping_via_htmx_ws_public_interface() -> None:
+    source = GAME_REALTIME_SUPERVISOR_JS.read_text(encoding="utf-8")
+
+    assert "typeof socketWrapper.sendImmediately !== 'function'" in source
+    assert "socketWrapper.sendImmediately(JSON.stringify({ type: 'pong' }))" in source
+    assert "socketWrapper.socket" not in source
+
+
+def test_realtime_supervisor_reconnects_after_auth_keepalive() -> None:
+    source = GAME_REALTIME_SUPERVISOR_JS.read_text(encoding="utf-8")
+    htmx_ws = HTMX_WS_JS.read_text(encoding="utf-8")
+
+    assert "reconnect: wrapper.init.bind(wrapper)" in htmx_ws
+    assert "function reconnectSocket(detail)" in source
+    assert "typeof socketWrapper.reconnect !== 'function'" in source
+    assert "socketWrapper.reconnect()" in source
+    assert "consumeKeepalive().then((ok) => {" in source
+    assert "if (ok) reconnectSocket(detail);" in source
+
+
 def test_chat_template_never_embeds_access_token_in_ws_url() -> None:
     """Auth comes from the cookie; the token MUST NOT be in the URL.
 
@@ -95,6 +130,9 @@ def test_chat_template_sends_typed_envelopes_and_unwraps_chat_message() -> None:
     assert "envelope.type" in template
     assert "'chat.message'" in template
     assert "envelope.payload" in template
+    assert "_messageText(m)" in template
+    assert 'x-show="!_isCombatLog(m)" x-text="_messageText(m)"' in template
+    assert 'x-show="_isCombatLog(m)"' in template
     assert "system.session_replaced" in template
     # ws-connect must be the realtime endpoint, used exactly once
     assert template.count("ws-connect=") == 1
@@ -321,6 +359,16 @@ def test_chat_shell_is_collapsible_footer() -> None:
     assert "display: flex !important;" in css
     assert ".game-chat-footer .chat-step-0 .chat-main-area" in css
     assert ".game-chat-footer .chat-step-0 #chat-input-form" in css
+    assert "#chat-input-form" in css
+    assert "flex: 0 0 auto;" in css
+    assert "min-height: 42px;" in css
+    assert "position: relative;" in css
+    assert "z-index: 2;" in css
+    assert "flex: 1 1 16rem;" in css
+    assert "min-width: 12rem;" in css
+    assert "caret-color: var(--chat-accent);" in css
+    assert "#chat-input::placeholder" in css
+    assert "border-color: color-mix(in srgb, var(--chat-accent) 46%, transparent);" in css
     assert "bottom: 0;" in css
     assert "--game-chat-width: 1440px;" in css
     assert "width: min(100%, var(--game-chat-width));" in css

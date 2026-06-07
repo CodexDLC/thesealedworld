@@ -300,6 +300,7 @@ class CombatViewService:
         hero_raw = actors.get(str(viewer_id))
         if not hero_raw:
             raise ValueError(f"Actor {viewer_id} is not present in combat session {session_id}")
+        control_state = self._control_state(hero_raw)
 
         hero = self._enrich_actor_card(
             self._map_actor(str(viewer_id), hero_raw, is_target=False, dead_actor_ids=dead_actor_ids),
@@ -307,6 +308,9 @@ class CombatViewService:
             targets=targets,
             moves=moves,
             now_ms=now_ms,
+        )
+        hero = hero.model_copy(
+            update={"feints": self._feints_from_actor(hero_raw, controlled=control_state.get("can_act") is False)}
         )
         target = self._resolve_target(str(viewer_id), targets, actors, moves, dead_actor_ids, now_ms=now_ms)
         target_id = target.actor_id if target else None
@@ -334,6 +338,8 @@ class CombatViewService:
         status = self._status(meta, hero, target, winner_team=winner_team)
         pending_action_count = self._pending_action_count(moves.get(str(viewer_id), {}))
         action_state = self._action_state(status, target=target, pending_action_count=pending_action_count)
+        if status == "active" and pending_action_count == 0 and control_state.get("can_act") is False:
+            action_state = "CONTROLLED"
 
         log_turns = self.parse_logs_by_turn(raw_logs_by_turn) if raw_logs_by_turn is not None else []
         log_events = self._flatten_turn_events(log_turns) if log_turns else self.parse_logs(raw_logs)
@@ -366,14 +372,16 @@ class CombatViewService:
             allies=allies,
             enemies=enemies,
             active_effects=hero.active_effects,
-            feints=hero.feints,
+            feints=self._feints_from_actor(hero_raw, controlled=control_state.get("can_act") is False),
             available_actions=self._available_actions(
                 status,
                 target,
                 hero,
                 pending_action_count=pending_action_count,
                 action_state=action_state,
+                control_state=control_state,
             ),
+            control_state=control_state,
             exchange_state=exchange_state,
             events_delta=CombatDeltaDTO(events=log_events, turns=log_turns),
             log_total=total_logs if total_logs is not None else len(raw_logs),
@@ -586,9 +594,32 @@ class CombatViewService:
         *,
         pending_action_count: int,
         action_state: str,
+        control_state: dict[str, Any] | None = None,
     ) -> list[CombatActionOptionDTO]:
         actions = [CombatActionOptionDTO(action="system", label="Обновить", enabled=True)]
         if status == "active" and target is not None and not target.is_dead and not hero.is_dead:
+            if (control_state or {}).get("can_act") is False:
+                return [
+                    CombatActionOptionDTO(
+                        action="pass",
+                        label="ПРОПУСТИТЬ ХОД",
+                        enabled=True,
+                        target_id=target.actor_id,
+                        catalog_ref="control",
+                        reason="controlled",
+                    ),
+                    *[
+                        self._ability_action_option(
+                            hero=hero,
+                            target=target,
+                            ability_id=ability_id,
+                            base_enabled=False,
+                            disabled_reason="controlled",
+                        )
+                        for ability_id in hero.known_abilities
+                    ],
+                    actions[0],
+                ]
             enabled = action_state in ("ACTION_READY", "EXCHANGE_PENDING_WITH_TARGETS")
             actions.insert(
                 0,
@@ -804,12 +835,13 @@ class CombatViewService:
         target: CombatActorCardDTO,
         ability_id: str,
         base_enabled: bool,
+        disabled_reason: str | None = None,
     ) -> CombatActionOptionDTO:
         cooldown_active = cls._ability_on_cooldown(hero, ability_id)
         enabled = base_enabled and not cooldown_active and cls._ability_enabled(hero, ability_id)
         reason = None
         if not base_enabled:
-            reason = "action_registered"
+            reason = disabled_reason or "action_registered"
         elif cooldown_active:
             reason = "cooldown"
         return CombatActionOptionDTO(
@@ -1324,7 +1356,63 @@ class CombatViewService:
         return result
 
     @staticmethod
-    def _feints(meta: dict[str, Any], statuses: dict[str, Any]) -> list[CombatFeintOptionDTO]:
+    def _control_state(actor: dict[str, Any] | None) -> dict[str, Any]:
+        actor = actor if isinstance(actor, dict) else {}
+        meta_raw = actor.get("meta")
+        meta = meta_raw if isinstance(meta_raw, dict) else actor
+        statuses_raw = actor.get("statuses")
+        statuses = statuses_raw if isinstance(statuses_raw, dict) else {}
+        current_exchange = CombatViewService._int(meta.get("exchange_counter"))
+        effects_raw = statuses.get("effects")
+        effects = effects_raw if isinstance(effects_raw, list) else []
+        for item in effects:
+            if not isinstance(item, dict):
+                continue
+            expires = CombatViewService._optional_int(item.get("expire_at_exchange"))
+            if expires is not None and expires <= current_exchange:
+                continue
+            control_raw = item.get("control")
+            control = control_raw if isinstance(control_raw, dict) else {}
+            behavior_raw = control.get("source_behavior")
+            behavior = behavior_raw if isinstance(behavior_raw, dict) else {}
+            if behavior.get("can_act") is False:
+                return {
+                    "can_act": False,
+                    "effect_id": str(item.get("effect_id") or "control"),
+                    "reason": "controlled",
+                }
+        return {"can_act": True}
+
+    @staticmethod
+    def _source_forbids_feints(statuses: dict[str, Any], *, current_exchange: int) -> bool:
+        effects_raw = statuses.get("effects")
+        effects = effects_raw if isinstance(effects_raw, list) else []
+        for item in effects:
+            if not isinstance(item, dict):
+                continue
+            expires = CombatViewService._optional_int(item.get("expire_at_exchange"))
+            if expires is not None and expires <= current_exchange:
+                continue
+            control_raw = item.get("control")
+            control = control_raw if isinstance(control_raw, dict) else {}
+            behavior_raw = control.get("source_behavior")
+            behavior = behavior_raw if isinstance(behavior_raw, dict) else {}
+            if behavior.get("forbid_feints") is True:
+                return True
+        return False
+
+    @staticmethod
+    def _feints_from_actor(actor: dict[str, Any], *, controlled: bool = False) -> list[CombatFeintOptionDTO]:
+        meta_raw = actor.get("meta")
+        meta = meta_raw if isinstance(meta_raw, dict) else {}
+        statuses_raw = actor.get("statuses")
+        statuses = statuses_raw if isinstance(statuses_raw, dict) else {}
+        return CombatViewService._feints(meta, statuses, controlled=controlled)
+
+    @staticmethod
+    def _feints(
+        meta: dict[str, Any], statuses: dict[str, Any], *, controlled: bool = False
+    ) -> list[CombatFeintOptionDTO]:
         from src.backend.features.combat.runtime.engine.preparation_exclusivity import (
             active_effect_ids_exclusive_channels,
             feint_preparation_exclusive_channels,
@@ -1339,6 +1427,9 @@ class CombatViewService:
         effects_raw = statuses.get("effects")
         effects = effects_raw if isinstance(effects_raw, list) else []
         current_exchange = CombatViewService._int(meta.get("exchange_counter"))
+        forbid_feints = controlled or CombatViewService._source_forbids_feints(
+            statuses, current_exchange=current_exchange
+        )
         active_effect_ids = {
             str(item.get("effect_id"))
             for item in effects
@@ -1371,6 +1462,8 @@ class CombatViewService:
                     pinned=str(feint_id) == pinned,
                     purchase_group=purchase_group,
                     icon=icon,
+                    enabled=not forbid_feints,
+                    reason="controlled" if controlled else ("forbid_feints" if forbid_feints else None),
                 )
             )
         return options
@@ -1383,13 +1476,11 @@ class CombatViewService:
 
     @classmethod
     def _visual_image_url(cls, visual: dict[str, Any]) -> str | None:
-        for key in ("image_url", "generated_image_url", "fallback_image_url"):
-            url = cls._avatar_image_url(visual.get(key), visual=visual)
-            if key == "generated_image_url" and visual.get("status") != "generated":
-                continue
-            if url:
-                return url
-        return None
+        # Single field: ``image_url`` (placeholder до AI, реальная картинка после).
+        # ``_avatar_image_url`` отбрасывает family-fallback пути — combat view
+        # хочет показывать реальный аватар, для него заглушка из ``/static/images/monsters/families/``
+        # неприемлема (там отрисуется свой silhouette).
+        return cls._avatar_image_url(visual.get("image_url"), visual=visual)
 
     @classmethod
     def _avatar_image_url(cls, value: object, *, visual: dict[str, Any] | None = None) -> str | None:

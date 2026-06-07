@@ -810,6 +810,29 @@ def test_executor_log_entries_include_reflected_shield_damage() -> None:
 
 
 @pytest.mark.unit
+def test_executor_death_log_entries_include_killing_damage() -> None:
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
+    ctx.actors["2"].meta.hp = 0
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(move_id="m1", char_id=1, strategy="exchange", payload=ExchangePayload(target_id=2)),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=7, is_hit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=7, resource="hp"))
+    result.events.append(CombatEventDTO(type="DEATH", source_id=1, target_id=2))
+    result.death_facts.append(CombatDeathFactDTO(actor_id=2, owner="target", reason="damage"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["kind"] == "death"
+    assert entry["outcome"] == "death"
+    assert "7 урона" in entry["text"]
+    assert entry["variables"]["damage"] == 7
+    assert entry["flags"]["death"] is True
+
+
+@pytest.mark.unit
 def test_executor_log_entries_use_dual_wield_proc_text_without_runtime_fallback() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     action = CombatActionDTO(
@@ -1739,6 +1762,8 @@ async def test_executor_controlled_skip_uses_effect_text_without_fallback(
 
     controlled_entry = next(entry for entry in ctx.pending_logs if entry.get("outcome") == "controlled")
     assert "(F)" not in controlled_entry["text"]
+    assert controlled_entry["text"].startswith("A2 оглушён")
+    assert not controlled_entry["text"].startswith("A1 оглушён")
     assert controlled_entry["template"]["key"] == "combat.effect.stun.control_prevent_action.runtime"
     assert "fallback" not in controlled_entry["tags"]
 

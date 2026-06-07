@@ -207,6 +207,25 @@ class LowStaminaCombatStore(FakeCombatStore):
         self.returned_feints.append((session_id, actor_id, feint_id, cost))
 
 
+class ControlledCombatStore(FakeCombatStore):
+    async def get_actor(self, session_id, actor_id):
+        actors = await self.get_actors_batch(session_id, [actor_id, 2])
+        return actors[str(actor_id)]
+
+    async def get_actors_batch(self, session_id, actor_ids):
+        actors = await super().get_actors_batch(session_id, actor_ids)
+        if "1" in actors:
+            actors["1"]["statuses"]["effects"].append(
+                {
+                    "uid": "stun-1",
+                    "effect_id": "stun",
+                    "expire_at_exchange": 3,
+                    "control": {"source_behavior": {"can_act": False}},
+                }
+            )
+        return actors
+
+
 class FinishedCombatStore(FakeCombatStore):
     async def get_meta(self, session_id):
         meta = await super().get_meta(session_id)
@@ -1034,6 +1053,27 @@ async def test_available_actions_disable_instant_ability_on_cooldown():
 
 
 @pytest.mark.asyncio
+async def test_controlled_dashboard_replaces_attack_and_disables_feints():
+    service = CombatSessionService(store=ControlledCombatStore(), system_integrator=FakeCombatSystemIntegrator())
+
+    dashboard = await service.get_dashboard(1)
+
+    assert dashboard.action_state == "CONTROLLED"
+    assert dashboard.control_state == {"can_act": False, "effect_id": "stun", "reason": "controlled"}
+    assert all(action.action != "exchange" for action in dashboard.available_actions)
+    primary = dashboard.available_actions[0]
+    assert primary.action == "pass"
+    assert primary.label == "ПРОПУСТИТЬ ХОД"
+    assert primary.enabled is True
+    assert primary.reason == "controlled"
+    assert all(action.enabled is False for action in dashboard.available_actions if action.action == "instant")
+    assert all(action.reason == "controlled" for action in dashboard.available_actions if action.action == "instant")
+    assert dashboard.feints
+    assert all(feint.enabled is False for feint in dashboard.feints)
+    assert all(feint.reason == "controlled" for feint in dashboard.feints)
+
+
+@pytest.mark.asyncio
 async def test_combat_dashboard_marks_pending_action_as_locked_even_without_queue_target():
     service = CombatSessionService(store=LockedCombatStore(), system_integrator=FakeCombatSystemIntegrator())
 
@@ -1206,6 +1246,25 @@ async def test_post_exchange_accepts_feint_id():
 
 
 @pytest.mark.asyncio
+async def test_post_exchange_rejects_controlled_actor_before_consuming_feint():
+    store = ControlledCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_combat_move(
+            1,
+            CombatRegisterMoveRequestDTO(action="exchange", target_id="2", feint_id="true_strike"),
+            CombatRuntimeOrchestrator(service),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.error_code == "combat_actor_controlled"
+    assert exc_info.value.extra["context"]["effect_id"] == "stun"
+    assert store.consumed_feints == []
+    assert store.exchange_moves == []
+
+
+@pytest.mark.asyncio
 async def test_post_exchange_rejects_feint_when_concentration_is_too_low():
     store = LowStaminaCombatStore()
     service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
@@ -1319,6 +1378,23 @@ async def test_post_pin_feint_accepts_single_hand_option():
     assert isinstance(dashboard, CombatDashboardDTO)
     assert store.pinned_feints == [("combat-1", 1, "true_strike")]
     assert store.started_sessions == []
+
+
+@pytest.mark.asyncio
+async def test_post_pin_feint_rejects_controlled_actor():
+    store = ControlledCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pin_combat_feint(
+            1,
+            CombatPinFeintRequestDTO(feint_id="true_strike"),
+            CombatRuntimeOrchestrator(service),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.error_code == "combat_actor_controlled"
+    assert store.pinned_feints == []
 
 
 @pytest.mark.asyncio

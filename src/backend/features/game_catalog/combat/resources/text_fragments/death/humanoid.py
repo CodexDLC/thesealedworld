@@ -3,20 +3,20 @@ DEATH_HUMANOID_PHRASES = {
         # --- cause: damage, source known ---
         "death.humanoid.damage.struck_down": {
             "kind": "death",
-            "text": "{source} сражает {target} насмерть.",
-            "variables": ["source", "target"],
+            "text": "{source} сражает {target} насмерть, нанося {damage} урона.",
+            "variables": ["source", "target", "damage"],
             "tags": ["death", "damage", "humanoid", "sourced"],
         },
         "death.humanoid.damage.knees": {
             "kind": "death",
-            "text": "{target} опускается на колени и не встаёт.",
-            "variables": ["target"],
+            "text": "{target} получает {damage} урона, опускается на колени и не встаёт.",
+            "variables": ["target", "damage"],
             "tags": ["death", "damage", "humanoid"],
         },
         "death.humanoid.damage.cut_down": {
             "kind": "death",
-            "text": "{source} разит {target} последним ударом.",
-            "variables": ["source", "target"],
+            "text": "{source} разит {target} последним ударом, нанося {damage} урона.",
+            "variables": ["source", "target", "damage"],
             "tags": ["death", "damage", "humanoid", "sourced"],
         },
         # --- cause: dot, effect required (R-2) ---

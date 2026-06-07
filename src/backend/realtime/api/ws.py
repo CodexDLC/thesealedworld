@@ -231,8 +231,13 @@ async def realtime_ws(
             else:
                 await _send_error(ws, "unsupported_type")
 
-    except WebSocketDisconnect:
-        pass
+    except WebSocketDisconnect as exc:
+        log.bind(
+            character_id=character_id,
+            session_id=session_id,
+            code=exc.code,
+            reason=getattr(exc, "reason", None),
+        ).info("RealtimeClientDisconnected")
     except Exception:
         log.bind(character_id=character_id).exception("RealtimeReceiveLoopFailed")
     finally:
@@ -316,6 +321,7 @@ async def _handle_chat_send(
     try:
         msg = IncomingMessageDTO.model_validate(payload)
     except ValidationError:
+        log.bind(sender_id=user_id).warning("RealtimeChatPayloadInvalid")
         await _send_error(ws, "invalid_message")
         return False
 
@@ -323,18 +329,25 @@ async def _handle_chat_send(
         current_state = await chat_sessions.get_state(user_id)
         scoped = with_session_scope(msg, current_state)
         if scoped is None:
+            log.bind(sender_id=user_id, channel=msg.channel).warning("RealtimeChatScopeUnavailable")
             await _send_error(ws, "zone_scope_unavailable")
             return False
         msg = scoped
 
     try:
+        log.bind(
+            sender_id=user_id,
+            channel=msg.channel,
+            scope_id=msg.scope_id,
+            content_length=len(msg.content or ""),
+        ).info("RealtimeChatSendReceived")
         await bridge.handle_chat_send(
             msg.model_dump(),
             sender_id=uuid.UUID(user_id),
             sender_name=sender_name,
         )
     except Exception:
-        log.bind(character_id=user_id).exception("RealtimeChatSendFailed")
+        log.bind(sender_id=user_id, channel=msg.channel).exception("RealtimeChatSendFailed")
         return False
     return True
 
@@ -351,6 +364,7 @@ async def _accept_then_close(ws: WebSocket, code: int, reason: str) -> None:
         await ws.accept()
     except Exception:
         return
+    log.info(f"RealtimeAuthClose code={code} reason={reason!r}")
     try:
         await ws.close(code=code, reason=reason)
     except Exception:

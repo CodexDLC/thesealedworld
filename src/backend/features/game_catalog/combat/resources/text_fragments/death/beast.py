@@ -3,20 +3,20 @@ DEATH_BEAST_PHRASES = {
         # --- cause: damage, source known ---
         "death.beast.damage.brought_down": {
             "kind": "death",
-            "text": "{source} валит {target} на землю.",
-            "variables": ["source", "target"],
+            "text": "{source} валит {target} на землю, нанося {damage} урона.",
+            "variables": ["source", "target", "damage"],
             "tags": ["death", "damage", "beast", "sourced"],
         },
         "death.beast.damage.last_breath": {
             "kind": "death",
-            "text": "{target} испускает последний вздох.",
-            "variables": ["target"],
+            "text": "{target} получает {damage} урона и испускает последний вздох.",
+            "variables": ["target", "damage"],
             "tags": ["death", "damage", "beast"],
         },
         "death.beast.damage.falls": {
             "kind": "death",
-            "text": "{target} рушится под ударом {source}.",
-            "variables": ["target", "source"],
+            "text": "{target} рушится под ударом {source}, получив {damage} урона.",
+            "variables": ["target", "source", "damage"],
             "tags": ["death", "damage", "beast", "sourced"],
         },
         # --- cause: dot, effect required (R-2) ---

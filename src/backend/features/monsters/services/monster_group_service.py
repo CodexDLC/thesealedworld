@@ -93,6 +93,7 @@ class MonsterGroupService:
         budget: float,
         preferred_family_id: str | None = None,
         force_single_family: bool = True,
+        threat_mitigation_skill: float = 0.0,
         *,
         scope_id: str | None = None,
         ttl: int = 300,
@@ -119,6 +120,7 @@ class MonsterGroupService:
             tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
+            threat_mitigation_skill=threat_mitigation_skill,
             composition_policy=self._location_composition_policy(location.raw_location, composition_policy),
             scope_id=group_scope_id,
             ttl=ttl,
@@ -157,6 +159,7 @@ class MonsterGroupService:
         zone_id: str | None = None,
         preferred_family_id: str | None = None,
         force_single_family: bool = True,
+        threat_mitigation_skill: float = 0.0,
         composition_policy: dict[str, Any] | None = None,
         group_scope_id: str | None = None,
         ttl: int = 300,
@@ -179,6 +182,7 @@ class MonsterGroupService:
             tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
+            threat_mitigation_skill=threat_mitigation_skill,
             composition_policy=composition_policy,
             scope_id=group_scope_id,
             ttl=ttl,
@@ -198,6 +202,7 @@ class MonsterGroupService:
         tags: list[str],
         reused_existing_clan: bool,
         force_single_family: bool,
+        threat_mitigation_skill: float,
         composition_policy: dict[str, Any] | None,
         scope_id: str | None,
         ttl: int,
@@ -218,11 +223,12 @@ class MonsterGroupService:
             tags=tags,
             composition_policy=composition_policy,
         )
+        assembly_danger = _mitigated_danger(danger, threat_mitigation_skill)
         assembly = self.assembler.assemble(
             members,
             budget=budget,
             tier=tier,
-            danger=danger,
+            danger=assembly_danger,
             force_single_family=force_single_family,
             composition_policy=effective_policy,
         )
@@ -447,20 +453,22 @@ class MonsterGroupService:
 
     @staticmethod
     def _monster_visual(monster: GeneratedMonster) -> dict[str, Any]:
-        pg_visual = monster.metadata_.get("visual") if isinstance(monster.metadata_, dict) else None
-        if isinstance(pg_visual, dict) and pg_visual:
-            return dict(pg_visual)
-        base_projection = dict(monster.actor_document.get("base_projection") or {})
-        visual = base_projection.get("visual")
+        # Single source of truth: PG ``metadata_["visual"]``. AI-таска пишет сюда
+        # после успешной генерации (см. ``tasks_ai.py``). Mongo ``base_projection.visual``
+        # больше не читаем — оно остаётся в коллекции как мёртвый legacy-снимок
+        # placeholder'а от момента создания клана.
+        visual = monster.metadata_.get("visual") if isinstance(monster.metadata_, dict) else None
         return dict(visual) if isinstance(visual, dict) else {}
 
     @staticmethod
     def _visual_image_url(visual: dict[str, Any]) -> str | None:
-        for key in ("image_url", "generated_image_url", "placeholder_image_url"):
-            value = visual.get(key)
-            if value:
-                return version_generated_asset_url(str(value), visual)
-        return None
+        # Single field: ``image_url``. До AI-генерации = family placeholder,
+        # после AI = реальный сгенерированный URL. Фронту больше не нужно
+        # перебирать каскад полей и угадывать какое из них главное.
+        value = visual.get("image_url")
+        if not value:
+            return None
+        return version_generated_asset_url(str(value), visual)
 
     @staticmethod
     def _organization_type(monster: GeneratedMonster, *, family: Any | None) -> str | None:
@@ -607,3 +615,17 @@ def _weighted_choice(weights: dict[str, int], rng: random.Random) -> str:
         if roll <= upto:
             return value
     return "normal"
+
+
+def _mitigated_danger(danger: float, skill_value: Any) -> float:
+    return max(0.0, float(danger) - _normalized_skill(skill_value))
+
+
+def _normalized_skill(value: Any) -> float:
+    try:
+        raw = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    if raw > 1.0:
+        raw /= 100.0
+    return max(0.0, min(1.0, raw))

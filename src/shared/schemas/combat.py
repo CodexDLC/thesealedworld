@@ -193,6 +193,8 @@ class CombatFeintOptionDTO(CombatJsonDTO):
     pinned: bool = False
     purchase_group: str = "basic"
     icon: str = ""
+    enabled: bool = True
+    reason: str | None = None
 
 
 class CombatActionOptionDTO(CombatJsonDTO):
@@ -323,6 +325,7 @@ class CombatDashboardDTO(CombatJsonDTO):
     active_effects: list[CombatEffectBadgeDTO] = Field(default_factory=list)
     feints: list[CombatFeintOptionDTO] = Field(default_factory=list)
     available_actions: list[CombatActionOptionDTO] = Field(default_factory=list)
+    control_state: dict[str, Any] = Field(default_factory=dict)
     exchange_state: CombatExchangeStateDTO | None = None
     events_delta: CombatDeltaDTO = Field(default_factory=CombatDeltaDTO)
     log_total: int = 0

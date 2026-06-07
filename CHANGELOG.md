@@ -14,6 +14,8 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Obsolete archived feint prototypes and local design prototype artifacts were
+  removed from the tracked project tree.
 - Project tooling no longer exposes the obsolete root `manage.py` bot scaffold
   entrypoint; tg-bot runs through its package launcher.
 - Death respawn now survives player-corpse Redis TTL persistence.

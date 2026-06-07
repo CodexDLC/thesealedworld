@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Feint generation no longer exposes `basic_seize_tempo` through the basic
+  archery known-feint set.
 - Combat logs now group multi-target area ability results, cover feint/beast and
   riposte text templates, and expose richer refresh dispatch diagnostics.
 - Armor tuning now preserves light/medium/heavy ordering with lower absorption

@@ -484,6 +484,7 @@ def test_known_feints_include_basic_archery_and_ranged_tactical_without_heavy_ar
     assert set(known).issuperset(BASIC_ARCHERY_FEINTS)
     assert "foresight_parry" not in known
     assert "second_breath" not in known
+    assert "basic_seize_tempo" not in known
     assert "perfect_riposte" not in known
     assert set(ACTIVE_ARCHERY_WEAPON_FEINT_IDS).issubset(known)
     assert set(ACTIVE_RANGED_TACTICAL_FEINT_IDS).issubset(known)

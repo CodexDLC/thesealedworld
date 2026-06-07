@@ -25,7 +25,6 @@ BASIC_ARCHERY_FEINTS: tuple[str, ...] = (
     "wind_dance",
     "blade_dance",
     "press_defense",
-    "basic_seize_tempo",
 )
 
 SWORD_WEAPON_FEINTS: tuple[str, ...] = (

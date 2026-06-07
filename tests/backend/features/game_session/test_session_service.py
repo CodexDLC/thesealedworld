@@ -30,7 +30,12 @@ class FakeLootService:
         pass
 
     async def claim_all(self, _character_id: int, _corpse_ids: list[str]) -> ClaimResultDTO:
-        return ClaimResultDTO(instance_ids=["item-1"], resource_deltas={"coin_copper": 3})
+        suffix = str(_corpse_ids[0]).rsplit("-", maxsplit=1)[-1] if _corpse_ids else "1"
+        return ClaimResultDTO(
+            instance_ids=[f"item-{suffix}"],
+            resource_deltas={"coin_copper": 3},
+            summary_items=["Медные монеты x3", "Ржавый клинок"],
+        )
 
 
 class FakeArq:
@@ -593,13 +598,57 @@ async def test_claim_post_combat_loot_enqueues_claim_job(mocker):
             "loot_claim_task",
             {
                 "char_id": 7,
-                "corpse_id": "corpse-1",
-                "instance_ids": ["item-1"],
-                "resource_deltas": {"coin_copper": 3},
+                "claims": [
+                    {
+                        "char_id": 7,
+                        "corpse_id": "corpse-1",
+                        "instance_ids": ["item-1"],
+                        "resource_deltas": {"coin_copper": 3},
+                        "summary_items": ["Медные монеты x3", "Ржавый клинок"],
+                    }
+                ],
+                "summary_items": ["Медные монеты x3", "Ржавый клинок"],
+                "source_count": 1,
             },
         )
     ]
     assert sessions.patches[-1][1]["$.state"] == CoreDomain.EXPLORATION.value
+
+
+@pytest.mark.asyncio
+async def test_claim_post_combat_loot_batches_multiple_corpses_into_one_claim_job(mocker):
+    loot_service_module = import_module("src.backend.features.loot.services.loot_service")
+    mocker.patch.object(loot_service_module, "LootService", FakeLootService)
+    arq = FakeArq()
+    integrator = GameSessionIntegrator(character_sessions=FakeCharacterSessions(), loot_manager=object(), loot_arq=arq)
+
+    result = await integrator.claim_post_combat_loot(7, ["corpse-1", "corpse-2"])
+
+    assert result["queued_claims"] == 2
+    assert len(arq.jobs) == 1
+    job_name, payload = arq.jobs[0]
+    assert job_name == "loot_claim_task"
+    assert payload == {
+        "char_id": 7,
+        "claims": [
+            {
+                "char_id": 7,
+                "corpse_id": "corpse-1",
+                "instance_ids": ["item-1"],
+                "resource_deltas": {"coin_copper": 3},
+                "summary_items": ["Медные монеты x3", "Ржавый клинок"],
+            },
+            {
+                "char_id": 7,
+                "corpse_id": "corpse-2",
+                "instance_ids": ["item-2"],
+                "resource_deltas": {"coin_copper": 3},
+                "summary_items": ["Медные монеты x3", "Ржавый клинок"],
+            },
+        ],
+        "summary_items": ["Медные монеты x3", "Ржавый клинок", "Медные монеты x3", "Ржавый клинок"],
+        "source_count": 2,
+    }
 
 
 @pytest.mark.asyncio

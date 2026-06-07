@@ -11,11 +11,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-IncomingType = Literal["chat.send"]
+IncomingType = Literal["chat.send", "pong"]
 OutgoingType = Literal[
     "chat.message",
     "player.notice",
     "system.session_replaced",
+    "ping",
     "error",
 ]
 

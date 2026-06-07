@@ -58,6 +58,24 @@ class BackendSettings(BaseCommonSettings):
     default_symbiote_name: str = "SYSTEM"
     enable_dev_rift_routes: bool = True
 
+    # Realtime gateway (/ws/realtime)
+    # Anti-CSWSH: handshake is accepted only when ``Origin`` matches this list.
+    # Auth cookie is read from the WS handshake; query token is kept as a
+    # fallback for diagnostics/tests only.
+    realtime_allowed_origins: list[str] = [
+        "http://localhost:8000",
+        "http://localhost:8003",
+        "http://localhost:8080",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8003",
+        "http://127.0.0.1:8080",
+        "http://thesealed.localhost:8080",
+        "http://play.thesealed.localhost:8080",
+        "http://play.localhost:8080",
+    ]
+    realtime_ping_interval_seconds: float = 20.0
+    realtime_ping_timeout_seconds: float = 50.0  # 2 missed pings -> close
+
     # Event Streams
     game_stream_name: str = "game_events"
     game_stream_maxlen: int = 10_000
@@ -72,6 +90,13 @@ class BackendSettings(BaseCommonSettings):
     def parse_csv_groups(cls, v: Any) -> list[str] | None:
         if isinstance(v, str) and v:
             return [s.strip() for s in v.split(",")]
+        return v
+
+    @field_validator("realtime_allowed_origins", mode="before")
+    @classmethod
+    def parse_csv_allowed_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str) and v:
+            return [s.strip() for s in v.split(",") if s.strip()]
         return v
 
     @model_validator(mode="after")

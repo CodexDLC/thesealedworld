@@ -34,10 +34,13 @@ PLAYER_NOTICE_EVENT = "player.notice"
 class NoticeTemplates:
     """Template keys understood by the frontend notice renderer."""
 
+    COMBAT_STARTED = "combat.started"
+    COMBAT_FINISHED = "combat.finished"
     PLAYER_DEATH = "player.death"
     PLAYER_RESPAWN = "player.respawn"
     CORPSE_ITEMS_LOST = "player.corpse_items_lost"
     CORPSE_SEARCHED = "loot.corpse_searched"
+    LOOT_CLAIMED = "loot.items_claimed"
     SAFE_ZONE_ENTERED = "exploration.safe_zone_entered"
     ITEMS_SECURED = "expedition.items_secured"
 
@@ -204,6 +207,14 @@ class PlayerNoticePublisher:
             domain="loot",
         )
 
+    async def loot_claimed(self, char_id: int, *, summary: str) -> None:
+        await self._emit(
+            char_id=char_id,
+            template_key=NoticeTemplates.LOOT_CLAIMED,
+            domain="loot",
+            variables={"summary": summary or "добычу"},
+        )
+
     async def safe_zone_entered(self, char_id: int, location_name: str | None = None) -> None:
         variables = {"location": location_name} if location_name else None
         await self._emit(
@@ -220,6 +231,37 @@ class PlayerNoticePublisher:
             template_key=NoticeTemplates.ITEMS_SECURED,
             domain="expedition",
             variables=variables,
+        )
+
+    async def combat_started(
+        self,
+        char_ids: list[int],
+        *,
+        time_text: str,
+        participants: str,
+    ) -> None:
+        await self._emit_many(
+            char_ids=char_ids,
+            template_key=NoticeTemplates.COMBAT_STARTED,
+            domain="combat",
+            variables={"time": time_text, "participants": participants},
+            severity="warning",
+        )
+
+    async def combat_finished(
+        self,
+        char_ids: list[int],
+        *,
+        time_text: str,
+        outcome: str,
+        participants: str,
+    ) -> None:
+        await self._emit_many(
+            char_ids=char_ids,
+            template_key=NoticeTemplates.COMBAT_FINISHED,
+            domain="combat",
+            variables={"time": time_text, "outcome": outcome, "participants": participants},
+            severity="info",
         )
 
     async def request_refresh(

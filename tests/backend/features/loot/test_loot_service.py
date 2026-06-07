@@ -26,7 +26,15 @@ class FakeLootIntegration:
 
 
 class FakeEngine:
-    def build_drop_items(self, role_profile, monster_tier: int, role: str, battle_type: str):
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
         from src.shared.schemas.loot import LootItemDTO
 
         return [LootItemDTO(template_id="fang", name="Fang", is_resource=True)]
@@ -37,9 +45,20 @@ class FakeEngine:
     def build_spoil_items(self, role_profile, monster_tier: int, role: str):
         return []
 
+    def build_group_bonus_item(self, candidates, *, chance_multiplier: float = 1.0):
+        return None
+
 
 class DropOnlyEngine:
-    def build_drop_items(self, role_profile, monster_tier: int, role: str, battle_type: str):
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
         from src.shared.schemas.loot import LootItemDTO
 
         return [
@@ -52,9 +71,20 @@ class DropOnlyEngine:
     def build_spoil_items(self, role_profile, monster_tier: int, role: str):
         raise AssertionError("spoil must not be generated for ordinary post-combat loot")
 
+    def build_group_bonus_item(self, candidates, *, chance_multiplier: float = 1.0):
+        return None
+
 
 class EmptyEngine:
-    def build_drop_items(self, role_profile, monster_tier: int, role: str, battle_type: str):
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
         return []
 
     def build_salvage_items(self, role_profile, monster_tier: int, role: str):
@@ -66,7 +96,16 @@ class EmptyEngine:
     def roll_equipment_tier(self, monster_tier: int, role: str):
         return 0
 
-    def pick_equipment_base_id(self, eq_profile, role: str):
+    def pick_equipment_base_id(
+        self,
+        eq_profile,
+        role: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
+        return None
+
+    def build_group_bonus_item(self, candidates, *, chance_multiplier: float = 1.0):
         return None
 
 
@@ -142,7 +181,15 @@ async def test_order_loot_for_combat_clears_order_marker_when_no_corpses_are_cre
 
 
 class FakeEquipmentEngine:
-    def build_drop_items(self, role_profile, monster_tier: int, role: str, battle_type: str):
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
         from src.shared.schemas.loot import LootItemDTO
 
         return [LootItemDTO(template_id="shield", name="Shield", is_resource=False)]
@@ -156,8 +203,17 @@ class FakeEquipmentEngine:
     def roll_equipment_tier(self, monster_tier: int, role: str):
         return 2
 
-    def pick_equipment_base_id(self, eq_profile, role: str):
+    def pick_equipment_base_id(
+        self,
+        eq_profile,
+        role: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
         return "shield"
+
+    def build_group_bonus_item(self, candidates, *, chance_multiplier: float = 1.0):
+        return None
 
 
 @pytest.mark.asyncio
@@ -196,3 +252,125 @@ async def test_order_loot_passes_family_level_owner_context_to_item_generation()
     assert request["source_context"]["owner_family"] == owner_family
     assert "member_role" not in request["source_context"]
     assert "variant_key" not in request["source_context"]
+
+
+class RecordingRiftEngine(EmptyEngine):
+    def __init__(self) -> None:
+        self.drop_multipliers: list[float] = []
+        self.equipment_rolls: list[float] = []
+        self.group_bonus_multipliers: list[float] = []
+
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
+        self.drop_multipliers.append(chance_multiplier)
+        return []
+
+    def pick_equipment_base_id(
+        self,
+        eq_profile,
+        role: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
+        self.equipment_rolls.append(chance_multiplier)
+        return None
+
+    def build_group_bonus_item(self, candidates, *, chance_multiplier: float = 1.0):
+        self.group_bonus_multipliers.append(chance_multiplier)
+        return (candidates[0], "shield") if candidates else None
+
+
+class GrantingLootIntegration(FakeLootIntegration):
+    async def request_item_instance(self, **kwargs):
+        self.item_requests.append(kwargs)
+        return f"item-{len(self.item_requests)}"
+
+
+@pytest.mark.asyncio
+async def test_rift_group_bonus_rolls_once_and_keeps_per_corpse_chances_base() -> None:
+    integration = GrantingLootIntegration()
+    engine = RecordingRiftEngine()
+    service = LootService(integration, engine)
+
+    pending = await service.order_loot_for_combat(
+        session_id="rift-combat-1",
+        location_id="rift-node",
+        battle_type="rift",
+        actors=[
+            {
+                "actor_id": "bandit-1",
+                "meta": {"type": "monster", "id": "bandit-1", "name": "Bandit", "role": "minion", "tier": 1},
+                "source": {"family_id": "bandit_gang"},
+            },
+            {
+                "actor_id": "bandit-2",
+                "meta": {"type": "monster", "id": "bandit-2", "name": "Bandit", "role": "minion", "tier": 1},
+                "source": {"family_id": "bandit_gang"},
+            },
+            {
+                "actor_id": "bandit-3",
+                "meta": {"type": "monster", "id": "bandit-3", "name": "Bandit", "role": "minion", "tier": 1},
+                "source": {"family_id": "bandit_gang"},
+            },
+        ],
+    )
+
+    assert len(pending) == 1
+    assert engine.drop_multipliers == [1.0, 1.0, 1.0]
+    assert engine.equipment_rolls == [1.0, 1.0, 1.0]
+    assert engine.group_bonus_multipliers == [1.2]
+    assert integration.item_requests[0]["base_id"] == "shield"
+    assert integration.corpses[0][0].items[0].instance_id == "item-1"
+
+
+class ResourceRiftEngine(RecordingRiftEngine):
+    def build_drop_items(
+        self,
+        role_profile,
+        monster_tier: int,
+        role: str,
+        battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
+    ):
+        from src.shared.schemas.loot import LootItemDTO
+
+        self.drop_multipliers.append(chance_multiplier)
+        return [LootItemDTO(template_id="res_dirty_rags", name="Dirty Rags", is_resource=True, layer="drop")]
+
+
+@pytest.mark.asyncio
+async def test_rift_group_bonus_merges_into_existing_resource_corpse() -> None:
+    integration = GrantingLootIntegration()
+    engine = ResourceRiftEngine()
+    service = LootService(integration, engine)
+
+    pending = await service.order_loot_for_combat(
+        session_id="rift-combat-2",
+        location_id="rift-node",
+        battle_type="rift",
+        actors=[
+            {
+                "actor_id": "bandit-1",
+                "meta": {"type": "monster", "id": "bandit-1", "name": "Bandit", "role": "minion", "tier": 1},
+                "source": {"family_id": "bandit_gang"},
+            },
+            {
+                "actor_id": "bandit-2",
+                "meta": {"type": "monster", "id": "bandit-2", "name": "Bandit", "role": "minion", "tier": 1},
+                "source": {"family_id": "bandit_gang"},
+            },
+        ],
+    )
+
+    assert len(pending) == 2
+    assert len(integration.corpses) == 2
+    first_corpse = integration.corpses[0][0]
+    assert [item.template_id for item in first_corpse.items] == ["res_dirty_rags", "shield"]

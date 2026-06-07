@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from typing import Any
 
 from src.backend.features.loot.resources.equipment_pool import merged_pool
 from src.backend.features.loot.resources.resolver import resolve_resource
@@ -41,10 +42,13 @@ class LootEngine:
         monster_tier: int,
         role: str,
         battle_type: str,
+        *,
+        chance_multiplier: float = 1.0,
     ) -> list[LootItemDTO]:
         items: list[LootItemDTO] = []
         for entry in profile.drop:
-            if random.random() >= entry.chance:
+            chance = min(1.0, entry.chance * max(0.0, chance_multiplier))
+            if random.random() >= chance:
                 continue
             if isinstance(entry, ResourceEntry):
                 if entry.profile == "currency" and battle_type == "arena":
@@ -109,11 +113,31 @@ class LootEngine:
         self,
         eq_profile: FamilyEquipmentProfile,
         role: str,
+        *,
+        chance_multiplier: float = 1.0,
     ) -> str | None:
-        chance = eq_profile.role_chances.get(role, eq_profile.default_chance)
+        chance = min(1.0, eq_profile.role_chances.get(role, eq_profile.default_chance) * max(0.0, chance_multiplier))
         if random.random() >= chance:
             return None
         pool = merged_pool(eq_profile.enabled_subcategories)
         if not pool:
             return None
         return random.choice(pool)
+
+    def build_group_bonus_item(
+        self,
+        candidates: list[Any],
+        *,
+        chance_multiplier: float = 1.0,
+    ) -> tuple[Any, str] | None:
+        if not candidates:
+            return None
+        candidate = random.choice(candidates)
+        base_id = self.pick_equipment_base_id(
+            candidate.eq_profile,
+            candidate.role,
+            chance_multiplier=chance_multiplier,
+        )
+        if base_id is None:
+            return None
+        return candidate, base_id

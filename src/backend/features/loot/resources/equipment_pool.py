@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from src.backend.features.items.resources.base_item.accessories import ACCESSORIES_DB
 from src.backend.features.items.resources.base_item.armor import ARMOR_DB
+from src.backend.features.items.resources.base_item.garment import GARMENT_DB
 from src.backend.features.items.resources.base_item.weapons import WEAPONS_DB
 
 SUBCATEGORY_POOLS: dict[str, list[str]] = {}
@@ -10,6 +12,14 @@ for _subcat, _items in WEAPONS_DB.items():
 
 for _subcat, _items in ARMOR_DB.items():
     SUBCATEGORY_POOLS[f"armor_{_subcat}"] = list(_items.keys())
+
+for _subcat, _items in ACCESSORIES_DB.items():
+    SUBCATEGORY_POOLS[f"accessory_{_subcat}"] = list(_items.keys())
+
+for _subcat, _items in GARMENT_DB.items():
+    SUBCATEGORY_POOLS[f"garment_{_subcat}"] = list(_items.keys())
+
+_ALL_EQUIPMENT_SUBCATEGORIES = tuple(SUBCATEGORY_POOLS)
 
 
 def get_pool(subcategory: str) -> list[str]:
@@ -25,6 +35,14 @@ def merged_pool(subcategories: tuple[str, ...]) -> list[str]:
                 seen.add(base_id)
                 result.append(base_id)
     return result
+
+
+def all_equipment_subcategories() -> tuple[str, ...]:
+    return _ALL_EQUIPMENT_SUBCATEGORIES
+
+
+def all_equipment_pool() -> list[str]:
+    return merged_pool(_ALL_EQUIPMENT_SUBCATEGORIES)
 
 
 def validate_loot_profiles() -> None:

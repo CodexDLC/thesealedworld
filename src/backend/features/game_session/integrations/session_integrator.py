@@ -222,6 +222,44 @@ class GameSessionIntegrator:
             "starter_context": starter_context,
         }
 
+    async def list_starting_imprints(self) -> list[dict[str, Any]]:
+        from src.backend.features.character.services import StartingImprintService
+
+        service = StartingImprintService()
+        return [
+            {
+                "imprint_key": build.imprint_key,
+                "title": build.title,
+                "description": build.description,
+            }
+            for build in (service.build(imprint_key) for imprint_key in service.available_keys())
+        ]
+
+    async def dev_reset_starter_rift_character(
+        self,
+        character_id: int,
+        *,
+        user_id: UUID,
+        imprint_key: str,
+    ) -> dict[str, Any]:
+        if self.starter_reset_integration is None:
+            raise RuntimeError("starter_reset_integration is required to reset starter rift character")
+
+        from src.backend.features.character.services import StartingImprintService
+
+        StartingImprintService.get_definition(imprint_key)
+        seed = f"dev-starter-rift-reset:{character_id}:{imprint_key}"
+        reset_result = await self.starter_reset_integration.reset_character_to_starting_imprint(
+            user_id=user_id,
+            character_id=character_id,
+            seed=seed,
+            imprint_key=imprint_key,
+        )
+        return {
+            **reset_result,
+            "reset_seed": seed,
+        }
+
     async def claim_post_combat_loot(self, character_id: int, corpse_ids: list[str]) -> dict[str, Any]:
         if self.loot_manager is None:
             raise RuntimeError("loot_manager is required for post-combat loot")
@@ -234,23 +272,35 @@ class GameSessionIntegrator:
         session_doc = await self._active_session_document(character_id)
         post_combat = _post_combat(session_doc)
         target_state = _post_loot_target_state(post_combat)
-        enqueued = 0
+        claim_payloads: list[dict[str, Any]] = []
+        summary_items: list[str] = []
         for corpse_id in requested:
             claim = await service.claim_all(character_id, [corpse_id])
             if not claim.instance_ids and not claim.resource_deltas:
                 continue
+            claim_payloads.append(
+                {
+                    "char_id": character_id,
+                    "corpse_id": corpse_id,
+                    "instance_ids": claim.instance_ids,
+                    "resource_deltas": claim.resource_deltas,
+                    "summary_items": claim.summary_items,
+                },
+            )
+            summary_items.extend(claim.summary_items)
+
+        if claim_payloads:
             if self.loot_arq is None:
                 raise RuntimeError("loot_arq is required for post-combat loot claim")
             await self.loot_arq.enqueue_job(
                 "loot_claim_task",
                 {
                     "char_id": character_id,
-                    "corpse_id": corpse_id,
-                    "instance_ids": claim.instance_ids,
-                    "resource_deltas": claim.resource_deltas,
+                    "claims": claim_payloads,
+                    "summary_items": summary_items,
+                    "source_count": len(claim_payloads),
                 },
             )
-            enqueued += 1
 
         if self.character_sessions is not None:
             await self.character_sessions.patch_fields(
@@ -271,7 +321,7 @@ class GameSessionIntegrator:
         return {
             "status": "loot_claim_queued",
             "corpse_ids": requested,
-            "queued_claims": enqueued,
+            "queued_claims": len(claim_payloads),
             "target_state": target_state,
             "post_combat": post_combat,
         }

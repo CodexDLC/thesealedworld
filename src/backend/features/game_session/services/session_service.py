@@ -6,6 +6,7 @@ from loguru import logger
 
 from src.shared.enums import CoreDomain
 from src.shared.schemas import CoreResponseDTO, GameStateHeader, ScenarioReturnContextDTO, StateTransitionDTO
+from src.shared.schemas.game_session import StartingImprintOptionDTO, StartingImprintOptionsDTO
 
 if TYPE_CHECKING:
     from src.backend.core.auth import User
@@ -166,6 +167,44 @@ class GameSessionService:
             payload_type="state_transition",
         )
 
+    async def list_starting_imprints(self) -> StartingImprintOptionsDTO:
+        return StartingImprintOptionsDTO(
+            imprints=[
+                StartingImprintOptionDTO(
+                    imprint_key=item["imprint_key"],
+                    title=item["title"],
+                    description=item.get("description") or "",
+                )
+                for item in await self.integrator.list_starting_imprints()
+            ]
+        )
+
+    async def dev_reset_starter_rift_character(
+        self,
+        user: User,
+        *,
+        character_id: int,
+        imprint_key: str,
+    ) -> GameplayEntryResponse:
+        session_doc = await self.integrator.get_active_session(character_id, user.id)
+        if session_doc is None:
+            return self._lobby_response(char_id=character_id, reason="active_character_unavailable")
+        reset_result = await self.integrator.dev_reset_starter_rift_character(
+            character_id,
+            user_id=user.id,
+            imprint_key=imprint_key,
+        )
+        return CoreResponseDTO(
+            header=GameStateHeader(
+                current_state=CoreDomain.SCENARIO, previous_state=self._state_or_none(session_doc.state)
+            ),
+            payload=self._starter_rift_dev_reset_transition(
+                character_id=character_id,
+                reset_result=reset_result,
+            ),
+            payload_type="state_transition",
+        )
+
     @staticmethod
     def _starter_rift_reset_transition(
         *,
@@ -201,6 +240,37 @@ class GameSessionService:
                 **respawn_result,
                 "trigger_reason": "starter_rift_reset",
                 "attempt_index": reset_result.get("attempt_index"),
+                "starting_imprint": starting_imprint,
+                "reset_seed": reset_result.get("reset_seed"),
+            },
+        )
+
+    @staticmethod
+    def _starter_rift_dev_reset_transition(
+        *,
+        character_id: int,
+        reset_result: dict[str, Any],
+    ) -> StateTransitionDTO:
+        starting_imprint = reset_result.get("starting_imprint") or {}
+        return_context = ScenarioReturnContextDTO(
+            source_state=CoreDomain.EXPLORATION,
+            return_state=CoreDomain.SCENARIO,
+            location_id="52_52",
+            metadata={
+                "trigger_reason": "dev_starter_rift_reset",
+                "initial_node_key": "rift_entry_01",
+                "starting_imprint_key": starting_imprint.get("imprint_key"),
+            },
+        )
+        return StateTransitionDTO(
+            char_id=character_id,
+            target_state=CoreDomain.SCENARIO,
+            reason="dev_starter_rift_reset",
+            quest_key="awakening_rift",
+            location_id="52_52",
+            context={"return_context": return_context.model_dump(mode="json")},
+            metadata={
+                "trigger_reason": "dev_starter_rift_reset",
                 "starting_imprint": starting_imprint,
                 "reset_seed": reset_result.get("reset_seed"),
             },

@@ -22,7 +22,12 @@ from src.backend.features.items.repositories import ItemInstanceRepository
 from src.backend.features.npc.integrations import NpcIntegration
 from src.backend.features.rift.integrations import RiftRuntimeIntegration
 from src.backend.infrastructure.loot.managers.loot_manager import LootManager
-from src.backend.infrastructure.rift.managers import RiftInstanceStore, RiftPresenceStore, RiftRunSessionStore
+from src.backend.infrastructure.rift.managers import (
+    RiftInstanceStore,
+    RiftPortalStore,
+    RiftPresenceStore,
+    RiftRunSessionStore,
+)
 from src.backend.realtime.integrations.notice_publisher import PlayerNoticePublisher
 
 
@@ -71,6 +76,7 @@ def get_game_session_service(
             instance_store=RiftInstanceStore(redis),
             session_store=RiftRunSessionStore(redis),
             presence_store=RiftPresenceStore(redis),
+            portal_store=RiftPortalStore(redis),
         ),
         starter_reset_integration=GameLobbyIntegration(
             character_repo=character_repo,
@@ -83,6 +89,12 @@ def get_game_session_service(
             inventory_sessions=request.app.state.redis_managers.inventory_sessions,
             character_sessions=character_sessions,
             events=request.app.state.events,
+            rift_runtime=RiftRuntimeIntegration(
+                instance_store=RiftInstanceStore(redis),
+                session_store=RiftRunSessionStore(redis),
+                presence_store=RiftPresenceStore(redis),
+                portal_store=RiftPortalStore(redis),
+            ),
         ),
     )
     npc = NpcIntegration.from_session(db_session)

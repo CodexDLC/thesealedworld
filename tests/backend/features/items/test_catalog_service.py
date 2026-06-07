@@ -1,10 +1,14 @@
 import pytest
 
+from src.backend.features.combat.dto.actor import ActorStats
+from src.backend.features.combat.dto.pipeline import PipelineContextDTO
+from src.backend.features.combat.runtime.engine.resolver.support import armor_math
 from src.backend.features.combat.dto.trigger_rules import TriggerRulesFlagsDTO
 from src.backend.features.items.resources.affixes.catalog import AFFIX_CATALOG
 from src.backend.features.items.resources.affixes.pools import AFFIX_POOLS_BY_SLOT
 from src.backend.features.items.resources.modifier_contracts import MODIFIER_CONTRACTS
 from src.backend.features.items.services.catalog_service import ItemCatalogService
+from src.shared.schemas.modifier_dto import CombatModifiersDTO, CombatSkillsDTO
 
 WEAPON_DIRECTIONS_EXCEPT_ARCHERY = {
     "skill_swords": {"sword", "longsword", "greatsword", "katana", "scimitar", "flamberge"},
@@ -82,22 +86,22 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
     catalog = ItemCatalogService.load_default()
     expected_sets = {
         "light": {
-            "hood": ("head_armor", 1),
-            "leather_armor": ("chest_armor", 3),
-            "soft_bracers": ("arms_armor", 1),
-            "scout_leggings": ("legs_armor", 2),
+            "hood": ("head_armor", 2),
+            "leather_armor": ("chest_armor", 5),
+            "soft_bracers": ("arms_armor", 2),
+            "scout_leggings": ("legs_armor", 3),
         },
         "medium": {
             "leather_cap": ("head_armor", 1),
-            "jerkin": ("chest_armor", 4),
+            "jerkin": ("chest_armor", 6),
             "reinforced_gloves": ("arms_armor", 1),
-            "breeches": ("legs_armor", 2),
+            "breeches": ("legs_armor", 3),
         },
         "heavy": {
-            "helmet": ("head_armor", 1),
-            "plate_chest": ("chest_armor", 5),
-            "gauntlets": ("arms_armor", 1),
-            "greaves": ("legs_armor", 2),
+            "helmet": ("head_armor", 2),
+            "plate_chest": ("chest_armor", 8),
+            "gauntlets": ("arms_armor", 2),
+            "greaves": ("legs_armor", 4),
         },
     }
     removed_armor_ids = {
@@ -126,6 +130,53 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
             assert item.slot == slot
             assert item.armor_class == armor_class
             assert item.base_power == power
+
+
+@pytest.mark.unit
+def test_tier_seven_armor_sets_reach_resolver_percent_caps() -> None:
+    catalog = ItemCatalogService.load_default()
+    targets = {
+        "light": {
+            "item_ids": ("hood", "leather_armor", "soft_bracers", "scout_leggings"),
+            "tier_mult": 6.8,
+            "skill": "skill_light_armor",
+            "cap": 0.70,
+        },
+        "medium": {
+            "item_ids": ("leather_cap", "jerkin", "reinforced_gloves", "breeches"),
+            "tier_mult": 6.8,
+            "skill": "skill_medium_armor",
+            "cap": 0.80,
+        },
+        "heavy": {
+            "item_ids": ("helmet", "plate_chest", "gauntlets", "greaves"),
+            "tier_mult": 7.0,
+            "skill": "skill_heavy_armor",
+            "cap": 0.90,
+        },
+    }
+
+    for armor_class, target in targets.items():
+        base_total = sum(catalog.get_base_item(item_id).base_power for item_id in target["item_ids"])
+        tier_seven_power = base_total * target["tier_mult"]
+        _absorbed, trace = armor_math.effective_armor_trace(
+            _armor_stats(),
+            _armor_stats(armor=tier_seven_power, skill_key=str(target["skill"])),
+            PipelineContextDTO(),
+            incoming_damage=100.0,
+        )
+
+        assert trace["mode"] == "percent_power"
+        assert trace["pct_raw"] >= target["cap"], armor_class
+        assert trace["pct"] == pytest.approx(target["cap"])
+
+
+def _armor_stats(*, armor: float = 0.0, skill_key: str | None = None) -> ActorStats:
+    skills = {skill_key: 1.0} if skill_key else {}
+    return ActorStats(
+        mods=CombatModifiersDTO(armor=armor),
+        skills=CombatSkillsDTO(**skills),
+    )
 
 
 @pytest.mark.unit

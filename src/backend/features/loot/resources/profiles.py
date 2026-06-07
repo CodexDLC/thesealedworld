@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.backend.features.loot.resources.equipment_pool import all_equipment_subcategories
 from src.backend.features.loot.resources.types import (
     FamilyEquipmentProfile,
     MonsterLootProfile,
@@ -73,14 +74,16 @@ _GOBLIN_ROLES = {
     ),
 }
 
-# Equipment pool configs — families own which subcategories can drop and at what rates
+_HUMANOID_EQUIPMENT_SUBCATEGORIES = all_equipment_subcategories()
+
+# Humanoids can drop any base equipment item; family context is passed to item generation for flavor.
 _BANDIT_EQUIPMENT = FamilyEquipmentProfile(
-    enabled_subcategories=("fencing", "macing", "polearms", "archery", "offhand", "armor_medium"),
+    enabled_subcategories=_HUMANOID_EQUIPMENT_SUBCATEGORIES,
     role_chances={"minion": 0.18, "veteran": 0.25, "elite": 0.35, "boss": 0.55},
 )
 
 _GOBLIN_EQUIPMENT = FamilyEquipmentProfile(
-    enabled_subcategories=("fencing", "macing", "archery", "offhand", "armor_light", "armor_medium"),
+    enabled_subcategories=_HUMANOID_EQUIPMENT_SUBCATEGORIES,
     role_chances={"minion": 0.15, "veteran": 0.22, "elite": 0.30, "boss": 0.50},
 )
 

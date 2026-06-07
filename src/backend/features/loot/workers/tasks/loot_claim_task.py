@@ -33,25 +33,27 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     If PG fails → ARQ retries, corpse remains untouched (idempotent).
 
     payload:
-        char_id         — character picking up the loot
-        corpse_id       — single corpse being claimed
-        instance_ids    — list of ItemInstance UUIDs to transfer
-        resource_deltas — {template_id: amount} for ResourceWallet increment
+        char_id — character picking up the loot
+        claims  — batched corpse claims with instance_ids/resource_deltas/summary_items
+
+    Legacy single-corpse payloads are still accepted and normalized into one
+    claim so queued jobs from an older deploy can finish cleanly.
     """
     char_id: int = int(payload.get("char_id", 0))
-    corpse_id: str = str(payload.get("corpse_id", ""))
-    instance_ids: list[str] = payload.get("instance_ids") or []
-    resource_deltas: dict[str, int] = payload.get("resource_deltas") or {}
+    claims = _claim_payloads(payload)
+    corpse_ids = [claim["corpse_id"] for claim in claims]
+    total_instance_count = sum(len(claim["instance_ids"]) for claim in claims)
+    total_resource_count = sum(len(claim["resource_deltas"]) for claim in claims)
 
-    if not char_id or not corpse_id:
+    if not char_id or not claims:
         log.error("LootClaimPayloadInvalid")
         return
 
     log.bind(
         char_id=char_id,
-        corpse_id=corpse_id,
-        item_count=len(instance_ids),
-        resource_count=len(resource_deltas),
+        corpse_ids=corpse_ids,
+        item_count=total_instance_count,
+        resource_count=total_resource_count,
     ).info("LootClaimTaskStarted")
 
     redis_service = ctx.get("redis_service")
@@ -62,29 +64,105 @@ async def loot_claim_task(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     # -----------------------------------------------------------------
     # Step 1: PostgreSQL — transfer ItemPlacement + increment ResourceWallet
     # -----------------------------------------------------------------
-    pg_success = await _transfer_to_inventory(ctx, char_id, corpse_id, instance_ids, resource_deltas)
-    if not pg_success:
-        log.bind(corpse_id=corpse_id).warning("LootClaimTransferFailed")
-        raise RuntimeError(f"inventory transfer failed for char={char_id} corpse={corpse_id}")
+    for claim_payload in claims:
+        corpse_id = claim_payload["corpse_id"]
+        pg_success = await _transfer_to_inventory(
+            ctx,
+            char_id,
+            corpse_id,
+            claim_payload["instance_ids"],
+            claim_payload["resource_deltas"],
+        )
+        if not pg_success:
+            log.bind(corpse_id=corpse_id).warning("LootClaimTransferFailed")
+            raise RuntimeError(f"inventory transfer failed for char={char_id} corpse={corpse_id}")
 
     # -----------------------------------------------------------------
     # Step 2: Redis — remove claimed items from corpse, set short TTL if empty
     # -----------------------------------------------------------------
     manager = LootManager(redis_service)
     integration = LootIntegration(manager, game_config=ctx.get("game_config"))
-    claim = ClaimResultDTO(instance_ids=instance_ids, resource_deltas=resource_deltas)
-    updated_corpse = await integration.mark_items_claimed(corpse_id, claim)
+    for claim_payload in claims:
+        corpse_id = claim_payload["corpse_id"]
+        claim = ClaimResultDTO(
+            instance_ids=claim_payload["instance_ids"],
+            resource_deltas=claim_payload["resource_deltas"],
+            summary_items=claim_payload["summary_items"],
+        )
+        updated_corpse = await integration.mark_items_claimed(corpse_id, claim)
 
-    if updated_corpse is None:
-        log.bind(corpse_id=corpse_id).warning("LootClaimCorpseMissing")
-    elif updated_corpse.is_empty:
-        log.bind(corpse_id=corpse_id).info("LootClaimCorpseEmptied")
+        if updated_corpse is None:
+            log.bind(corpse_id=corpse_id).warning("LootClaimCorpseMissing")
+        elif updated_corpse.is_empty:
+            log.bind(corpse_id=corpse_id).info("LootClaimCorpseEmptied")
 
-    log.bind(char_id=char_id, corpse_id=corpse_id).info("LootClaimTaskCompleted")
+    log.bind(char_id=char_id, corpse_ids=corpse_ids).info("LootClaimTaskCompleted")
 
     redis_client = ctx.get("redis_client_internal")
     if redis_client is not None:
-        await PlayerNoticePublisher(RawStreamNoticeProducer(redis_client)).corpse_searched(char_id)
+        summary = _summary_text([item for claim in claims for item in claim["summary_items"]])
+        await PlayerNoticePublisher(RawStreamNoticeProducer(redis_client)).loot_claimed(char_id, summary=summary)
+
+
+def _claim_payloads(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_claims = payload.get("claims")
+    if not isinstance(raw_claims, list):
+        raw_claims = [payload]
+    claims: list[dict[str, Any]] = []
+    for raw in raw_claims:
+        if not isinstance(raw, dict):
+            continue
+        corpse_id = str(raw.get("corpse_id") or "")
+        if not corpse_id:
+            continue
+        instance_ids = [str(item_id) for item_id in (raw.get("instance_ids") or []) if item_id]
+        resource_deltas: dict[str, int] = {}
+        for template_id, amount in dict(raw.get("resource_deltas") or {}).items():
+            try:
+                normalized_amount = int(amount)
+            except (TypeError, ValueError):
+                continue
+            if normalized_amount > 0:
+                resource_deltas[str(template_id)] = normalized_amount
+        if not instance_ids and not resource_deltas:
+            continue
+        claims.append(
+            {
+                "corpse_id": corpse_id,
+                "instance_ids": instance_ids,
+                "resource_deltas": resource_deltas,
+                "summary_items": [str(item) for item in (raw.get("summary_items") or []) if item],
+            }
+        )
+    return claims
+
+
+def _summary_text(items: list[str]) -> str:
+    totals: dict[str, int] = {}
+    for item in items:
+        label = str(item or "").strip()
+        if not label:
+            continue
+        name, count = _summary_item_parts(label)
+        totals[name] = totals.get(name, 0) + count
+    if not totals:
+        return "добычу"
+    labels = [f"{name} x{count}" if count > 1 else name for name, count in totals.items()]
+    visible = labels[:5]
+    suffix = f" и еще {len(labels) - len(visible)}" if len(labels) > len(visible) else ""
+    return ", ".join(visible) + suffix
+
+
+def _summary_item_parts(label: str) -> tuple[str, int]:
+    name, separator, raw_count = label.rpartition(" x")
+    if separator:
+        try:
+            count = int(raw_count)
+        except ValueError:
+            return label, 1
+        if name.strip() and count > 0:
+            return name.strip(), count
+    return label, 1
 
 
 def _split_resource_buckets(

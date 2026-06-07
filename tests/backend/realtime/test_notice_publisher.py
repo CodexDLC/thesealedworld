@@ -78,6 +78,60 @@ async def test_items_secured_includes_count_when_present() -> None:
 
 
 @pytest.mark.unit
+async def test_loot_claimed_carries_summary_variable() -> None:
+    producer = FakeProducer()
+    await PlayerNoticePublisher(producer).loot_claimed(7, summary="Ржавый клинок, Медные монеты x3")
+
+    _, data = producer.calls[0]
+    assert data["template_key"] == NoticeTemplates.LOOT_CLAIMED
+    assert data["domain"] == "loot"
+    assert json.loads(data["variables"]) == {"summary": "Ржавый клинок, Медные монеты x3"}
+
+
+@pytest.mark.unit
+async def test_combat_started_publishes_system_notice_to_many_players() -> None:
+    producer = FakeProducer()
+    await PlayerNoticePublisher(producer).combat_started(
+        [7, 11],
+        time_text="21:40",
+        participants="Команда 1: Hero против Команда 2: Wolf",
+    )
+
+    event, data = producer.calls[0]
+    assert event == PLAYER_NOTICE_EVENT
+    assert data["template_key"] == NoticeTemplates.COMBAT_STARTED
+    assert data["domain"] == "combat"
+    assert data["severity"] == "warning"
+    assert json.loads(data["character_ids"]) == [7, 11]
+    assert json.loads(data["variables"]) == {
+        "time": "21:40",
+        "participants": "Команда 1: Hero против Команда 2: Wolf",
+    }
+
+
+@pytest.mark.unit
+async def test_combat_finished_publishes_system_notice_to_many_players() -> None:
+    producer = FakeProducer()
+    await PlayerNoticePublisher(producer).combat_finished(
+        [7, 11],
+        time_text="21:44",
+        outcome="победила Команда 1: Hero на ходу 12",
+        participants="Команда 1: Hero; Команда 2: Wolf",
+    )
+
+    event, data = producer.calls[0]
+    assert event == PLAYER_NOTICE_EVENT
+    assert data["template_key"] == NoticeTemplates.COMBAT_FINISHED
+    assert data["domain"] == "combat"
+    assert json.loads(data["character_ids"]) == [7, 11]
+    assert json.loads(data["variables"]) == {
+        "time": "21:44",
+        "outcome": "победила Команда 1: Hero на ходу 12",
+        "participants": "Команда 1: Hero; Команда 2: Wolf",
+    }
+
+
+@pytest.mark.unit
 async def test_corpse_items_lost_without_count_has_empty_variables() -> None:
     producer = FakeProducer()
     await PlayerNoticePublisher(producer).corpse_items_lost(7)

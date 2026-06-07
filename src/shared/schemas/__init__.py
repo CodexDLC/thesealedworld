@@ -38,6 +38,11 @@ from src.shared.schemas.game_lobby import (
     GameLobbyUserContextDTO,
     LobbySlotDTO,
 )
+from src.shared.schemas.game_session import (
+    DevStarterRiftResetRequestDTO,
+    StartingImprintOptionDTO,
+    StartingImprintOptionsDTO,
+)
 from src.shared.schemas.messages import (
     GameMessageDTO,
     GameMessagePresentationDTO,
@@ -80,6 +85,7 @@ __all__ = [
     "CoreResponseDTO",
     "CreateCharacterRequestDTO",
     "DeleteCharacterRequestDTO",
+    "DevStarterRiftResetRequestDTO",
     "EnterCharacterRequestDTO",
     "GameLobbyCharacterCreateRequestDTO",
     "GameLobbyCharacterDeleteRequestDTO",
@@ -101,4 +107,6 @@ __all__ = [
     "ScenarioReturnContextDTO",
     "ServiceResult",
     "StateTransitionDTO",
+    "StartingImprintOptionDTO",
+    "StartingImprintOptionsDTO",
 ]

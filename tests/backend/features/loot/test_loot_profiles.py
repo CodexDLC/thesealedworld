@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.backend.features.items.resources import get_base_by_id
-from src.backend.features.loot.resources.equipment_pool import merged_pool
+from src.backend.features.loot.resources.equipment_pool import all_equipment_pool, merged_pool
 from src.backend.features.loot.resources.profiles import LOOT_PROFILES
 from src.backend.features.loot.resources.resolver import resolve_resource
 from src.backend.features.loot.resources.types import ResourceEntry
@@ -51,6 +51,18 @@ def test_humanoid_loot_profiles_drop_valid_equipment_and_tier_zero_junk(family_i
             missing_junk_roles.append(role)
 
     assert missing_junk_roles == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("family_id", ["bandit_gang", "goblin_tribe", "humanoid_bandit"])
+def test_humanoid_equipment_profiles_use_full_base_equipment_pool(family_id: str) -> None:
+    profile = LOOT_PROFILES[family_id]
+
+    assert profile.equipment is not None
+    allowed_equipment = set(merged_pool(profile.equipment.enabled_subcategories))
+    full_equipment = set(all_equipment_pool())
+
+    assert allowed_equipment == full_equipment
 
 
 @pytest.mark.unit

@@ -14,6 +14,7 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Death respawn now survives player-corpse Redis TTL persistence.
 - Gameplay combat now carries refreshed blood/gift abilities, preparation
   exclusivity, richer post-combat loot notices, and realtime/session recovery
   hooks for the play surface.

@@ -31,6 +31,14 @@ class FakePublisher:
         return [c[0] for c in self.calls]
 
 
+class FakeLootManager:
+    def __init__(self) -> None:
+        self.saved: list[tuple[object, str, int]] = []
+
+    async def save_corpse(self, corpse: object, location_id: str, ttl: int) -> None:
+        self.saved.append((corpse, location_id, ttl))
+
+
 @pytest.fixture(autouse=True)
 def _noop_flag_modified(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(expedition_service_module, "flag_modified", lambda *a, **k: None)
@@ -92,6 +100,34 @@ async def test_respawn_emits_player_respawned() -> None:
     await svc.respawn(char_id=42)
 
     assert "player_respawned" in publisher.names()
+
+
+@pytest.mark.asyncio
+async def test_persist_player_corpse_casts_float_ttl_for_redis_expire() -> None:
+    loot_manager = FakeLootManager()
+    expedition = SimpleNamespace(
+        corpse_id="corpse-1",
+        corpse_location_id="52_52",
+        character_id=42,
+        death_combat_id="combat-1",
+        run_id="run-1",
+    )
+    svc = _service(FakePublisher(), loot_manager=loot_manager)
+
+    await svc._persist_player_corpse(
+        expedition,
+        item_rows=[],
+        resource_rows=[],
+        now_ts=1000.0,
+        expires_ts=87400.0,
+        corpse_ttl=86400.0,
+    )
+
+    corpse, location_id, ttl = loot_manager.saved[0]
+    assert location_id == "52_52"
+    assert ttl == 86400
+    assert isinstance(ttl, int)
+    assert corpse.access_policy["ttl_seconds"] == 86400.0
 
 
 @pytest.mark.asyncio

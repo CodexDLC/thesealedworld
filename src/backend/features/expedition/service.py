@@ -601,7 +601,7 @@ class ExpeditionService:
             access_policy={"owner_lock": True, "public_delay_seconds": 0, "ttl_seconds": corpse_ttl},
             timestamps=LootTimestamps(created_at=now_ts, public_at=now_ts, decay_at=expires_ts),
         )
-        await self.loot_manager.save_corpse(corpse, expedition.corpse_location_id, corpse_ttl)
+        await self.loot_manager.save_corpse(corpse, expedition.corpse_location_id, int(corpse_ttl))
 
     async def _patch_death_corpse_session(self, char_id: int, expedition: CharacterExpedition) -> None:
         if self.character_sessions is None:

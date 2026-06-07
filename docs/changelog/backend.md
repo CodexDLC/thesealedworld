@@ -4,6 +4,9 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Expedition respawn now stores player-corpse TTLs as Redis-compatible integer
+  seconds, preserving the starter-rift death return flow into portal/scenario
+  handling.
 - Combat runtime now supports ability cooldowns, duration-backed modifier
   effects, preparation exclusivity, vampiric/cleave combat math, and scaled
   multi-actor turn timeouts for refreshed basic gifts.

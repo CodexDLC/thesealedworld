@@ -5,6 +5,8 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Gameplay client recovery now nudges stale realtime sockets after tab/network
+  resume, suppresses `None` asset URLs, and flags fallback combat icons in dev.
 - Combat and session UI now expose debug starter-rift reset controls, realtime
   keepalive recovery, cooldown-aware actions, compact status widgets, and
   updated generated combat art/icon surfaces.

@@ -449,7 +449,7 @@
                                                     data-catalog-tooltip="ability"
                                                     {% endif %}
                                                     {% if not action.enabled %}disabled{% endif %}>
-                                                <img src="{{ action.icon_url }}" alt="">
+                                                <img src="{{ action.icon_url }}" alt=""{% if action.icon_is_fallback %} class="is-icon-fallback" data-missing-icon="ability:{{ action.ability_id or action.id }}"{% endif %}>
                                             </button>
                                         </span>
                                     {% endfor %}
@@ -494,7 +494,7 @@
                                                 data-tippy-content="{{ feint_tooltip_parts | join(' // ') }}"
                                                 data-tippy-theme="game-feint"
                                                 {% if not action.enabled %}disabled{% endif %}>
-                                            <img class="combat-feint-icon" src="{{ action.icon_url }}" alt="">
+                                            <img class="combat-feint-icon{% if action.icon_is_fallback %} is-icon-fallback{% endif %}" src="{{ action.icon_url }}" alt=""{% if action.icon_is_fallback %} data-missing-icon="feint:{{ action.feint_id or action.id }}"{% endif %}>
                                             <span class="combat-feint-main">
                                                 <span class="combat-feint-title"
                                                       {% if action.catalog and action.catalog_key %}

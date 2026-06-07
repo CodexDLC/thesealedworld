@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+from loguru import logger as log
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -243,6 +244,7 @@ class CombatActionVM(BaseModel):
     label: str
     kind: str
     icon_url: str
+    icon_is_fallback: bool = False  # AI создал ability/feint без подвязки SVG из набора → используем generic.
     enabled: bool = True
     target_id: str | None = None
     feint_id: str | None = None
@@ -1503,19 +1505,33 @@ def _split_actions(
         if action.action == "exchange":
             primary = _action_vm(action, kind="attack", icon="attack")
         elif action.ability_id:
-            abilities.append(_action_vm(action, kind="ability", icon=_ability_icon(action.ability_id)))
+            ability_icon = _ability_icon(action.ability_id)
+            ability_fallback = _ability_icon_is_fallback(action.ability_id)
+            if ability_fallback:
+                log.bind(ability_id=action.ability_id).warning("MissingAbilityIcon")
+            vm = _action_vm(action, kind="ability", icon=ability_icon)
+            if ability_fallback:
+                vm = vm.model_copy(update={"icon_is_fallback": True})
+            abilities.append(vm)
 
     feints: list[CombatActionVM] = []
     for feint in hero.feints:
         stamina_cost = _feint_stamina_cost(feint.cost)
         has_concentration = hero.vitals.stamina_current >= stamina_cost
         enabled = bool(primary.enabled if primary else False) and has_concentration
+        feint_fallback = _feint_icon_is_fallback(feint.feint_id, feint.purchase_group)
+        if feint_fallback:
+            log.bind(
+                feint_id=feint.feint_id,
+                purchase_group=feint.purchase_group,
+            ).warning("MissingFeintIcon")
         feints.append(
             CombatActionVM(
                 id=feint.feint_id,
                 label=feint.feint_id,
                 kind="feint",
                 icon_url=_feint_icon_url(feint.feint_id, feint.purchase_group),
+                icon_is_fallback=feint_fallback,
                 enabled=enabled,
                 target_id=primary.target_id if primary else None,
                 feint_id=feint.feint_id,
@@ -1561,6 +1577,11 @@ def _ability_icon(ability_id: str | None) -> str:
     return "gift-token"
 
 
+def _ability_icon_is_fallback(ability_id: str | None) -> bool:
+    """True if ability_id has no dedicated SVG and we render generic gift-token."""
+    return str(ability_id or "") not in BASIC_ABILITY_ICON_FILES
+
+
 def _feint_icon_url(feint_id: str | None, purchase_group: str | None) -> str:
     fid = str(feint_id or "")
     if fid and fid in FEINT_SPECIFIC_ICON_FILES:
@@ -1569,6 +1590,18 @@ def _feint_icon_url(feint_id: str | None, purchase_group: str | None) -> str:
     if group_file:
         return f"{COMBAT_ICON_ROOT}/feints/{group_file}.svg"
     return f"{COMBAT_ICON_ROOT}/feint.svg"
+
+
+def _feint_icon_is_fallback(feint_id: str | None, purchase_group: str | None) -> bool:
+    """True if neither feint-specific nor purchase-group SVG is wired up.
+
+    Specific icon → False. Group icon → False (still a real, dedicated SVG).
+    Generic feint.svg → True (AI forgot to attach the icon to the new feint).
+    """
+    fid = str(feint_id or "")
+    if fid and fid in FEINT_SPECIFIC_ICON_FILES:
+        return False
+    return str(purchase_group or "basic") not in FEINT_GROUP_ICON_FILES
 
 
 def _action_catalog(kind: str) -> str | None:

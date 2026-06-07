@@ -27,7 +27,8 @@
                 "core/exploration_cooldown.js",
                 "core/game_state_loader.js",
                 "core/game_shell.js",
-                "core/main.js"
+                "core/main.js",
+                "core/realtime_supervisor.js"
             ]
         }
     }

@@ -32,6 +32,7 @@
     let keepalivePending = null;
     let openedAt = 0;
     let livenessResetTimer = null;
+    let currentSocket = null;
 
     function consumeKeepalive() {
         if (keepalivePending) return keepalivePending;
@@ -82,8 +83,9 @@
         }
     }
 
-    function onWsOpen() {
+    function onWsOpen(evt) {
         openedAt = Date.now();
+        currentSocket = (evt && evt.detail && evt.detail.socketWrapper) ? evt.detail.socketWrapper.socket : null;
         clearLivenessTimer();
         // If the socket stays open for LIVENESS_RESET_MS without an immediate
         // close, treat it as a healthy session and forget past auth failures.
@@ -91,6 +93,34 @@
             authFailures = 0;
             livenessResetTimer = null;
         }, LIVENESS_RESET_MS);
+    }
+
+    // Force htmx-ws to drop a half-dead socket so its built-in reconnect loop
+    // picks up immediately. Useful when the OS/browser froze the tab and the
+    // server already closed us out via heartbeat, but the client-side socket
+    // is stuck in CONNECTING/OPEN without ever firing wsClose.
+    function nudgeReconnectIfStale() {
+        if (!currentSocket) return;
+        const state = currentSocket.readyState;
+        // CLOSED (3) or CLOSING (2): htmx-ws is already reconnecting; nothing to do.
+        // CONNECTING (0) for too long, or OPEN (1) but server-side dead — force close.
+        if (state === 0 || state === 1) {
+            try {
+                currentSocket.close();
+            } catch (_) {
+                // Swallow — htmx-ws will try a fresh socket on the next tick.
+            }
+        }
+    }
+
+    function onVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            nudgeReconnectIfStale();
+        }
+    }
+
+    function onNetworkOnline() {
+        nudgeReconnectIfStale();
     }
 
     function onWsAfterMessage(evt) {
@@ -121,6 +151,8 @@
     document.addEventListener('htmx:wsClose', (e) => onWsClose(e && e.detail));
     document.addEventListener('htmx:wsError', (e) => onWsClose(e && e.detail));
     document.addEventListener('htmx:wsAfterMessage', onWsAfterMessage);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onNetworkOnline);
 
     window.RealtimeSupervisor = {
         // Exposed for diagnostics / tests.
@@ -133,7 +165,9 @@
             authFailures = 0;
             keepalivePending = null;
             openedAt = 0;
+            currentSocket = null;
             clearLivenessTimer();
         },
+        _nudge: nudgeReconnectIfStale,
     };
 })();

@@ -483,6 +483,9 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('htmx:load', (event) => {
     window.GameCatalogCache.init().then(() => window.GameCatalogCache.resolveDom(event.target));
 });
+
+
+
 window.ExplorationMoveCooldown = {
     endAt: 0,
     durationMs: 0,
@@ -622,6 +625,9 @@ document.addEventListener('htmx:load', (event) => {
     window.ExplorationMoveCooldown.init(event.target);
     window.ExplorationRiskFrame.init(event.target);
 });
+
+
+
 (function () {
     const loadedScripts = new Set();
     const pendingScripts = new Map();
@@ -717,6 +723,9 @@ document.addEventListener('htmx:load', (event) => {
     document.addEventListener("htmx:load", (event) => init(event.target));
     document.addEventListener("htmx:afterSwap", (event) => init(event.target));
 })();
+
+
+
 window.inventoryGridLayout = function(element) {
     if (!element) return null;
 
@@ -1252,11 +1261,14 @@ window.gameShell = function(initial = {}) {
         },
     };
 };
-// Main Game Logic & UI Interactions
 
-// ── Chat step control ────────────────────────────────────────────────────────
-// Steps: 0=footer height  1=25vh  2=50vh  3=75vh
-// Shared core — sets height directly so CSS transition fires cleanly
+
+
+
+
+
+
+
 function _applyChatStep(newStep) {
     const container = document.querySelector('.game-container');
     const chatRow   = document.querySelector('.game-chat-row') || document.querySelector('.game-chat-overlay');
@@ -1314,7 +1326,7 @@ function _applyChatStep(newStep) {
     }
 }
 
-// Called by ▼/▲ buttons: delta = -1 or +1
+
 window.stepChatSize = function(dirOrTarget) {
     const container = document.querySelector('.game-container');
     let currentStep = 1;
@@ -1334,7 +1346,7 @@ window.stepChatSize = function(dirOrTarget) {
     _applyChatStep(newStep);
 };
 
-// Called by step-dot clicks: jump directly to a step
+
 window.setChatStep = function(targetStep) {
     _applyChatStep(targetStep);
 };
@@ -1417,9 +1429,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initCombatStatSectionPersistence(document);
 });
 
-// ── Universal action feedback ───────────────────────────────────────────────
-// HTMX requests can take long enough that a click feels lost. Mark the control
-// immediately so every game action has visible acknowledgement before the swap.
+
+
+
 function resolveActionFeedbackElement(source) {
     if (!source || !source.closest) return null;
     const control = source.closest('button, a, [role="button"], input[type="submit"], input[type="button"]');
@@ -1451,7 +1463,7 @@ function clearActionFeedback(source) {
     }
 }
 
-// ── HTMX hooks ───────────────────────────────────────────────────────────────
+
 document.addEventListener('htmx:beforeRequest', (event) => {
     setActionFeedback(event.detail?.elt);
 });
@@ -1492,7 +1504,7 @@ function handleSessionReplaced(event) {
             detail.shouldSwap = false;
             detail.isError = false;
         }
-    } catch (e) { /* noop */ }
+    } catch (e) {  }
     const target = '/game-lobby?reason=session_replaced';
     if (window.location.pathname + window.location.search !== target) {
         window.location.replace(target);
@@ -1507,32 +1519,35 @@ document.addEventListener('htmx:load', function() {
     }
     initGameTooltips(document);
 });
-// Realtime WebSocket reconnect supervisor.
-//
-// The chat shell wires htmx-ws to /ws/realtime with auth coming from the
-// HttpOnly cookie (see src/backend/realtime/api/ws.py). htmx-ws keeps the
-// transport itself alive but doesn't know what to do when the handshake is
-// rejected with an auth-class close code — it will retry the same URL
-// forever. This supervisor watches close/error events and breaks the loop:
-//
-//   * Auth-class close (4001/4003/4004): one keepalive call to /game/keepalive
-//     so GameTokenRefreshMiddleware rotates the cookie before htmx-ws retries.
-//     After 3 consecutive failures we redirect to the lobby — the refresh
-//     token itself is gone.
-//   * Session replaced (4002): redirect immediately, the other tab won.
-//   * Heartbeat timeout (4008): treat as a generic transport drop, let
-//     htmx-ws reconnect normally.
-//   * Pong: respond to backend pings so the server-side liveness loop
-//     keeps the socket open across NAT idle timeouts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (function () {
     const AUTH_CODES = new Set([4001, 4003, 4004]);
     const SESSION_REPLACED_CODE = 4002;
     const MAX_AUTH_RETRIES = 3;
-    // Server does accept() then close(4001) so wsOpen fires every reject.
-    // Reset the counter only when the socket is alive long enough to either
-    // receive a message or stay open beyond this threshold; otherwise an
-    // accept-then-close storm would never trip the retry cap.
+
+
+
+
     const LIVENESS_RESET_MS = 5000;
     const KEEPALIVE_URL = '/game/keepalive';
     const LOBBY_URL = '/game-lobby?reason=session_lost';
@@ -1541,6 +1556,7 @@ document.addEventListener('htmx:load', function() {
     let keepalivePending = null;
     let openedAt = 0;
     let livenessResetTimer = null;
+    let currentSocket = null;
 
     function consumeKeepalive() {
         if (keepalivePending) return keepalivePending;
@@ -1583,31 +1599,60 @@ document.addEventListener('htmx:load', function() {
             consumeKeepalive();
             return;
         }
-        // Non-auth close: if the socket was actually alive for a while, reset
-        // the counter so a single network blip doesn't bank toward a future
-        // auth-class redirect. If it died instantly, leave the counter alone.
+
+
+
         if (openedAt && Date.now() - openedAt >= LIVENESS_RESET_MS) {
             authFailures = 0;
         }
     }
 
-    function onWsOpen() {
+    function onWsOpen(evt) {
         openedAt = Date.now();
+        currentSocket = (evt && evt.detail && evt.detail.socketWrapper) ? evt.detail.socketWrapper.socket : null;
         clearLivenessTimer();
-        // If the socket stays open for LIVENESS_RESET_MS without an immediate
-        // close, treat it as a healthy session and forget past auth failures.
+
+
         livenessResetTimer = setTimeout(() => {
             authFailures = 0;
             livenessResetTimer = null;
         }, LIVENESS_RESET_MS);
     }
 
+
+
+
+
+    function nudgeReconnectIfStale() {
+        if (!currentSocket) return;
+        const state = currentSocket.readyState;
+
+
+        if (state === 0 || state === 1) {
+            try {
+                currentSocket.close();
+            } catch (_) {
+
+            }
+        }
+    }
+
+    function onVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            nudgeReconnectIfStale();
+        }
+    }
+
+    function onNetworkOnline() {
+        nudgeReconnectIfStale();
+    }
+
     function onWsAfterMessage(evt) {
         const message = evt && evt.detail ? evt.detail.message : null;
         if (!message) return;
-        // Any inbound payload is proof of a healthy session — drop the
-        // failure counter immediately (the LIVENESS_RESET_MS timer was a
-        // fallback for sockets that never speak).
+
+
+
         authFailures = 0;
         clearLivenessTimer();
         let parsed;
@@ -1618,11 +1663,11 @@ document.addEventListener('htmx:load', function() {
         }
         if (!parsed || parsed.type !== 'ping') return;
         const socket = evt.detail.socketWrapper && evt.detail.socketWrapper.socket;
-        if (!socket || socket.readyState !== 1 /* OPEN */) return;
+        if (!socket || socket.readyState !== 1 ) return;
         try {
             socket.send(JSON.stringify({ type: 'pong' }));
         } catch (_) {
-            // Socket already dying; close handler will pick it up.
+
         }
     }
 
@@ -1630,9 +1675,11 @@ document.addEventListener('htmx:load', function() {
     document.addEventListener('htmx:wsClose', (e) => onWsClose(e && e.detail));
     document.addEventListener('htmx:wsError', (e) => onWsClose(e && e.detail));
     document.addEventListener('htmx:wsAfterMessage', onWsAfterMessage);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onNetworkOnline);
 
     window.RealtimeSupervisor = {
-        // Exposed for diagnostics / tests.
+
         _state: () => ({
             authFailures,
             keepalivePending: !!keepalivePending,
@@ -1642,7 +1689,9 @@ document.addEventListener('htmx:load', function() {
             authFailures = 0;
             keepalivePending = null;
             openedAt = 0;
+            currentSocket = null;
             clearLivenessTimer();
         },
+        _nudge: nudgeReconnectIfStale,
     };
 })();

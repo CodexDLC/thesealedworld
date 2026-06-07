@@ -104,6 +104,17 @@ async def lifespan(app: FastAPI):
         await create_db_tables()
 
         app.state.templates = Jinja2Templates(directory=str(settings.templates_dir))
+        # Render Python ``None`` as an empty string instead of the literal
+        # "None". Без этого ``<img src="{{ vm.icon_url }}">`` (где icon_url is
+        # None) производит ``<img src="None">`` → браузер делает GET на
+        # ``/game/None`` → 404. Та же беда для href/data-*-url атрибутов.
+        # Empty string keeps these tags inert (Chrome не fires request for
+        # ``<img src="">``), но шаблоны с явной проверкой ``{% if x %}``
+        # продолжают работать как и раньше.
+        app.state.templates.env.finalize = lambda value: "" if value is None else value
+        # Expose debug flag to templates so dev-only diagnostics (например,
+        # подсветка отсутствующих SVG-иконок) можно рисовать только в dev.
+        app.state.templates.env.globals["is_debug"] = settings.debug
         # Register global functions in templates
         app.state.templates.env.globals["inline_css"] = inline_css
 

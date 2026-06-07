@@ -4,6 +4,15 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Combat runtime now supports ability cooldowns, duration-backed modifier
+  effects, preparation exclusivity, vampiric/cleave combat math, and scaled
+  multi-actor turn timeouts for refreshed basic gifts.
+- Loot claims now batch post-combat corpse rewards, include broader equipment
+  pools and summary notices, and rebalance armor base power for starter drops.
+- Game session and realtime services now expose debug-only starter-rift reset
+  controls plus a cookie-authenticated realtime gateway with origin and
+  heartbeat controls.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 - Concentration now scales more strongly from Projection for both maximum

@@ -4,6 +4,9 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
+- Site static surfaces now share the refreshed realtime bootstrap and local
+  Nginx test routing for the split site/play hosts.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Auth And Security

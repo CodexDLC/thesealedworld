@@ -83,6 +83,20 @@ def test_combat_shell_renders_standard_header_without_footer_chat():
     assert 'include "game/domains/game_menu/header_nav.html"' not in header
 
 
+def test_combat_stat_groups_persist_open_state_across_swaps():
+    left = Path("src/frontend/templates/game/domains/combat/left_sidebar/main.html").read_text()
+    right = Path("src/frontend/templates/game/domains/combat/right_sidebar/main.html").read_text()
+    js_source = Path("src/frontend/static/js/core/main.js").read_text()
+    js_bundle = Path("src/frontend/static/js/game.js").read_text()
+
+    assert 'data-combat-stat-key="hero:{{ actor.actor_id }}:{{ section.key }}"' in left
+    assert 'data-combat-stat-key="ally:{{ ally.actor_id }}:{{ section.key }}"' in left
+    assert 'data-combat-stat-key="enemy:{{ enemy.actor_id }}:{{ section.key }}"' in right
+    assert "tbmmorpg:combat:stat-section:" in js_source
+    assert "initCombatStatSectionPersistence(document);" in js_source
+    assert "initCombatStatSectionPersistence(document);" in js_bundle
+
+
 def test_combat_viewport_uses_prototype_field_and_bottom_action_panel():
     template = Path("src/frontend/templates/game/domains/combat/viewport/main.html").read_text()
     exchange_card = Path("src/frontend/templates/game/domains/combat/viewport/exchange_card.html").read_text()
@@ -1190,10 +1204,10 @@ def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
         available_actions=[
             CombatActionOptionDTO(
                 action="instant",
-                label="Наказать ошибку",
+                label="Сбить стойку",
                 enabled=True,
                 target_id="2",
-                ability_id="basic_punish_mistake",
+                ability_id="basic_break_stance",
             ),
             CombatActionOptionDTO(
                 action="instant",
@@ -1208,7 +1222,7 @@ def test_combat_vm_uses_physical_icons_for_basic_abilities_only():
     screen = build_combat_screen_vm(dashboard)
 
     icons = {action.ability_id: action.icon_url for action in screen.ability_options}
-    assert icons["basic_punish_mistake"].endswith("/abilities/basic_punish_mistake.svg")
+    assert icons["basic_break_stance"].endswith("/abilities/basic_break_stance.svg")
     assert icons["fireball"].endswith("/gift-token.svg")
 
 

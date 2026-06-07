@@ -10,6 +10,8 @@ services:
 
   frontend-play:
     ports: !reset []
+    environment:
+      REALTIME_WS_URL: http://play.thesealed.localhost:8080
 
   nginx-test:
     build:

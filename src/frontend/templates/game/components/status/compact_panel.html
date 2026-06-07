@@ -194,6 +194,32 @@
             </div>
         </details>
         {% endif %}
+
+        {% set dev_reset = dev_status_controls.get('starter_rift_reset') if dev_status_controls is defined and dev_status_controls else none %}
+        {% if debug_enabled and user is defined and user and user.is_superuser and dev_reset and dev_reset.get('imprints') %}
+        <section class="status-widget-section scenario-status-section status-dev-reset">
+            <header class="status-widget-section-title">
+                <span>DEV RESET</span>
+                <strong>SNAPSHOT</strong>
+            </header>
+            <form class="status-dev-reset-form"
+                  hx-post="{{ dev_reset.get('action') }}"
+                  hx-target="#game-session-root"
+                  hx-swap="outerHTML"
+                  hx-confirm="Полностью сбросить персонажа и пересоздать его из выбранного слепка?">
+                <input type="hidden" name="char_id" value="{{ char_id }}">
+                <label class="status-dev-reset-field">
+                    <span>STARTING IMPRINT</span>
+                    <select name="imprint_key" required>
+                        {% for imprint in dev_reset.get('imprints') %}
+                            <option value="{{ imprint.get('imprint_key') }}">{{ imprint.get('title') }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="status-dev-reset-button">OK RESET</button>
+            </form>
+        </section>
+        {% endif %}
     {% else %}
         <section class="status-widget-section scenario-status-section">
             <header class="status-widget-section-title">

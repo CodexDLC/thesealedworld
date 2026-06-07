@@ -22,6 +22,7 @@ from src.shared.schemas import CoreResponseDTO, EnterCharacterRequestDTO
 from src.shared.schemas.arena import ArenaUIPayloadDTO
 from src.shared.schemas.city_services import CityServiceUIPayloadDTO
 from src.shared.schemas.exploration import EncounterDTO, ExplorationScreenDTO, WorldNavigationDTO
+from src.shared.schemas.game_session import DevStarterRiftResetRequestDTO
 from src.shared.schemas.loot import LootClaimRequestDTO
 
 if TYPE_CHECKING:
@@ -423,6 +424,20 @@ class SessionContextBuilder:
     async def respawn(self, request: Request, *, char_id: int) -> dict[str, Any]:
         token = require_game_access_token(request)
         response = await self.game_session_api.respawn(token, EnterCharacterRequestDTO(character_id=char_id))
+        return await self.build_from_response(request, response, char_id=char_id)
+
+    async def dev_reset_starter_rift(
+        self,
+        request: Request,
+        *,
+        char_id: int,
+        imprint_key: str,
+    ) -> dict[str, Any]:
+        token = require_game_access_token(request)
+        response = await self.game_session_api.dev_reset_starter_rift(
+            token,
+            DevStarterRiftResetRequestDTO(character_id=char_id, imprint_key=imprint_key),
+        )
         return await self.build_from_response(request, response, char_id=char_id)
 
     async def claim_loot(self, request: Request, *, char_id: int, corpse_ids: list[str]) -> dict[str, Any]:

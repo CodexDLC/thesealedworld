@@ -808,8 +808,8 @@
     min-width: 0;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
     gap: 9px;
     padding: 10px;
     background:
@@ -820,9 +820,10 @@
 .combat-exchange-inline {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-content: stretch;
     gap: 9px;
 }
 
@@ -860,6 +861,7 @@
 
 .combat-exchange-wave {
     min-width: 0;
+    min-height: 0;
     display: grid;
     gap: 6px;
     padding-top: 8px;
@@ -886,8 +888,8 @@
     min-width: 0;
     display: grid;
     gap: 5px;
-    max-height: 118px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
 }
 
 .combat-exchange-wave__line {
@@ -945,6 +947,7 @@
     display: none;
     grid-template-rows: minmax(0, 1fr);
     gap: 7px;
+    overflow: hidden;
     padding-top: 9px;
     border-top: 1px solid rgba(255, 170, 0, .14);
 }
@@ -1068,7 +1071,7 @@
 
 @media (min-width: 768px) {
     .combat-exchange-card {
-        grid-template-rows: auto minmax(0, auto) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
         align-content: stretch;
     }
 

@@ -354,3 +354,72 @@
     font-weight: 900;
     line-height: 1;
 }
+
+.status-dev-reset {
+    border-color: rgba(255, 84, 40, 0.34);
+    background:
+        linear-gradient(180deg, rgba(255, 84, 40, 0.075), rgba(5, 5, 7, 0.42)),
+        rgba(5, 5, 7, 0.62);
+}
+
+.status-dev-reset .status-widget-section-title strong {
+    color: #ff7048;
+}
+
+.status-dev-reset-form {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+    padding: 0 8px 8px;
+}
+
+.status-dev-reset-field {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+}
+
+.status-dev-reset-field span {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(230, 204, 172, 0.62);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-dev-reset-field select,
+.status-dev-reset-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 28px;
+    border: 1px solid rgba(255, 170, 0, 0.16);
+    background: rgba(0, 0, 0, 0.34);
+    color: rgba(240, 218, 184, 0.86);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.status-dev-reset-field select {
+    padding: 0 7px;
+}
+
+.status-dev-reset-button {
+    cursor: pointer;
+    border-color: rgba(255, 84, 40, 0.38);
+    color: #ff7048;
+}
+
+.status-dev-reset-button:hover {
+    border-color: rgba(255, 112, 72, 0.68);
+    background: rgba(255, 84, 40, 0.12);
+}

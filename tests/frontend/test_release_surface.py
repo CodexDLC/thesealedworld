@@ -117,3 +117,15 @@ def test_production_play_surface_is_wired() -> None:
         "RELEASE_VERSION",
     ):
         assert f"{key}=" in prod_env_example
+
+
+@pytest.mark.unit
+def test_local_nginx_smoke_layer_routes_realtime_ws() -> None:
+    root = Path(__file__).resolve().parents[2]
+    compose_nginx_test = (root / "deploy" / "compose.nginx-test.yml").read_text(encoding="utf-8")
+    nginx_test = (root / "deploy" / "nginx" / "site-nginx-test.conf").read_text(encoding="utf-8")
+
+    assert "REALTIME_WS_URL: http://play.thesealed.localhost:8080" in compose_nginx_test
+    assert "ports: !reset []" in compose_nginx_test
+    assert nginx_test.count("location /ws/realtime") == 2
+    assert nginx_test.count("proxy_pass $chat_upstream;") >= 6

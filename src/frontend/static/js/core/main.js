@@ -126,8 +126,41 @@ function initGameTooltips(root = document) {
 
 window.initGameTooltips = initGameTooltips;
 
+const COMBAT_STAT_SECTION_STORAGE_PREFIX = 'tbmmorpg:combat:stat-section:';
+
+function initCombatStatSectionPersistence(root = document) {
+    const nodes = Array.from(root.querySelectorAll('details[data-combat-stat-key]'));
+    nodes.forEach((node) => {
+        const rawKey = node.dataset.combatStatKey;
+        if (!rawKey) return;
+        const storageKey = COMBAT_STAT_SECTION_STORAGE_PREFIX + rawKey;
+
+        try {
+            const stored = window.localStorage.getItem(storageKey);
+            if (stored !== null) {
+                node.open = stored === 'open';
+            }
+        } catch (err) {
+            void err;
+        }
+
+        if (node.dataset.combatStatPersistBound === '1') return;
+        node.dataset.combatStatPersistBound = '1';
+        node.addEventListener('toggle', () => {
+            try {
+                window.localStorage.setItem(storageKey, node.open ? 'open' : 'closed');
+            } catch (err) {
+                void err;
+            }
+        });
+    });
+}
+
+window.initCombatStatSectionPersistence = initCombatStatSectionPersistence;
+
 document.addEventListener('DOMContentLoaded', () => {
     initGameTooltips(document);
+    initCombatStatSectionPersistence(document);
 });
 
 // ── Universal action feedback ───────────────────────────────────────────────
@@ -213,6 +246,7 @@ function handleSessionReplaced(event) {
 }
 
 document.addEventListener('htmx:load', function() {
+    initCombatStatSectionPersistence(document);
     if (window.GameCatalogCache) {
         window.GameCatalogCache.init().then(() => window.GameCatalogCache.resolveDom(document));
         return;

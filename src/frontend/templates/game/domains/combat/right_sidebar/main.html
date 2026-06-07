@@ -87,7 +87,9 @@
                     </div>
                     <div class="combat-enemy-stat-body">
                         {% for section in enemy.stat_sheet.sections %}
-                        <details class="combat-stat-group combat-stat-group--compact" {% if loop.first %}open{% endif %}>
+                        <details class="combat-stat-group combat-stat-group--compact"
+                                 data-combat-stat-key="enemy:{{ enemy.actor_id }}:{{ section.key }}"
+                                 {% if loop.first %}open{% endif %}>
                             <summary><span>{{ section.label }}</span></summary>
                             <div class="combat-stat-list">
                                 {% for item in section.items %}

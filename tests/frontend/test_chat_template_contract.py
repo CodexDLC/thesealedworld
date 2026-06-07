@@ -53,6 +53,39 @@ def test_chat_template_uses_realtime_ws_endpoint() -> None:
     assert "/ws/chat" not in template
 
 
+def test_chat_template_silences_transport_ping_envelope() -> None:
+    """``ping`` is handled by static/js/core/realtime_supervisor.js — the chat
+    shell must drop it without logging, otherwise every heartbeat (~20s) spams
+    'realtime: ignoring envelope type ping' into the console.
+    """
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    assert "envelope.type === 'ping'" in template
+    # The ping branch must short-circuit BEFORE the generic ignore-warn so the
+    # supervisor's heartbeat never reaches the console fallback.
+    ping_idx = template.index("envelope.type === 'ping'")
+    warn_idx = template.index("ignoring envelope type")
+    assert ping_idx < warn_idx
+
+
+def test_chat_template_never_embeds_access_token_in_ws_url() -> None:
+    """Auth comes from the cookie; the token MUST NOT be in the URL.
+
+    Embedding {{ access_token }} freezes a 15-min credential into the DOM and
+    htmx-ws will retry the same dead URL forever once it expires. See
+    src/backend/realtime/api/ws.py for the cookie-based handshake.
+    """
+    template = CHAT_TEMPLATE.read_text(encoding="utf-8")
+
+    # The whole ws-connect line must not carry a token query parameter.
+    for line in template.splitlines():
+        if "ws-connect=" not in line:
+            continue
+        assert "token=" not in line, f"WS URL must not carry a token query: {line!r}"
+        assert "{{ access_token" not in line
+        assert "{{ game_access_token" not in line
+
+
 def test_chat_template_sends_typed_envelopes_and_unwraps_chat_message() -> None:
     template = CHAT_TEMPLATE.read_text(encoding="utf-8")
 
@@ -80,6 +113,9 @@ def test_chat_template_renders_player_notice_into_system_tab() -> None:
     assert "this._renderTemplateText(template, vars || {})" in template
     # a few of the classic-MMO notice strings + placeholder usage
     assert "'player.death': 'Вы погибли.'" in template
+    assert "'combat.started': 'На часах {time}. Из засады начался бой: {participants}.'" in template
+    assert "'combat.finished': 'На часах {time}. Бой завершен: {outcome}. Участники: {participants}.'" in template
+    assert "'loot.items_claimed': 'Вы подобрали: {summary}.'" in template
     assert "'exploration.safe_zone_entered': 'Вы вошли в безопасную зону: {location}.'" in template
     # the synthesized message lands in the system channel as a plain message
     assert "_onPlayerNotice(envelope)" in template

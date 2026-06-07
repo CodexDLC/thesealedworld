@@ -520,9 +520,7 @@ window.gameShell = function(initial = {}) {
             }
             if (hudWindow.width !== null) parts.push(`width: ${hudWindow.width}px`);
             if (hudWindow.height !== null) {
-                if (name === 'chat' && this.chatStep === 0) {
-                    // Minimized: let it collapse naturally
-                } else {
+                if (!(name === 'chat' && this.chatStep === 0)) {
                     parts.push(`height: ${hudWindow.height}px`);
                 }
             }

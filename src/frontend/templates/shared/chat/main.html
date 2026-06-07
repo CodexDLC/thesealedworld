@@ -168,6 +168,12 @@
                      if (window.console && console.warn) console.warn('realtime: dropping un-typed message', envelope);
                      return;
                  }
+                 if (envelope.type === 'ping') {
+                     // Transport-layer heartbeat owned by realtime_supervisor.js;
+                     // the chat shell must ignore it silently — pong reply is
+                     // sent there, not here.
+                     return;
+                 }
                  if (envelope.type === 'system.session_replaced') {
                      if (window.console && console.warn) console.warn('realtime: session replaced by newer login');
                      return;
@@ -213,10 +219,13 @@
              } catch (_) {}
          },
          _noticeTemplates: {
+             'combat.started': 'На часах {time}. Из засады начался бой: {participants}.',
+             'combat.finished': 'На часах {time}. Бой завершен: {outcome}. Участники: {participants}.',
              'player.death': 'Вы погибли.',
              'player.respawn': 'Вы воскресли у портала.',
              'player.corpse_items_lost': 'Снаряжение осталось в трупе.',
              'loot.corpse_searched': 'Вы обыскали труп.',
+             'loot.items_claimed': 'Вы подобрали: {summary}.',
              'exploration.safe_zone_entered': 'Вы вошли в безопасную зону: {location}.',
              'expedition.items_secured': 'Снаряжение сохранено.'
          },
@@ -785,9 +794,18 @@
      }"
      x-init="if (window.GameCatalogCache && window.GameCatalogCache.init) window.GameCatalogCache.init().then(() => { _refreshMessageViews(); }); window.addEventListener('htmx:wsAfterMessage', (e) => _onWsMessage(e)); window.addEventListener('chat-clear-request', () => _clearActiveChatTab())"
 >
-    <!-- WS connection — on the outer wrapper so all child forms can ws-send -->
+    <!-- WS connection — on the outer wrapper so all child forms can ws-send.
+         Auth is read from the HttpOnly ``tbmmorpg_game_access_token`` cookie
+         by the realtime gateway (see src/backend/realtime/api/ws.py); the
+         browser attaches it to the handshake automatically. The token MUST
+         NOT be embedded in the URL — that would freeze a 15-min token into
+         the DOM and break long-lived tabs after the next cookie rotation.
+         Reconnect supervision lives in ``static/js/realtime/client.js``,
+         which listens for htmx:wsClose / htmx:wsError on this element and
+         calls ``/game/keepalive`` before allowing more retries. -->
     <div hx-ext="ws"
-         ws-connect="{{ realtime_ws_endpoint }}?token={{ access_token }}&char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         ws-connect="{{ realtime_ws_endpoint }}?char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         data-realtime-supervisor
          style="display:contents;">
 
     <!-- ── TAB BAR ── -->

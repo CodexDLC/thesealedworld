@@ -1668,18 +1668,6 @@ a.is-action-pending .choice-label,
 
 
 
-.lore-section {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: var(--sp-10) 0;
-}
-
-.feature-text {
-    line-height: 1.6;
-}
-
-
-
 .modal-backdrop {
     position: fixed;
     top: 0;
@@ -2517,6 +2505,50 @@ a.is-action-pending .choice-label,
     .library-card-list .library-card {
         grid-template-columns: 1fr;
     }
+}
+
+
+.library-page--stub {
+    padding: var(--sp-12, 4rem) var(--sp-6, 1.5rem);
+}
+
+.library-stub {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5, 1.25rem);
+}
+
+.library-stub h1 {
+    margin: 0;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.library-stub p {
+    margin: 0;
+    line-height: 1.6;
+    color: var(--text-muted, #9aa3ad);
+}
+
+.library-stub-note {
+    font-size: 0.95em;
+    opacity: 0.85;
+}
+
+.library-stub-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-3, 0.75rem);
+    flex-wrap: wrap;
+    margin-top: var(--sp-2, 0.5rem);
+}
+
+.library-stub-build {
+    font-size: 0.85em;
+    opacity: 0.65;
+    margin-top: var(--sp-6, 1.5rem);
 }
 
 

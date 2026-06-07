@@ -26,13 +26,9 @@ COMBAT_ICON_ROOT = "/static/images/ui/combat-icons"
 COMBAT_LOG_PAGE_SIZE = 8
 FEINT_STAMINA_PER_TOKEN = 3
 BASIC_ABILITY_ICON_FILES: dict[str, str] = {
-    "basic_punish_mistake": "basic_punish_mistake",
-    "basic_finish_moment": "basic_finish_moment",
     "basic_break_stance": "basic_break_stance",
     "basic_expose_weakness": "basic_expose_weakness",
     "basic_wipe_blood": "basic_wipe_blood",
-    "basic_grit_teeth": "basic_grit_teeth",
-    "basic_bloody_answer": "basic_bloody_answer",
     "basic_last_push": "basic_last_push",
 }
 

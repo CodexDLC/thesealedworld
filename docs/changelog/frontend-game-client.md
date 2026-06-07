@@ -5,6 +5,12 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
+- Combat and session UI now expose debug starter-rift reset controls, realtime
+  keepalive recovery, cooldown-aware actions, compact status widgets, and
+  updated generated combat art/icon surfaces.
+- Play-surface local routing now uses the realtime websocket endpoint through
+  the Nginx test stack.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 - Mobile encounter target previews now use generated visual image URLs when the

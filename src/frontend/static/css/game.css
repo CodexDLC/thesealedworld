@@ -117,7 +117,6 @@
 
 
 
-
 *,
 *::before,
 *::after {
@@ -4412,6 +4411,75 @@ a.is-action-pending .choice-label,
     font-size: var(--game-panel-value-size);
     font-weight: 900;
     line-height: 1;
+}
+
+.status-dev-reset {
+    border-color: rgba(255, 84, 40, 0.34);
+    background:
+        linear-gradient(180deg, rgba(255, 84, 40, 0.075), rgba(5, 5, 7, 0.42)),
+        rgba(5, 5, 7, 0.62);
+}
+
+.status-dev-reset .status-widget-section-title strong {
+    color: #ff7048;
+}
+
+.status-dev-reset-form {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+    padding: 0 8px 8px;
+}
+
+.status-dev-reset-field {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+}
+
+.status-dev-reset-field span {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(230, 204, 172, 0.62);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-dev-reset-field select,
+.status-dev-reset-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 28px;
+    border: 1px solid rgba(255, 170, 0, 0.16);
+    background: rgba(0, 0, 0, 0.34);
+    color: rgba(240, 218, 184, 0.86);
+    font-family: var(--font-ui);
+    font-size: var(--game-panel-label-size);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.status-dev-reset-field select {
+    padding: 0 7px;
+}
+
+.status-dev-reset-button {
+    cursor: pointer;
+    border-color: rgba(255, 84, 40, 0.38);
+    color: #ff7048;
+}
+
+.status-dev-reset-button:hover {
+    border-color: rgba(255, 112, 72, 0.68);
+    background: rgba(255, 84, 40, 0.12);
 }
 
 
@@ -13794,8 +13862,8 @@ html, body {
     min-width: 0;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
     gap: 9px;
     padding: 10px;
     background:
@@ -13806,9 +13874,10 @@ html, body {
 .combat-exchange-inline {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-content: stretch;
     gap: 9px;
 }
 
@@ -13846,6 +13915,7 @@ html, body {
 
 .combat-exchange-wave {
     min-width: 0;
+    min-height: 0;
     display: grid;
     gap: 6px;
     padding-top: 8px;
@@ -13872,8 +13942,8 @@ html, body {
     min-width: 0;
     display: grid;
     gap: 5px;
-    max-height: 118px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
 }
 
 .combat-exchange-wave__line {
@@ -13931,6 +14001,7 @@ html, body {
     display: none;
     grid-template-rows: minmax(0, 1fr);
     gap: 7px;
+    overflow: hidden;
     padding-top: 9px;
     border-top: 1px solid rgba(255, 170, 0, .14);
 }
@@ -14054,7 +14125,7 @@ html, body {
 
 @media (min-width: 768px) {
     .combat-exchange-card {
-        grid-template-rows: auto minmax(0, auto) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
         align-content: stretch;
     }
 

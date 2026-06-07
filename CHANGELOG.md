@@ -14,6 +14,12 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Gameplay combat now carries refreshed blood/gift abilities, preparation
+  exclusivity, richer post-combat loot notices, and realtime/session recovery
+  hooks for the play surface.
+- Local Nginx test routing now proxies play realtime websockets with the
+  configured play host URL.
+
 ## [v0.4.0] - Alpha 0.4.0
 
 ### Product

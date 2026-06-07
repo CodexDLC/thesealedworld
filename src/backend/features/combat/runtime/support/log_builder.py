@@ -140,6 +140,95 @@ class CombatLogBuilder:
         )
         return entries
 
+    @classmethod
+    def build_area_result_entry(
+        cls,
+        *,
+        ctx: BattleContext,
+        results: list[InteractionResultDTO],
+        action: CombatActionDTO,
+        wave: int,
+        timestamp: float,
+    ) -> dict[str, Any] | None:
+        if not results:
+            return None
+        global_turn = ctx.meta.step_counter + 1
+        first = results[0]
+        action_id = cls._log_action_id(first, action) or cls._action_id(action)
+        source_id = first.source_id if first.source_id is not None else action.move.char_id
+        source = cls._actor_ref(ctx, source_id)
+        source_name = str((source or {}).get("name") or "NO_SOURCE")
+        targets = cls._target_refs(ctx, action=action, fallback_target_id=first.target_id)
+        template = cls._combat_text_template(
+            ctx=ctx,
+            result=first,
+            action=action,
+            action_id=action_id,
+            event_name="area_result",
+            source_id=source_id,
+            target_id=first.target_id,
+        )
+        variables = cls._variables(result=first, source=source, target=None, targets_count=len(targets))
+        cls._apply_combat_text_variables(variables, template, action_id=action_id)
+        resource_type = str(template.get("resource_type") or "")
+        action_label = str(variables.get(resource_type) or variables.get("ability") or action_id or "действие")
+        target_results = cls._area_target_results(ctx, results)
+        variables["target_results"] = target_results
+        text = cls._area_result_text(
+            source_name=source_name,
+            action_label=action_label,
+            target_results=target_results,
+            resource_type=resource_type,
+        )
+        catalog = cls._combat_text_catalog_fields(template)
+        public_result = cls._combined_public_result(ctx, results)
+        tags = ["runtime", action.action_type, f"wave:{wave}", f"turn:{global_turn}", "outcome:area_result"]
+        if action.is_forced:
+            tags.append("forced")
+        severity = "good" if any(result.is_crit for result in results) else "normal"
+        return {
+            "id": f"{global_turn}:{wave}:{source_id or 'none'}:area:0",
+            "type": "LOG",
+            "kind": cls._entry_kind(first, action_type=action.action_type, is_area=True, catalog=catalog),
+            "text": text,
+            "timestamp": timestamp,
+            "tags": tags,
+            "global_turn": global_turn,
+            "wave": wave,
+            "source": source,
+            "target": None,
+            "targets": targets,
+            "action": {
+                "mode": action.action_type,
+                "id": action_id,
+                "catalog": catalog.get("catalog"),
+                "catalog_key": catalog.get("catalog_key"),
+                "event": catalog.get("catalog_event") or "area_result",
+                "taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
+            },
+            "template": {
+                "key": template["key"],
+                "event": template["outcome"],
+                "taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
+                "variant": 0,
+                "text": template["template"],
+            },
+            "variables": variables,
+            "result": public_result,
+            "presentation": {"player_visible": True, "severity": severity, "render": "inline_result"},
+            "outcome": "area_result",
+            "severity": severity,
+            "catalog": catalog.get("catalog"),
+            "catalog_key": catalog.get("catalog_key"),
+            "catalog_event": catalog.get("catalog_event") or "area_result",
+            "catalog_taxonomy": catalog.get("catalog_taxonomy") or "humanoid",
+            "catalog_tooltip": catalog.get("catalog_tooltip"),
+            "resources": public_result["resources"],
+            "effects": public_result["effects"],
+            "badges": [],
+            "flags": cls._combined_public_flags(results),
+        }
+
     @staticmethod
     def _effect_fact_entries_should_replace_primary(result: InteractionResultDTO) -> bool:
         if (
@@ -641,6 +730,25 @@ class CombatLogBuilder:
             return f"{variables.get('target')} восстанавливает {healing} здоровья"
         return str(variables.get("effect") or "эффект не закрепляется")
 
+    @classmethod
+    def _area_target_results(cls, ctx: BattleContext, results: list[InteractionResultDTO]) -> str:
+        parts: list[str] = []
+        for result in results:
+            target = cls._actor_ref(ctx, result.target_id)
+            variables = cls._variables(result=result, source=None, target=target)
+            text = cls._target_result_text(variables)
+            resources = cls._public_resources(ctx, result)
+            hp = next((resource for resource in resources if resource.get("resource") == "hp"), None)
+            if hp:
+                text = f"{text} [{hp.get('label')}]"
+            parts.append(text)
+        return ", ".join(parts)
+
+    @staticmethod
+    def _area_result_text(*, source_name: str, action_label: str, target_results: str, resource_type: str) -> str:
+        verb = "использует" if resource_type == "item" else "применяет"
+        return f"{source_name} {verb} {action_label}: {target_results}."
+
     @staticmethod
     def _resource_label(resource_type: str, resource_id: str) -> str:
         entry = None
@@ -697,6 +805,18 @@ class CombatLogBuilder:
             "tokens": cls._public_tokens(ctx, result),
             "effects": cls._public_effects(ctx, result),
         }
+
+    @classmethod
+    def _combined_public_result(
+        cls, ctx: BattleContext, results: list[InteractionResultDTO]
+    ) -> dict[str, list[dict[str, Any]]]:
+        combined: dict[str, list[dict[str, Any]]] = {"resources": [], "tokens": [], "effects": []}
+        for result in results:
+            public = cls._public_result(ctx, result)
+            combined["resources"].extend(public["resources"])
+            combined["tokens"].extend(public["tokens"])
+            combined["effects"].extend(public["effects"])
+        return combined
 
     @classmethod
     def _public_resources(cls, ctx: BattleContext, result: InteractionResultDTO) -> list[dict[str, Any]]:
@@ -1239,6 +1359,23 @@ class CombatLogBuilder:
             "reflect": result.reflected_damage > 0,
             "death": CombatLogBuilder._has_event(result, "DEATH"),
         }
+
+    @classmethod
+    def _combined_public_flags(cls, results: list[InteractionResultDTO]) -> dict[str, bool]:
+        flags = {
+            "crit": False,
+            "dodged": False,
+            "parried": False,
+            "blocked": False,
+            "missed": False,
+            "counter": False,
+            "reflect": False,
+            "death": False,
+        }
+        for result in results:
+            for key, value in cls._public_flags(result).items():
+                flags[key] = flags[key] or value
+        return flags
 
     @staticmethod
     def _result_outcome(result: InteractionResultDTO) -> str:

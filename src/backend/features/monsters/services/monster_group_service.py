@@ -447,6 +447,9 @@ class MonsterGroupService:
 
     @staticmethod
     def _monster_visual(monster: GeneratedMonster) -> dict[str, Any]:
+        pg_visual = monster.metadata_.get("visual") if isinstance(monster.metadata_, dict) else None
+        if isinstance(pg_visual, dict) and pg_visual:
+            return dict(pg_visual)
         base_projection = dict(monster.actor_document.get("base_projection") or {})
         visual = base_projection.get("visual")
         return dict(visual) if isinstance(visual, dict) else {}

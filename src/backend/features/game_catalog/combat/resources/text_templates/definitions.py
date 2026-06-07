@@ -425,9 +425,20 @@ def _feint_descriptive_exchange_pattern(entry, outcome: str) -> str | None:
     return variant.event_texts.exchange_template(outcome)
 
 
-def _feint_weapon_phrase_keys(entry, outcome: str, impact_key: str) -> dict[str, str]:
+def _feint_weapon_skill_key(entry) -> str:
     tags = set(entry.technical.applicability_tags or ())
     if {"skill_archery", "skill_ranged_combat"} & tags:
+        return "skill_archery"
+    if "skill_fencing" in tags:
+        return "skill_fencing"
+    if "skill_dual_wield" in tags:
+        return "skill_dual_wield"
+    return "skill_swords"
+
+
+def _feint_weapon_phrase_keys(entry, outcome: str, impact_key: str, target_body: str) -> dict[str, str]:
+    skill_key = _feint_weapon_skill_key(entry)
+    if skill_key == "skill_archery":
         return {
             "approach": "body.humanoid.approach.ranged.draw",
             "weapon_form": (
@@ -435,23 +446,15 @@ def _feint_weapon_phrase_keys(entry, outcome: str, impact_key: str) -> dict[str,
                 if outcome == "crit"
                 else "body.humanoid.weapon_form.skill_archery.moving_shot"
             ),
-            "contact": (
-                "body.humanoid.contact_vs_humanoid.ranged.weak_spot"
-                if outcome == "crit"
-                else "body.humanoid.contact_vs_humanoid.ranged.center_mass"
-            ),
-            "impact": (
-                "body.humanoid.impact_vs_humanoid.ranged.crit.arrow"
-                if outcome == "crit"
-                else "body.humanoid.impact_vs_humanoid.ranged.hit.arrow"
-            ),
+            "contact": _basic_exchange_contact(skill_key, outcome, target_body),
+            "impact": _basic_exchange_impact(skill_key, outcome, target_body),
             "result": "common.result.damage.hp",
         }
     return {
         "approach": "body.humanoid.approach.weapon.measured",
-        "weapon_form": "body.humanoid.weapon_form.skill_swords.cutting_line",
-        "contact": "body.humanoid.contact_vs_humanoid.default.open_side",
-        "impact": impact_key,
+        "weapon_form": _basic_exchange_weapon_form(skill_key, outcome),
+        "contact": _basic_exchange_contact(skill_key, outcome, target_body),
+        "impact": _basic_exchange_impact(skill_key, outcome, target_body) if target_body == "beast" else impact_key,
         "result": "common.result.damage.hp",
     }
 
@@ -461,53 +464,68 @@ def _build_generic_feint_template_recipes() -> tuple[CombatTextTemplateRecipeDTO
     recipes: list[CombatTextTemplateRecipeDTO] = []
     for entry in get_all_feint_catalog_entries():
         feint_id = entry.technical.feint_id
-        for outcome, impact_key, tags in (
-            ("hit", "body.humanoid.impact_vs_humanoid.hit.side", ["feint", "weapon"]),
-            ("crit", "body.humanoid.impact_vs_humanoid.crit.break", ["feint", "weapon", "crit"]),
-        ):
-            key = f"combat.feint.{feint_id}.{outcome}.humanoid_to_humanoid.weapon"
-            if key in existing:
-                continue
-            pattern = "{approach}, {weapon_form} и {contact}; {impact}, {result}."
-            recipes.append(
-                CombatTextTemplateRecipeDTO(
-                    template_key=key,
-                    resource_type="feint",
-                    resource_id=feint_id,
-                    catalog_key=entry.key,
-                    outcome=outcome,
-                    body_pair="humanoid_to_humanoid",
-                    delivery="weapon",
-                    pattern=pattern,
-                    phrase_keys=_feint_weapon_phrase_keys(entry, outcome, impact_key),
-                    tags=tags,
-                )
+        for source_body in TARGET_BODIES:
+            for target_body in TARGET_BODIES:
+                body_pair = f"{source_body}_to_{target_body}"
+                for outcome, impact_key, tags in (
+                    ("hit", "body.humanoid.impact_vs_humanoid.hit.side", ["feint", "weapon"]),
+                    ("crit", "body.humanoid.impact_vs_humanoid.crit.break", ["feint", "weapon", "crit"]),
+                ):
+                    key = f"combat.feint.{feint_id}.{outcome}.{body_pair}.weapon"
+                    if key in existing:
+                        continue
+                    pattern = "{approach}, {weapon_form} и {contact}; {impact}, {result}."
+                    recipes.append(
+                        CombatTextTemplateRecipeDTO(
+                            template_key=key,
+                            resource_type="feint",
+                            resource_id=feint_id,
+                            catalog_key=entry.key,
+                            outcome=outcome,
+                            body_pair=body_pair,
+                            delivery="weapon",
+                            pattern=pattern,
+                            phrase_keys=_feint_weapon_phrase_keys(entry, outcome, impact_key, target_body),
+                            tags=[*tags, source_body, target_body],
+                        )
+                    )
+                for outcome, tags in (
+                    ("miss", ["feint", "weapon", "avoidance", "miss"]),
+                    ("dodge", ["feint", "weapon", "avoidance", "dodge"]),
+                    ("parry", ["feint", "weapon", "avoidance", "parry"]),
+                    ("block", ["feint", "weapon", "avoidance", "block"]),
+                ):
+                    key = f"combat.feint.{feint_id}.{outcome}.{body_pair}.weapon"
+                    if key in existing:
+                        continue
+                    pattern = _feint_descriptive_exchange_pattern(entry, outcome)
+                    if not pattern:
+                        continue
+                    recipes.append(
+                        CombatTextTemplateRecipeDTO(
+                            template_key=key,
+                            resource_type="feint",
+                            resource_id=feint_id,
+                            catalog_key=entry.key,
+                            outcome=outcome,
+                            body_pair=body_pair,
+                            delivery="weapon",
+                            pattern=pattern,
+                            tags=[*tags, source_body, target_body],
+                        )
+                    )
+        recipes.append(
+            CombatTextTemplateRecipeDTO(
+                template_key=f"combat.feint.{feint_id}.no_resource.weapon",
+                resource_type="feint",
+                resource_id=feint_id,
+                catalog_key=entry.key,
+                outcome="no_resource",
+                delivery="weapon",
+                pattern="{source} пытается провести {feint}, но темп финта срывается.",
+                tags=["feint", "weapon", "no_resource"],
             )
-        for outcome, tags in (
-            ("miss", ["feint", "weapon", "avoidance", "miss"]),
-            ("dodge", ["feint", "weapon", "avoidance", "dodge"]),
-            ("parry", ["feint", "weapon", "avoidance", "parry"]),
-            ("block", ["feint", "weapon", "avoidance", "block"]),
-        ):
-            key = f"combat.feint.{feint_id}.{outcome}.humanoid_to_humanoid.weapon"
-            if key in existing:
-                continue
-            pattern = _feint_descriptive_exchange_pattern(entry, outcome)
-            if not pattern:
-                continue
-            recipes.append(
-                CombatTextTemplateRecipeDTO(
-                    template_key=key,
-                    resource_type="feint",
-                    resource_id=feint_id,
-                    catalog_key=entry.key,
-                    outcome=outcome,
-                    body_pair="humanoid_to_humanoid",
-                    delivery="weapon",
-                    pattern=pattern,
-                    tags=tags,
-                )
-            )
+        )
     return tuple(recipes)
 
 
@@ -1002,6 +1020,16 @@ TRIGGER_TEMPLATE_RECIPES: tuple[CombatTextTemplateRecipeDTO, ...] = (
         target_body="humanoid",
         pattern="{target} парирует и сразу ищет ответную линию.",
         tags=["trigger", "weapon", "parry", "riposte"],
+    ),
+    CombatTextTemplateRecipeDTO(
+        template_key="combat.trigger.weapon.riposte_on_parry.parry_proc.beast",
+        resource_type="trigger",
+        resource_id="weapon_riposte_on_parry",
+        catalog_key="combat.trigger.weapon.riposte_on_parry",
+        outcome="parry_proc",
+        target_body="beast",
+        pattern="{target} сбивает удар и сразу ищет ответную линию.",
+        tags=["trigger", "weapon", "parry", "riposte", "beast"],
     ),
     CombatTextTemplateRecipeDTO(
         template_key="combat.trigger.weapon.shield_bash_on_block.block_proc.humanoid",

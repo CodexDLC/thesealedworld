@@ -55,11 +55,11 @@ class TestDefaults:
         assert d.shield_block_base_cap == 0.45
         assert d.shield_counter_cap == 0.50
         assert d.shield_opening_max_strength == 0.30
-        assert d.armor_light_coef == 0.030
-        assert d.armor_medium_coef == 0.055
-        assert d.armor_heavy_coef == 0.085
-        assert d.armor_light_cap == 0.70
-        assert d.armor_medium_cap == 0.80
+        assert d.armor_light_coef == 0.014
+        assert d.armor_medium_coef == 0.018
+        assert d.armor_heavy_coef == 0.027
+        assert d.armor_light_cap == 0.90
+        assert d.armor_medium_cap == 0.90
         assert d.armor_heavy_cap == 0.90
 
     def test_legacy_partial_shield_tunables_are_not_registered(self) -> None:

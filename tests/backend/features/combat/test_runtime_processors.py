@@ -1096,6 +1096,33 @@ def test_combat_trigger_log_missing_combat_text_template_uses_runtime_fallback(m
 
 
 @pytest.mark.unit
+def test_combat_riposte_trigger_log_uses_beast_target_template() -> None:
+    source = actor(1, "a")
+    source.loadout.layout["main_hand"] = "skill_swords"
+    target = actor(2, "b")
+    target.meta.archetype = "beast"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, is_parried=True)
+    result.fired_triggers.append("weapon_riposte_on_parry")
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[1]
+    assert entry["kind"] == "trigger_proc"
+    assert entry["template"]["key"] == "combat.trigger.weapon.riposte_on_parry.parry_proc.beast"
+    assert "(F)" not in entry["text"]
+
+
+@pytest.mark.unit
 def test_executor_log_entries_render_counter_as_counterattack() -> None:
     ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": actor(1, "a"), "2": actor(2, "b")})
     ctx.actors["1"].meta.hp = 96
@@ -1283,6 +1310,57 @@ def test_executor_log_entries_use_ability_no_resource_template() -> None:
 
 
 @pytest.mark.unit
+def test_executor_feint_hit_against_beast_uses_combat_text_template() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.meta.archetype = "beast"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2, feint_id="fencing_precise_prick"),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, damage_final=8, is_hit=True)
+    result.events.append(CombatEventDTO(type="HIT", source_id=1, target_id=2, value=8, resource="hp"))
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["template"]["key"] == "combat.feint.fencing_precise_prick.hit.humanoid_to_beast.weapon"
+    assert "(F)" not in entry["text"]
+    assert entry["text"].endswith("8 урона.")
+
+
+@pytest.mark.unit
+def test_executor_feint_no_resource_uses_feint_template_without_runtime_fallback() -> None:
+    source = actor(1, "a")
+    target = actor(2, "b")
+    target.meta.archetype = "beast"
+    ctx = BattleContext(session_id="c1", meta=battle_meta(), actors={"1": source, "2": target})
+    action = CombatActionDTO(
+        action_type="exchange",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="exchange",
+            payload=ExchangePayload(target_id=2, feint_id="dual_cross_slash"),
+        ),
+    )
+    result = InteractionResultDTO(source_id=1, target_id=2, skip_reason="NO_RESOURCE")
+
+    CombatExecutor()._append_result_logs(ctx, result, action=action, wave=1)
+
+    entry = ctx.pending_logs[0]
+    assert entry["template"]["key"] == "combat.feint.dual_cross_slash.no_resource.weapon"
+    assert "(F)" not in entry["text"]
+    assert entry["text"] == "A1 пытается провести Крестовой срез, но темп финта срывается."
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("result_kwargs", "expected_outcome", "expected_key", "uses_runtime_fallback"),
     [
@@ -1387,6 +1465,58 @@ def test_executor_log_entries_use_area_contract_for_multi_target_actions() -> No
     assert entry["catalog_key"] == "combat.ability.fireball.cast.area"
     assert entry["text"] == "пламя расходится по 2 целям"
     assert entry["result"]["resources"][0]["delta"] == -9
+
+
+@pytest.mark.unit
+async def test_executor_groups_multi_target_ability_logs_into_single_comma_message() -> None:
+    ctx = BattleContext(
+        session_id="c1",
+        meta=battle_meta(),
+        actors={"1": actor(1, "a"), "2": actor(2, "b"), "3": actor(3, "b"), "4": actor(4, "b")},
+    )
+    ctx.actors["2"].meta.hp = 19
+    ctx.actors["2"].meta.max_hp = 46
+    ctx.actors["3"].meta.hp = 13
+    ctx.actors["3"].meta.max_hp = 46
+    ctx.actors["4"].meta.hp = 21
+    ctx.actors["4"].meta.max_hp = 46
+    action = CombatActionDTO(
+        action_type="instant",
+        move=CombatMoveDTO(
+            move_id="m1",
+            char_id=1,
+            strategy="instant",
+            payload=InstantPayload(ability_id="basic_splinter_strike", target_id=[2, 3, 4]),
+            targets=[2, 3, 4],
+        ),
+    )
+    executor = CombatExecutor()
+    results = [
+        InteractionResultDTO(source_id=1, target_id=2, damage_final=11, is_hit=True),
+        InteractionResultDTO(source_id=1, target_id=3, damage_final=10, is_hit=True),
+        InteractionResultDTO(source_id=1, target_id=4, damage_final=10, is_hit=True),
+    ]
+    for result in results:
+        result.events.append(
+            CombatEventDTO(type="HIT", source_id=1, target_id=result.target_id, value=result.damage_final, resource="hp")
+        )
+
+    async def fake_create_task(source, target, move, *, mods=None):  # noqa: ANN001
+        return results[int(target.char_id) - 2]
+
+    executor._create_task = fake_create_task  # type: ignore[method-assign]
+
+    await executor._handle_unidirectional(ctx, action)
+
+    area_logs = [entry for entry in ctx.pending_logs if entry["kind"] == "ability_area_result"]
+    assert len(area_logs) == 1
+    assert area_logs[0]["text"] == (
+        "A1 применяет Осколочный удар: "
+        "A2 получает 11 урона [HP 8/46], "
+        "A3 получает 10 урона [HP 3/46], "
+        "A4 получает 10 урона [HP 11/46]."
+    )
+    assert [resource["actor_id"] for resource in area_logs[0]["result"]["resources"]] == ["2", "3", "4"]
 
 
 @pytest.mark.unit
@@ -6303,10 +6433,10 @@ def test_armor_penetration_pct_and_flat_reduce_armor_power_before_percent(
         result,
     )
 
-    assert damage == pytest.approx(54.054054)
+    assert damage == pytest.approx(78.740157)
     assert result.damage_trace is not None
     assert result.damage_trace.details["arm"]["effective_power"] == pytest.approx(10.0)
-    assert result.damage_trace.details["arm"]["pct"] == pytest.approx(0.459459459)
+    assert result.damage_trace.details["arm"]["pct"] == pytest.approx(0.212598425)
 
 
 @pytest.mark.unit
@@ -6421,7 +6551,7 @@ def test_flat_armor_penetration_trigger_bonus_reduces_armor_power_only(
         result,
     )
 
-    assert damage == pytest.approx(35.714286)
+    assert damage == pytest.approx(55.147059)
     assert result.damage_trace is not None
     assert result.damage_trace.details["after_resist"] == pytest.approx(75.0)
     assert result.damage_trace.details["arm"]["effective_power"] == pytest.approx(20.0)

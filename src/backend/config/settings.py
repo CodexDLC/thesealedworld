@@ -73,8 +73,8 @@ class BackendSettings(BaseCommonSettings):
         "http://play.thesealed.localhost:8080",
         "http://play.localhost:8080",
     ]
-    realtime_ping_interval_seconds: float = 20.0
-    realtime_ping_timeout_seconds: float = 50.0  # 2 missed pings -> close
+    realtime_ping_interval_seconds: float = 30.0
+    realtime_ping_timeout_seconds: float = 120.0  # 4 missed pings -> close; survives Chrome background throttling
 
     # Event Streams
     game_stream_name: str = "game_events"

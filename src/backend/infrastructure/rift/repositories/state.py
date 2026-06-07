@@ -116,7 +116,7 @@ class RiftMembershipRepository:
         snapshot_version: int,
         participant_summaries: dict[str, dict[str, Any]],
     ) -> None:
-        now = datetime.now(UTC)
+        now = datetime.now(UTC).replace(tzinfo=None)
         for membership in await self.list_by_instance(rift_instance_id):
             membership.mongo_snapshot_id = mongo_snapshot_id
             membership.snapshot_version = int(snapshot_version)

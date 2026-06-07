@@ -18,11 +18,11 @@ class CombatConfig(BaseGameConfig):
     SHIELD_OPENING_EVASION_RATE: float = 1.0
     SHIELD_OPENING_MIN_STRENGTH: float = 0.10
     SHIELD_OPENING_MAX_STRENGTH: float = 0.30
-    ARMOR_LIGHT_COEF: float = 0.030
-    ARMOR_MEDIUM_COEF: float = 0.055
-    ARMOR_HEAVY_COEF: float = 0.085
-    ARMOR_LIGHT_CAP: float = 0.70
-    ARMOR_MEDIUM_CAP: float = 0.80
+    ARMOR_LIGHT_COEF: float = 0.014
+    ARMOR_MEDIUM_COEF: float = 0.018
+    ARMOR_HEAVY_COEF: float = 0.027
+    ARMOR_LIGHT_CAP: float = 0.90
+    ARMOR_MEDIUM_CAP: float = 0.90
     ARMOR_HEAVY_CAP: float = 0.90
 
     # Accuracy

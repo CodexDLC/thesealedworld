@@ -91,6 +91,14 @@ class CombatExecutor:
             await self._handle_exchange(ctx, action)
         else:
             # Instant / Item (Одностороннее воздействие)
+            log.bind(
+                session_id=ctx.session_id,
+                move_id=action.move.move_id,
+                action_type=action.action_type,
+                char_id=str(action.move.char_id),
+                ability_id=getattr(action.move.payload, "ability_id", None),
+                target_id=str(target_id) if target_id else None,
+            ).info("ExecutorHandleUnidirectional")
             await self._handle_unidirectional(ctx, action)
 
     def _skip_stale_action_if_dead(self, ctx: BattleContext, action: CombatActionDTO) -> bool:
@@ -407,6 +415,7 @@ class CombatExecutor:
 
         if tasks:
             results = await asyncio.gather(*tasks)
+            is_grouped_area_log = CombatLogBuilder._is_area_action(action) and len(results) > 1
             for result, (_source, target_snapshot, _move, _mods) in zip(results, task_sources, strict=False):
                 target = ctx.get_actor(result.target_id) if result.target_id is not None else None
                 self._append_cleave_splash(ctx, result, source, target_snapshot)
@@ -420,9 +429,12 @@ class CombatExecutor:
                     result,
                     actors_by_id={str(actor_id): actor for actor_id, actor in ctx.actors.items()},
                 )
-                self._append_result_logs(ctx, result, action=action, wave=1)
+                if not is_grouped_area_log:
+                    self._append_result_logs(ctx, result, action=action, wave=1)
                 self._append_result_support_payload(ctx, result, action=action, wave=1)
                 self._log_result_info(ctx, result, wave=1)
+            if is_grouped_area_log:
+                self._append_area_result_log(ctx, results, action=action, wave=1)
             self._apply_unidirectional_ability_cooldown(source, action, results)
             log.bind(target_count=len(tasks)).info("ExecutorUnidirectionalCompleted")
 
@@ -690,6 +702,19 @@ class CombatExecutor:
                 timestamp=time.time(),
             )
         )
+
+    def _append_area_result_log(
+        self, ctx: BattleContext, results: list[InteractionResultDTO], *, action: CombatActionDTO, wave: int
+    ) -> None:
+        entry = CombatLogBuilder.build_area_result_entry(
+            ctx=ctx,
+            results=results,
+            action=action,
+            wave=wave,
+            timestamp=time.time(),
+        )
+        if entry is not None:
+            ctx.pending_logs.append(entry)
 
     def _append_result_support_payload(
         self, ctx: BattleContext, result: InteractionResultDTO, *, action: CombatActionDTO, wave: int

@@ -40,6 +40,11 @@ class MonsterCombatActorInputBuilder:
 
 
 def _monster_visual(monster: Any) -> dict[str, Any]:
+    metadata = getattr(monster, "metadata_", None)
+    if isinstance(metadata, dict):
+        pg_visual = metadata.get("visual")
+        if isinstance(pg_visual, dict) and pg_visual:
+            return dict(pg_visual)
     actor_document = getattr(monster, "actor_document", None)
     if not isinstance(actor_document, dict):
         return {}

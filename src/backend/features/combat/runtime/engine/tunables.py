@@ -44,11 +44,11 @@ class CombatTunables:
     shield_opening_evasion_rate: float = 1.0
     shield_opening_min_strength: float = 0.10
     shield_opening_max_strength: float = 0.30
-    armor_light_coef: float = 0.030
-    armor_medium_coef: float = 0.055
-    armor_heavy_coef: float = 0.085
-    armor_light_cap: float = 0.70
-    armor_medium_cap: float = 0.80
+    armor_light_coef: float = 0.014
+    armor_medium_coef: float = 0.018
+    armor_heavy_coef: float = 0.027
+    armor_light_cap: float = 0.90
+    armor_medium_cap: float = 0.90
     armor_heavy_cap: float = 0.90
 
 

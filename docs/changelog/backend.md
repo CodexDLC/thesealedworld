@@ -4,6 +4,12 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Combat logs now group multi-target area ability results, cover feint/beast and
+  riposte text templates, and expose richer refresh dispatch diagnostics.
+- Armor tuning now preserves light/medium/heavy ordering with lower absorption
+  coefficients and updated starter armor base power.
+- Monster visual projections now prefer generated metadata visuals, and rift
+  snapshot timestamps are normalized for SQL persistence.
 - Expedition respawn now stores player-corpse TTLs as Redis-compatible integer
   seconds, preserving the starter-rift death return flow into portal/scenario
   handling.

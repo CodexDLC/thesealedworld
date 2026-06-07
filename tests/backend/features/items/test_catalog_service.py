@@ -87,21 +87,21 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
     expected_sets = {
         "light": {
             "hood": ("head_armor", 2),
-            "leather_armor": ("chest_armor", 5),
+            "leather_armor": ("chest_armor", 4),
             "soft_bracers": ("arms_armor", 2),
-            "scout_leggings": ("legs_armor", 3),
+            "scout_leggings": ("legs_armor", 2),
         },
         "medium": {
-            "leather_cap": ("head_armor", 1),
-            "jerkin": ("chest_armor", 6),
-            "reinforced_gloves": ("arms_armor", 1),
-            "breeches": ("legs_armor", 3),
+            "leather_cap": ("head_armor", 2),
+            "jerkin": ("chest_armor", 7),
+            "reinforced_gloves": ("arms_armor", 2),
+            "breeches": ("legs_armor", 4),
         },
         "heavy": {
-            "helmet": ("head_armor", 2),
-            "plate_chest": ("chest_armor", 8),
-            "gauntlets": ("arms_armor", 2),
-            "greaves": ("legs_armor", 4),
+            "helmet": ("head_armor", 3),
+            "plate_chest": ("chest_armor", 9),
+            "gauntlets": ("arms_armor", 3),
+            "greaves": ("legs_armor", 5),
         },
     }
     removed_armor_ids = {
@@ -133,31 +133,40 @@ def test_mvp_armor_catalog_has_exact_three_four_piece_sets():
 
 
 @pytest.mark.unit
-def test_tier_seven_armor_sets_reach_resolver_percent_caps() -> None:
+def test_armor_set_power_order_and_tier_seven_resolver_headroom() -> None:
     catalog = ItemCatalogService.load_default()
     targets = {
         "light": {
             "item_ids": ("hood", "leather_armor", "soft_bracers", "scout_leggings"),
+            "base_total": 10,
             "tier_mult": 6.8,
             "skill": "skill_light_armor",
-            "cap": 0.70,
+            "cap": 0.90,
+            "naked_tier_seven_pct": 0.4877,
         },
         "medium": {
             "item_ids": ("leather_cap", "jerkin", "reinforced_gloves", "breeches"),
+            "base_total": 15,
             "tier_mult": 6.8,
             "skill": "skill_medium_armor",
-            "cap": 0.80,
+            "cap": 0.90,
+            "naked_tier_seven_pct": 0.6474,
         },
         "heavy": {
             "item_ids": ("helmet", "plate_chest", "gauntlets", "greaves"),
+            "base_total": 20,
             "tier_mult": 7.0,
             "skill": "skill_heavy_armor",
             "cap": 0.90,
+            "naked_tier_seven_pct": 0.7908,
         },
     }
+    base_totals = {}
 
     for armor_class, target in targets.items():
         base_total = sum(catalog.get_base_item(item_id).base_power for item_id in target["item_ids"])
+        base_totals[armor_class] = base_total
+        assert base_total == target["base_total"]
         tier_seven_power = base_total * target["tier_mult"]
         _absorbed, trace = armor_math.effective_armor_trace(
             _armor_stats(),
@@ -167,8 +176,11 @@ def test_tier_seven_armor_sets_reach_resolver_percent_caps() -> None:
         )
 
         assert trace["mode"] == "percent_power"
-        assert trace["pct_raw"] >= target["cap"], armor_class
-        assert trace["pct"] == pytest.approx(target["cap"])
+        assert trace["cap"] == pytest.approx(target["cap"])
+        assert trace["pct"] == pytest.approx(target["naked_tier_seven_pct"], abs=0.0001)
+        assert trace["pct"] < target["cap"], armor_class
+
+    assert base_totals["light"] < base_totals["medium"] < base_totals["heavy"]
 
 
 def _armor_stats(*, armor: float = 0.0, skill_key: str | None = None) -> ActorStats:

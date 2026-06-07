@@ -194,6 +194,46 @@ def test_combat_resources_load_runtime_and_public_catalog() -> None:
     )
 
 
+def test_combat_text_catalog_covers_feints_against_beasts_and_riposte_proc() -> None:
+    feint_hit = CombatCatalogIntegrator.get_combat_text_template(
+        resource_type="feint",
+        resource_id="fencing_precise_prick",
+        outcome="hit",
+        source_body="humanoid",
+        target_body="beast",
+        delivery="weapon",
+    )
+    feint_miss = CombatCatalogIntegrator.get_combat_text_template(
+        resource_type="feint",
+        resource_id="dual_cross_slash",
+        outcome="miss",
+        source_body="humanoid",
+        target_body="beast",
+        delivery="weapon",
+    )
+    no_resource = CombatCatalogIntegrator.get_combat_text_template(
+        resource_type="feint",
+        resource_id="dual_cross_slash",
+        outcome="no_resource",
+        source_body="beast",
+        target_body="humanoid",
+        delivery="weapon",
+    )
+    riposte = CombatCatalogIntegrator.get_combat_text_template(
+        resource_type="trigger",
+        resource_id="weapon_riposte_on_parry",
+        outcome="parry_proc",
+        source_body="humanoid",
+        target_body="beast",
+        delivery="default",
+    )
+
+    assert feint_hit["key"] == "combat.feint.fencing_precise_prick.hit.humanoid_to_beast.weapon"
+    assert feint_miss["key"] == "combat.feint.dual_cross_slash.miss.humanoid_to_beast.weapon"
+    assert no_resource["key"] == "combat.feint.dual_cross_slash.no_resource.weapon"
+    assert riposte["key"] == "combat.trigger.weapon.riposte_on_parry.parry_proc.beast"
+
+
 def test_combat_token_catalog_replaces_counter_currency_with_pressure() -> None:
     tokens = get_all_combat_tokens()
 

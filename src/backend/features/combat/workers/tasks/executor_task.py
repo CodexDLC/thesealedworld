@@ -1,4 +1,3 @@
-import contextlib
 import time
 
 from loguru import logger as log
@@ -195,18 +194,29 @@ async def _publish_combat_refresh_notices(ctx: dict, battle_ctx) -> None:
     """Send realtime refresh notifications to all active player participants."""
     redis = ctx.get("redis_client_internal")
     if redis is None:
+        log.bind(session_id=battle_ctx.session_id).warning("CombatRefreshNoticeSkippedNoRedis")
         return
 
     recipients = _player_recipients(battle_ctx)
     if not recipients:
+        log.bind(session_id=battle_ctx.session_id).warning("CombatRefreshNoticeNoRecipients")
         return
+
+    log.bind(
+        session_id=battle_ctx.session_id,
+        recipients=recipients,
+        count=len(recipients),
+    ).info("CombatRefreshNoticeDispatch")
 
     notice_publisher = PlayerNoticePublisher(RawStreamNoticeProducer(redis))
     for actor_id in recipients:
-        with contextlib.suppress(Exception):
+        try:
             await notice_publisher.request_refresh(
                 int(actor_id),
                 target=RefreshTargets.STATUS,
                 reason="combat_turn_resolved",
                 domain="combat",
             )
+            log.bind(session_id=battle_ctx.session_id, actor_id=actor_id).info("CombatRefreshNoticeSent")
+        except Exception:  # noqa: BLE001
+            log.bind(session_id=battle_ctx.session_id, actor_id=actor_id).exception("CombatRefreshNoticeFailed")

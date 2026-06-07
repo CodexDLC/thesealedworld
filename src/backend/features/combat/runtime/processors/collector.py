@@ -77,6 +77,12 @@ class CombatCollector:
         # B. Instant Harvesting (Items/Skills)
         instants, del_inst = self._harvest_instant(moves_map, meta)
         actions_to_queue.extend(instants)
+        if instants:
+            log.bind(
+                session_id=session_id,
+                instants_count=len(instants),
+                signal_type=signal.signal_type if signal else None,
+            ).info("CollectorHarvestedInstants")
 
         # C. Exchange Matchmaking (Combat + Force Attack)
         exchanges, del_exch = self._matchmake_exchange(moves_map, signal)

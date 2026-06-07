@@ -14,6 +14,8 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Project tooling no longer exposes the obsolete root `manage.py` bot scaffold
+  entrypoint; tg-bot runs through its package launcher.
 - Death respawn now survives player-corpse Redis TTL persistence.
 - Gameplay combat now carries refreshed blood/gift abilities, preparation
   exclusivity, richer post-combat loot notices, and realtime/session recovery

@@ -16,7 +16,7 @@ from .core.logging import setup_logging
 def run() -> None:
     """
     Launches the bot application.
-    Expected to be called from the root manage.py script.
+    Used by the tg-bot image entrypoint via ``python -m tg_bot.launcher``.
     """
     # Instantiate settings
     settings = BotSettings()

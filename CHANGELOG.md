@@ -14,6 +14,10 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+### Fixed
+
+- Production WebSocket connection and game token cookie domain routing are now aligned for production domains, ensuring correct cookie propagation and allowed origins configuration.
+
 ## [v0.5.0] - Alpha 0.5.0
 
 ### Product And Gameplay

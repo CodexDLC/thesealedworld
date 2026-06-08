@@ -50,6 +50,7 @@ services:
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       MONGO_URL: ${MONGO_URL:?MONGO_URL is required}
       MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
+      REALTIME_ALLOWED_ORIGINS: ${REALTIME_ALLOWED_ORIGINS}
       DEBUG: "False"
     entrypoint:
       - uvicorn
@@ -93,6 +94,7 @@ services:
       MONGO_DATABASE: ${MONGO_DATABASE:-tbmmorpg_analytics}
       STREAM_CONSUMER_GROUP: ${CHAT_STREAM_CONSUMER_GROUP:-chat}
       WORKER_NAME: ${CHAT_WORKER_NAME:-chat_worker_1}
+      REALTIME_ALLOWED_ORIGINS: ${REALTIME_ALLOWED_ORIGINS}
       DEBUG: "False"
     command:
       - uvicorn

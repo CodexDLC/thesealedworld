@@ -29,6 +29,7 @@ def require_game_access_token(request: Request, *, allow_site_fallback: bool = T
 
 
 def set_game_token_cookies(response: Response, *, access_token: str, refresh_token: str | None = None) -> None:
+    domain = settings.auth_cookie_domain or None
     response.set_cookie(
         GAME_ACCESS_COOKIE_NAME,
         access_token,
@@ -36,6 +37,7 @@ def set_game_token_cookies(response: Response, *, access_token: str, refresh_tok
         secure=settings.game_token_cookie_secure,
         samesite="lax",
         path="/",
+        domain=domain,
     )
     if refresh_token:
         response.set_cookie(
@@ -45,12 +47,14 @@ def set_game_token_cookies(response: Response, *, access_token: str, refresh_tok
             secure=settings.game_token_cookie_secure,
             samesite="lax",
             path="/",
+            domain=domain,
         )
 
 
 def clear_game_token_cookies(response: Response) -> None:
-    response.delete_cookie(GAME_ACCESS_COOKIE_NAME, path="/")
-    response.delete_cookie(GAME_REFRESH_COOKIE_NAME, path="/")
+    domain = settings.auth_cookie_domain or None
+    response.delete_cookie(GAME_ACCESS_COOKIE_NAME, path="/", domain=domain)
+    response.delete_cookie(GAME_REFRESH_COOKIE_NAME, path="/", domain=domain)
 
 
 def attach_game_tokens_from_backend_response(response: Response, backend_response: Any) -> None:

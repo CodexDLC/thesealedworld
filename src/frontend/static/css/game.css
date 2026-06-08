@@ -5055,6 +5055,50 @@ html, body {
     border-left: 1px solid rgba(255, 170, 0, 0.05);
 }
 
+.game-chat-toggle-text {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .game-chat-toggle {
+        position: relative;
+        width: auto;
+        min-height: 28px;
+        display: grid;
+        grid-template-columns: 18px minmax(0, auto);
+        align-items: center;
+        gap: 8px;
+        padding: 0 9px;
+        border: 1px solid rgba(255, 170, 0, 0.12);
+        background: rgba(0, 0, 0, 0.22);
+        color: rgba(245, 210, 134, 0.82);
+        cursor: pointer;
+        opacity: 0.82;
+        box-shadow: none;
+    }
+
+    .game-chat-toggle-text {
+        display: inline;
+        font-family: var(--font-ui);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.10em;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .game-chat-toggle:hover,
+    .game-chat-toggle:focus-visible,
+    .game-chat-toggle.is-open {
+        border-color: rgba(255, 170, 0, 0.34);
+        color: var(--col-accent);
+        box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.08);
+        background: rgba(0, 0, 0, 0.32);
+        opacity: 1;
+    }
+}
+
+
 
 
 .center-nav {
@@ -6358,6 +6402,9 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+
+    position: relative;
+    z-index: 1;
 }
 
 .game-chat-panel-host .chat-main-area {
@@ -6691,7 +6738,6 @@ html, body {
 .chat-tab-select-option .dot-local { background: var(--col-chat-local); }
 .chat-tab-select-option .dot-system { background: var(--col-chat-system); }
 .chat-tab-select-option .dot-private { background: var(--col-chat-private); }
-.chat-tab-select-option .dot-combat { background: var(--col-chat-combat, #ff4d2e); }
 
 
 .chat-tabs-mini { padding: 4px var(--sp-3); }
@@ -6738,7 +6784,6 @@ html, body {
 .chat-tab[data-channel="zone"].active   span { color: var(--col-chat-local);   opacity: 1; }
 .chat-tab[data-channel="system"].active span { color: var(--col-chat-system);  opacity: 1; }
 .chat-tab[data-channel="private"].active span { color: var(--col-chat-private); opacity: 1; }
-.chat-tab[data-channel="combat"].active span { color: var(--col-chat-combat, #ff4d2e); opacity: 1; }
 
 
 .chat-tab.active span { color: var(--col-chat-world); opacity: 1; }
@@ -6749,7 +6794,6 @@ html, body {
 .chat-tab[data-channel="zone"].unread span   { color: var(--col-chat-local);   opacity: 0.9; animation: notify-pulse-local 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="system"].unread span { color: var(--col-chat-system);  opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="private"].unread span{ color: var(--col-chat-private); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
-.chat-tab[data-channel="combat"].unread span { color: var(--col-chat-combat, #ff4d2e); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 
 
 .chat-tab.unread::after {
@@ -6773,17 +6817,6 @@ html, body {
     color: var(--col-chat-private);
     opacity: 1;
     text-shadow: 0 0 8px rgba(136, 102, 255, 0.4);
-}
-
-.chat-tab.is-combat span {
-    color: var(--col-chat-combat, #ff4d2e);
-    opacity: 0.62;
-}
-
-.chat-tab.is-combat.active span {
-    color: var(--col-chat-combat, #ff4d2e);
-    opacity: 1;
-    text-shadow: 0 0 8px rgba(255, 77, 46, 0.38);
 }
 
 .chat-tab-close {
@@ -6880,6 +6913,8 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .chat-users {
@@ -6938,6 +6973,7 @@ html, body {
     padding: 3px 0;
     border-left: 2px solid transparent;
     padding-left: 8px;
+    color: var(--col-parchment);
 }
 .tag-m {
     color: var(--chat-accent);
@@ -6949,11 +6985,6 @@ html, body {
 .msg.sys { border-color: rgba(255, 170, 0, 0.1); color: var(--col-accent); opacity: 0.7; }
 .msg.player { color: var(--col-parchment); }
 .msg.npc { color: var(--col-parchment-dim); font-style: italic; }
-.msg.combat {
-    border-color: rgba(255, 77, 46, 0.26);
-    color: var(--col-parchment);
-}
-
 .msg.combat-log {
     border-color: rgba(255, 77, 46, 0.30);
     color: rgba(230, 204, 172, 0.92);
@@ -6963,8 +6994,41 @@ html, body {
     color: var(--col-chat-combat, #ff4d2e);
 }
 
+.msg.sys .chat-message-view,
+.msg.sys .chat-message-text {
+    color: var(--col-accent) !important;
+}
+
+.msg.player .chat-message-view,
+.msg.player .chat-message-text,
+.msg.npc .chat-message-view,
+.msg.npc .chat-message-text,
+.msg.combat-log .chat-message-view,
+.msg.combat-log .chat-message-text {
+    color: var(--col-parchment) !important;
+}
+
 .chat-message-view {
     display: inline;
+    color: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.chat-message-view::selection,
+.chat-message-text::selection,
+.tag-m::selection,
+.msg.sys .chat-message-view::selection,
+.msg.sys .chat-message-text::selection,
+.msg.sys .tag-m::selection {
+    background: #ffcd66;
+    color: #101015 !important;
+}
+
+.chat-message-text {
+    color: inherit;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .chat-message-icon {
@@ -19801,6 +19865,8 @@ html, body {
     }
 }
 
+}
+
 
 
 @media (max-width: 767px) {
@@ -19852,6 +19918,7 @@ html, body {
     .col-center-inner {
         min-width: 0;
     }
+}
 
 
 
@@ -19894,6 +19961,8 @@ html, body {
         overflow: auto;
         z-index: var(--game-overlay-z);
     }
+}
+
 
 
 

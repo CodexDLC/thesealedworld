@@ -14,7 +14,6 @@ _app: FastAPI | None = None
 
 class ChatEvents:
     SYSTEM_MESSAGE = "chat.system_message"
-    COMBAT_MESSAGE = "chat.combat_message"
     # NOTE: ``chat.combat_log_message`` was the legacy event that mirrored
     # combat output into the chat system tab. Stage 1 of the player realtime
     # gateway removes that mirror — combat UI consumes its own DTOs/fragments
@@ -71,28 +70,6 @@ async def on_system_message(payload: dict[str, Any]) -> None:
             await msg_service.push_system(cid, content)
         except Exception:
             log.bind(char_id=cid).exception("ChatSystemMessagePushFailed")
-
-
-@router.on(ChatEvents.COMBAT_MESSAGE, group="chat")
-async def on_combat_message(payload: dict[str, Any]) -> None:
-    """Receive a combat chat message and deliver it to combat participants."""
-    if _app is None:
-        log.warning("ChatCombatMessageIgnored")
-        return
-
-    if not payload.get("scope_id"):
-        return
-
-    msg_service = getattr(_app.state, "msg_service", None)
-    if msg_service is None:
-        from src.backend.chat.services.message_service import MessageService
-
-        msg_service = MessageService(_app.state.chat_manager, _app.state.redis)
-
-    try:
-        await msg_service.push_combat(payload)
-    except Exception:
-        log.bind(scope_id=payload.get("scope_id")).exception("ChatCombatMessagePushFailed")
 
 
 __all__ = ["ChatEvents", "bind", "router"]

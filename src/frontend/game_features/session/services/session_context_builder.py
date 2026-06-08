@@ -654,7 +654,6 @@ class SessionContextBuilder:
             "death": death,
             "loot": loot,
             "rift": rift,
-            "combat_chat_session_id": getattr(combat_screen, "session_id", None),
             "background_url": background_url,
             "world_theme": world_theme,
             "nav": build_game_nav(state=domain, char_id=char_id),

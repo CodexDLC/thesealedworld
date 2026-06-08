@@ -1610,7 +1610,14 @@ document.addEventListener('htmx:load', function() {
                 return;
             }
             consumeKeepalive().then((ok) => {
-                if (ok) reconnectSocket(detail);
+
+
+
+                if (!ok) {
+                    bailToLobby();
+                    return;
+                }
+                reconnectSocket(detail);
             });
             return;
         }

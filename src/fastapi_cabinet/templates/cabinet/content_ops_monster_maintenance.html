@@ -16,6 +16,7 @@
     <section class="fc-widget fc-widget--wide">
         <h2>Пересборка данных</h2>
         <form method="post" class="fc-filter-form">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <label class="fc-filter-field">
                 <span>Тип семьи</span>
                 <select name="family_id" class="fc-form-input">

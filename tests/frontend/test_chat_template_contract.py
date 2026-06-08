@@ -185,9 +185,15 @@ def test_chat_template_does_not_treat_combat_logs_as_system_channel_history() ->
     assert "combatLogKey" not in template
     assert "channels.dynamic[combatLogKey]" not in template
     assert "_showCombatLogSeparator(_visibleMessagesForTab('system'), idx)" not in template
-    assert "_isClosedDynamicTab(key)" in template
-    assert "_rememberClosedDynamicTab(key)" in template
-    assert "_forgetClosedDynamicTab(dynamicKey)" in template
+    # The per-combat chat tab is gone; so is the closed-dynamic-tab persistence
+    # whose only reader was the combat reopen guard. No combat tab key/kind paths
+    # remain in the chat shell.
+    assert "_isClosedDynamicTab" not in template
+    assert "_rememberClosedDynamicTab" not in template
+    assert "_forgetClosedDynamicTab" not in template
+    assert "startsWith('combat_')" not in template
+    assert "kind: 'combat'" not in template
+    assert "'is-combat'" not in template
 
 
 def test_chat_template_does_not_rebuild_system_messages_during_render() -> None:
@@ -318,7 +324,12 @@ def test_session_content_does_not_render_footer_chat_shell() -> None:
     assert 'id="game-chat-shell"' not in template
     assert 'id="game-footer-shell" hx-swap-oob="outerHTML"' in template
     assert 'include "game/includes/chat_footer.html"' not in template
-    assert 'include "game/includes/chat_overlay.html"' in template
+    # The realtime socket lives in the chat overlay, which is rendered ONCE by
+    # base_game.html. Screen transitions must NOT re-render the overlay (an OOB
+    # swap would tear down the htmx-ws socket and wipe in-memory chat). So the
+    # transition fragment must not include the overlay or re-swap its host.
+    assert 'include "game/includes/chat_overlay.html"' not in template
+    assert 'id="game-shell-overlays"' not in template
 
 
 def test_combat_refresh_selects_only_main_content_shell() -> None:

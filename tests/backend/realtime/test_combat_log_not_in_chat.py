@@ -1,9 +1,11 @@
-"""Stage 1 removes the chat-system-tab mirror of combat log entries.
+"""Combat does not flow through the chat channels.
 
-These tests pin the chat side: the ``chat.combat_log_message`` handler is no
-longer registered and ``MessageService.push_combat_log`` is gone. The combat
-channel tab path (``push_combat`` + ``chat.combat_message``) remains
-untouched, so the combat-channel UI keeps working.
+These tests pin the chat side:
+- the legacy ``chat.combat_log_message`` mirror handler / ``push_combat_log`` are gone;
+- the combat *chat tab* path (``push_combat`` + ``chat.combat_message``) is also
+  gone — combat start/finish/refresh reach the player via ``player.notice`` only,
+  and there is no per-combat chat channel. In-combat talk uses the location/world
+  chat. See docs and ``src/backend/realtime/integrations/notice_publisher.py``.
 """
 
 from __future__ import annotations
@@ -42,13 +44,28 @@ def test_message_service_has_no_push_combat_log_method() -> None:
 
 
 @pytest.mark.unit
-def test_message_service_keeps_push_combat_channel_method() -> None:
-    # Combat *channel* tab path (distinct from system mirroring) is preserved.
-    assert hasattr(MessageService, "push_combat")
+def test_message_service_has_no_push_combat_method() -> None:
+    # The per-combat chat channel is removed; only system/incoming paths remain.
+    assert not hasattr(MessageService, "push_combat")
     assert hasattr(MessageService, "handle_incoming")
+    assert hasattr(MessageService, "push_system")
 
 
 @pytest.mark.unit
-def test_chat_events_keeps_combat_channel_constant() -> None:
-    assert ChatEvents.COMBAT_MESSAGE == "chat.combat_message"
+def test_chat_events_no_longer_exposes_combat_channel_constant() -> None:
+    assert not hasattr(ChatEvents, "COMBAT_MESSAGE")
     assert ChatEvents.SYSTEM_MESSAGE == "chat.system_message"
+
+
+@pytest.mark.unit
+def test_stream_router_has_no_combat_message_handler() -> None:
+    handlers = getattr(router, "_handlers", None) or getattr(router, "handlers", None) or {}
+    keys: list[str] = []
+    if isinstance(handlers, dict):
+        keys = list(handlers.keys())
+    else:
+        for h in handlers:
+            event = getattr(h, "event", None) or getattr(h, "event_type", None)
+            if event:
+                keys.append(event)
+    assert "chat.combat_message" not in keys

@@ -5,25 +5,19 @@ Detailed milestone history for browser-facing gameplay surfaces inside
 
 ## [Unreleased]
 
-- Realtime keepalive now refreshes stale existing game-token cookies before
-  reconnecting the chat WebSocket.
-- Realtime supervisor now reconnects the htmx-ws socket after game-token
-  keepalive recovers from auth-class WebSocket closes.
-- Realtime supervisor now replies to backend heartbeat pings through the
-  htmx-ws public sender, preventing healthy chat sockets from timing out.
-- Gameplay session entry now reissues missing game-token cookies before
-  rendering the realtime chat socket, and local chat no longer reloads on
-  unrelated backend file edits.
-- Realtime WebSocket recovery no longer closes fresh sockets on browser
-  online/visibility events, and stale sockets now close with an htmx reconnect
-  code.
-- Gameplay client recovery now nudges stale realtime sockets after tab/network
-  resume, suppresses `None` asset URLs, and flags fallback combat icons in dev.
-- Combat and session UI now expose debug starter-rift reset controls, realtime
-  keepalive recovery, cooldown-aware actions, compact status widgets, and
-  updated generated combat art/icon surfaces.
-- Play-surface local routing now uses the realtime websocket endpoint through
-  the Nginx test stack.
+## [v0.5.1] - Alpha 0.5.1
+
+- Realtime keepalive now refreshes stale existing game-token cookies before reconnecting the chat WebSocket.
+- Realtime supervisor now reconnects the htmx-ws socket after game-token keepalive recovers from auth-class WebSocket closes.
+- Realtime supervisor now replies to backend heartbeat pings through the htmx-ws public sender, preventing healthy chat sockets from timing out.
+- Gameplay session entry now reissues missing game-token cookies before rendering the realtime chat socket, and local chat no longer reloads on unrelated backend file edits.
+- Realtime WebSocket recovery no longer closes fresh sockets on browser online/visibility events, and stale sockets now close with an htmx reconnect code.
+- Gameplay client recovery now nudges stale realtime sockets after tab/network resume, suppresses `None` asset URLs, and flags fallback combat icons in dev.
+- Combat and session UI now expose debug starter-rift reset controls, realtime keepalive recovery, cooldown-aware actions, compact status widgets, and updated generated combat art/icon surfaces.
+- Play-surface local routing now uses the realtime websocket endpoint through the Nginx test stack.
+- Removed combat-specific chat channels, templates, and dynamic combat chat tabs from the user interface.
+- Fixed chat message parsing to extract presentation payload safely without crashing on missing presentation nodes.
+- Prevented WebSocket reconnect loops during screen transitions by ensuring the chat overlay (which hosts the realtime socket) is not included in HTMX out-of-band swaps.
 
 ## [v0.4.0] - Alpha 0.4.0
 

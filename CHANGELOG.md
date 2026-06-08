@@ -14,9 +14,18 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
-### Fixed
+## [v0.5.1] - Alpha 0.5.1
 
-- Production WebSocket connection and game token cookie domain routing are now aligned for production domains, ensuring correct cookie propagation and allowed origins configuration.
+### Fixed
+- WebSocket connection allowed origins and game token cookie domain routing are now correctly aligned for production domains.
+- Cookie cleanup now properly expires legacy host-only cookies (without domain) along with domain-scoped cookies, resolving login/refresh loops.
+- WebSocket connection now limits recent message backlog replay to private (DM) threads to optimize join performance.
+
+### Product
+- Dedicated combat chat channels and routing were removed. Combat log events are delivered via notifications (`player.notice`), and in-combat players chat through location/world channels.
+
+### Content
+- Replaced developer placeholder text with localized descriptions for all D4 world static map regions.
 
 ## [v0.5.0] - Alpha 0.5.0
 

@@ -16,6 +16,7 @@
         </div>
         <div class="fc-page-actions">
             <form method="post" action="{{ base_url }}/regenerate-visible-member-images" class="fc-inline-action">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 {% for clan in browser.clans %}
                     <input type="hidden" name="clan_ids" value="{{ clan.clan_id }}">
                 {% endfor %}

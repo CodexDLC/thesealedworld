@@ -51,6 +51,14 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* Lift chat content above the .hud-window / .game-chat-overlay::before
+       backdrop layer (position:absolute; z-index:0; dark blur). Without this
+       the message log renders *under* that overlay and the text is dimmed +
+       blurred into an unreadable smudge while the brighter accent nick bleeds
+       through. The tab bar already establishes its own stacking; the panel
+       host must do the same for the log. */
+    position: relative;
+    z-index: 1;
 }
 
 .game-chat-panel-host .chat-main-area {

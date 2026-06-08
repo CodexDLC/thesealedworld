@@ -86,7 +86,6 @@
 .chat-tab-select-option .dot-local { background: var(--col-chat-local); }
 .chat-tab-select-option .dot-system { background: var(--col-chat-system); }
 .chat-tab-select-option .dot-private { background: var(--col-chat-private); }
-.chat-tab-select-option .dot-combat { background: var(--col-chat-combat, #ff4d2e); }
 
 
 .chat-tabs-mini { padding: 4px var(--sp-3); }
@@ -133,7 +132,6 @@
 .chat-tab[data-channel="zone"].active   span { color: var(--col-chat-local);   opacity: 1; }
 .chat-tab[data-channel="system"].active span { color: var(--col-chat-system);  opacity: 1; }
 .chat-tab[data-channel="private"].active span { color: var(--col-chat-private); opacity: 1; }
-.chat-tab[data-channel="combat"].active span { color: var(--col-chat-combat, #ff4d2e); opacity: 1; }
 
 
 .chat-tab.active span { color: var(--col-chat-world); opacity: 1; }
@@ -144,7 +142,6 @@
 .chat-tab[data-channel="zone"].unread span   { color: var(--col-chat-local);   opacity: 0.9; animation: notify-pulse-local 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="system"].unread span { color: var(--col-chat-system);  opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 .chat-tab[data-channel="private"].unread span{ color: var(--col-chat-private); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
-.chat-tab[data-channel="combat"].unread span { color: var(--col-chat-combat, #ff4d2e); opacity: 0.9; animation: notify-pulse 1.3s ease-in-out infinite; }
 
 
 .chat-tab.unread::after {
@@ -168,17 +165,6 @@
     color: var(--col-chat-private);
     opacity: 1;
     text-shadow: 0 0 8px rgba(136, 102, 255, 0.4);
-}
-
-.chat-tab.is-combat span {
-    color: var(--col-chat-combat, #ff4d2e);
-    opacity: 0.62;
-}
-
-.chat-tab.is-combat.active span {
-    color: var(--col-chat-combat, #ff4d2e);
-    opacity: 1;
-    text-shadow: 0 0 8px rgba(255, 77, 46, 0.38);
 }
 
 .chat-tab-close {

@@ -32,6 +32,7 @@ class TravelEncounterRuntime:
         difficulty: str,
         status: Any,
         gear_score: float,
+        location_threat: float = 0.0,
         hunting_skill: float = 0.0,
         integration: EncounterIntegration,
     ) -> EncounterDTO | None:
@@ -42,7 +43,11 @@ class TravelEncounterRuntime:
                 tier=tier,
                 difficulty=difficulty,
                 status=status,
-                budget=self._policy.monster_budget(gear_score, hunting_skill=hunting_skill),
+                budget=self._policy.monster_budget(
+                    gear_score,
+                    location_threat=location_threat,
+                    hunting_skill=hunting_skill,
+                ),
                 hunting_skill=hunting_skill,
                 integration=integration,
             )

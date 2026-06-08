@@ -19,6 +19,7 @@ from src.frontend.integrations.generated_assets import (
 class FakeS3Client:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], dict[str, object]] = {}
+        self.meta = SimpleNamespace(endpoint_url="https://assets.example")
 
     def head_object(self, *, Bucket: str, Key: str) -> dict[str, object]:  # noqa: N803
         obj = self.objects.get((Bucket, Key))
@@ -53,7 +54,7 @@ async def test_s3_generated_asset_reader_returns_presigned_redirect_object() -> 
     assert asset is not None
     assert asset.content == b""
     assert asset.content_type == "image/webp"
-    assert asset.redirect_url == "https://assets.example/monsters/generated/rat.webp?ttl=300&method=get_object"
+    assert asset.redirect_url == "https://assets.example/assets/monsters/generated/rat.webp"
 
 
 @pytest.mark.asyncio
@@ -99,9 +100,9 @@ def test_build_generated_asset_response_can_redirect_to_presigned_url() -> None:
         redirect_url="https://assets.example/monsters/rat.webp?signature=1",
     )
 
-    assert response.status_code == 307
+    assert response.status_code == 301
     assert response.headers["location"] == "https://assets.example/monsters/rat.webp?signature=1"
-    assert response.headers["cache-control"] == "public, max-age=300"
+    assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
 
 
 def test_configure_generated_asset_serving_routes_s3_public_contract() -> None:

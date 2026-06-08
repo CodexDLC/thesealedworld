@@ -1363,11 +1363,10 @@ def test_rift_state_js_is_loaded_outside_shared_game_bundle() -> None:
     assert "rift-encounter-target-copy" not in rift_source
     assert "enemyImageCandidates" in rift_source
     assert "visual.image_url" in rift_source
-    assert "visual.generated_image_url" in rift_source
-    assert "visual.placeholder_image_url" in rift_source
+    assert "visual.placeholder_image_url" not in rift_source
     assert "isFamilyFallbackImage" in rift_source
     assert "/static/images/monsters/families/" in rift_source
-    assert "uniqueImageCandidates" in rift_source
+    assert "uniqueImageCandidates" not in rift_source
     assert 'visual.status === "generated" ? visual.generated_image_url : null' not in rift_source
     assert 'image.classList.toggle("is-family-fallback", isFamilyFallbackImage(images[index]))' in rift_source
     assert "appendEnemyImage" in rift_source

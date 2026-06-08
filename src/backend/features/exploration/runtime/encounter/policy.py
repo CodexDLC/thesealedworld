@@ -84,14 +84,16 @@ class EncounterPolicy:
         status = self.detection_status(tier=tier, difficulty=difficulty, scouting_skill=scouting_skill)
         return EncounterRoll(discovery_type=discovery_type, difficulty=difficulty, status=status)
 
-    def monster_budget(self, gear_score: float, *, hunting_skill: float = 0.0) -> float:
+    def monster_budget(
+        self,
+        gear_score: float,
+        *,
+        location_threat: float = 0.0,
+        hunting_skill: float = 0.0,
+    ) -> float:
         base_budget = max(0.0, float(gear_score))
-        normalized_hunting = _normalized_skill(hunting_skill)
-        variance = (1.0 - normalized_hunting) * 0.45
-        if variance <= 0:
-            return max(1.0, round(base_budget, 2))
-        multiplier = self._rng.uniform(1.0 - variance, 1.0 + variance)
-        return max(1.0, round(base_budget * multiplier, 2))
+        remaining_threat = _normalized_threat(location_threat) * (1.0 - _normalized_skill(hunting_skill))
+        return max(1.0, round(base_budget * (1.0 + remaining_threat), 2))
 
     def detection_status(self, *, tier: int, difficulty: str, scouting_skill: float) -> DetectionStatus:
         diff_mod = ExplorationConfig.DETECTION_MODIFIERS.get(difficulty, 0)
@@ -112,6 +114,13 @@ class EncounterPolicy:
             if marker <= current:
                 return key
         return positive[-1][0]
+
+
+def _normalized_threat(value: Any) -> float:
+    try:
+        return max(0.0, float(value or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _normalized_skill(value: Any) -> float:

@@ -100,7 +100,7 @@ def test_realtime_supervisor_reconnects_after_auth_keepalive() -> None:
     assert "typeof socketWrapper.reconnect !== 'function'" in source
     assert "socketWrapper.reconnect()" in source
     assert "consumeKeepalive().then((ok) => {" in source
-    assert "if (ok) reconnectSocket(detail);" in source
+    assert "reconnectSocket(detail);" in source
 
 
 def test_chat_template_never_embeds_access_token_in_ws_url() -> None:

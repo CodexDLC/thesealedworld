@@ -393,7 +393,7 @@ async def test_prepare_monster_group_allows_repeated_monster_templates() -> None
     assert set(result.actor_commitments) == {f"monster:{result.monster_ids[0]}"}
 
 
-async def test_prepare_monster_group_hunting_mitigates_location_danger_budget_bonus() -> None:
+async def test_prepare_monster_group_does_not_apply_location_danger_budget_bonus() -> None:
     storage = FakeStorage()
     factory = FakeClanFactory(storage)
     await _materialize_fake_pool_clan(storage, factory)
@@ -407,7 +407,6 @@ async def test_prepare_monster_group_hunting_mitigates_location_danger_budget_bo
     result = await service.prepare_monster_group(
         "45_45",
         budget=100,
-        threat_mitigation_skill=1.0,
         composition_policy={
             "allowed_roles": ["minion"],
             "min_units": 1,

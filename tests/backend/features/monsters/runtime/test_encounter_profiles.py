@@ -218,6 +218,36 @@ def test_bandit_gang_guard_and_boss_stay_capped_at_three() -> None:
     assert boss_hard["role_caps"]["boss"] == 1
 
 
+def test_bandit_gang_ordinary_normal_uses_staged_ladder() -> None:
+    normal = get_monster_encounter_profile("bandit_gang", "ordinary", "normal")
+
+    assert normal is not None
+    assert normal["build_mode"] == "upgrade_ladder"
+    assert normal["start_role"] == "minion"
+    assert normal["max_units"] == 3
+    assert normal["upgrade_stages"] == [
+        {"role": "veteran", "requires": {"minion": 3}},
+        {"role": "elite", "requires": {"veteran": 3}},
+    ]
+
+
+def test_all_starter_families_expose_build_contracts() -> None:
+    for family_id in ("rat_swarm", "goblin_tribe", "wolf_pack", "bandit_gang"):
+        ordinary_normal = get_monster_encounter_profile(family_id, "ordinary", "normal")
+        guard_normal = get_monster_encounter_profile(family_id, "guard", "normal")
+        boss_normal = get_monster_encounter_profile(family_id, "boss", "normal")
+
+        assert ordinary_normal is not None
+        assert guard_normal is not None
+        assert boss_normal is not None
+        assert ordinary_normal["build_mode"] == "upgrade_ladder"
+        assert ordinary_normal["upgrade_stages"]
+        assert guard_normal["build_mode"] == "anchor_and_support"
+        assert "support_roles" in guard_normal
+        assert boss_normal["build_mode"] == "anchor_and_support"
+        assert "support_roles" in boss_normal
+
+
 def test_get_monster_encounter_profile_returns_copy() -> None:
     first = get_monster_encounter_profile("rat_swarm", "ordinary", "easy")
     second = get_monster_encounter_profile("rat_swarm", "ordinary", "easy")

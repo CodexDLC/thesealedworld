@@ -688,6 +688,16 @@ class CombatSessionService:
                     feint_id=data.get("feint_id"),
                 ),
             )
+        if action == "pass":
+            return CombatMoveDTO(
+                move_id=uuid.uuid4().hex[:8],
+                char_id=normalize_actor_id(actor_id),
+                strategy="exchange",
+                payload=ExchangePayload(
+                    target_id=normalize_actor_id(data.get("target_id") or "0"),
+                    feint_id=None,
+                ),
+            )
         if action in {"leave", "surrender", "flee"}:
             return CombatMoveDTO(
                 move_id=uuid.uuid4().hex[:8],

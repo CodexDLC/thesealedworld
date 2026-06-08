@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 GROUP_ASSEMBLY_CONFIG: dict[str, Any] = {
     "global": {
         "budget_multiplier": 1.0,
-        "danger_budget_bonus_per_point": 0.25,
         "budget_min": 1.0,
         "budget_max": 999_999.0,
         "budget_soft_overflow_pct": 0.0,
@@ -101,11 +100,8 @@ class MonsterGroupAssembler:
         )
 
     def adjust_budget(self, budget: float, *, tier: int, danger: float) -> float:
-        del tier
-        global_config = self.config["global"]
-        danger_bonus = min(1.0, max(0.0, danger)) * float(global_config["danger_budget_bonus_per_point"])
-        adjusted = budget * (1.0 + danger_bonus)
-        return round(self._clamp_budget(adjusted), 2)
+        del tier, danger
+        return round(self._clamp_budget(float(budget)), 2)
 
     def _select_by_rule(
         self,
@@ -115,6 +111,8 @@ class MonsterGroupAssembler:
     ) -> list[GeneratedMonster]:
         if int(rule["max_units"]) == 1:
             return [self._best_single(candidates, budget, rule)]
+        if rule["build_mode"] == "anchor_and_support":
+            return self._select_anchor_and_support(candidates, budget, rule)
 
         selected: list[GeneratedMonster] = []
         start_role = str(rule.get("start_role") or "minion")
@@ -126,6 +124,39 @@ class MonsterGroupAssembler:
 
         self._fill_min_units(selected, candidates, budget, rule)
         self._upgrade_group(selected, candidates, budget, rule)
+        return sorted(
+            selected,
+            key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id),
+        )
+
+    def _select_anchor_and_support(
+        self,
+        candidates: list[GeneratedMonster],
+        budget: float,
+        rule: dict[str, Any],
+    ) -> list[GeneratedMonster]:
+        selected: list[GeneratedMonster] = []
+        for role in rule["required_roles"]:
+            if role not in ROLE_ORDER:
+                continue
+            if self._role_count(selected, role) >= self._role_cap(rule, role):
+                continue
+            self._try_add_weakest_from_pool(selected, self._role_candidates(candidates, role), budget, rule)
+
+        support_roles = rule["support_roles"] or [
+            role for role in ROLE_ORDER if role not in set(rule["required_roles"])
+        ]
+        while len(selected) < int(rule["max_units"]):
+            added = False
+            for role in support_roles:
+                if self._role_count(selected, role) >= self._role_cap(rule, role):
+                    continue
+                if self._try_add_weakest_from_pool(selected, self._role_candidates(candidates, role), budget, rule):
+                    added = True
+                    break
+            if not added:
+                break
+
         return sorted(
             selected,
             key=lambda member: (ROLE_ORDER.get(member.role, 9), self._member_power(member), member.variant_id),
@@ -187,8 +218,29 @@ class MonsterGroupAssembler:
         budget: float,
         rule: dict[str, Any],
     ) -> None:
+        if rule["upgrade_stages"]:
+            self._upgrade_group_by_stages(selected, candidates, budget, rule)
+            return
         for role in rule["upgrade_order"]:
             if role == "boss" and self._role_cap(rule, "boss") <= 0:
+                continue
+            while self._role_count(selected, role) < self._role_cap(rule, role):
+                upgraded = self._try_upgrade_role(selected, candidates, budget, rule, role)
+                if not upgraded:
+                    break
+
+    def _upgrade_group_by_stages(
+        self,
+        selected: list[GeneratedMonster],
+        candidates: list[GeneratedMonster],
+        budget: float,
+        rule: dict[str, Any],
+    ) -> None:
+        for stage in rule["upgrade_stages"]:
+            role = stage["role"]
+            if role == "boss" and self._role_cap(rule, "boss") <= 0:
+                continue
+            if not self._stage_requirements_met(selected, stage["requires"]):
                 continue
             while self._role_count(selected, role) < self._role_cap(rule, role):
                 upgraded = self._try_upgrade_role(selected, candidates, budget, rule, role)
@@ -340,11 +392,15 @@ class MonsterGroupAssembler:
         if role_caps.get(start_role, 0) <= 0:
             start_role = next((role for role in ROLE_ORDER if role_caps.get(role, 0) > 0), "minion")
         result = {
+            "build_mode": policy["build_mode"],
             "min_units": min_units,
             "max_units": max_units,
             "start_role": start_role,
+            "required_roles": policy["required_roles"],
             "role_caps": role_caps,
             "upgrade_order": policy["upgrade_order"] or ["veteran", "elite", "boss"],
+            "upgrade_stages": policy["upgrade_stages"],
+            "support_roles": policy["support_roles"],
             "allow_repeated_members": self.config["global"]["allow_repeated_members"]
             if policy["allow_repeated_members"] is None
             else bool(policy["allow_repeated_members"]),
@@ -406,6 +462,9 @@ class MonsterGroupAssembler:
     def _role_count(members: list[GeneratedMonster], role: str) -> int:
         return sum(1 for member in members if member.role == role)
 
+    def _stage_requirements_met(self, members: list[GeneratedMonster], requirements: dict[str, int]) -> bool:
+        return all(self._role_count(members, role) >= count for role, count in requirements.items())
+
     @staticmethod
     def _role_cap(rule: dict[str, Any], role: str) -> int:
         role_caps = rule.get("role_caps")
@@ -463,6 +522,7 @@ def _single_score(power: int, budget: float) -> tuple[int, float, int]:
 def _normalize_composition_policy(policy: dict[str, Any] | None) -> dict[str, Any]:
     raw = dict(policy or {})
     return {
+        "build_mode": _build_mode(raw.get("build_mode")),
         "allowed_roles": _string_list(raw.get("allowed_roles")),
         "required_roles": _string_list(raw.get("required_roles")),
         "min_units": _optional_int(raw.get("min_units")),
@@ -471,9 +531,30 @@ def _normalize_composition_policy(policy: dict[str, Any] | None) -> dict[str, An
         "start_role": _optional_role(raw.get("start_role")),
         "role_caps": _role_caps(raw.get("role_caps")),
         "upgrade_order": _role_list(raw.get("upgrade_order")),
+        "upgrade_stages": _upgrade_stages(raw.get("upgrade_stages")),
+        "support_roles": _role_list(raw.get("support_roles")),
         "allow_repeated_members": _optional_bool(raw.get("allow_repeated_members")),
         "prefer_distinct_members": _optional_bool(raw.get("prefer_distinct_members")),
     }
+
+
+def _build_mode(value: Any) -> str:
+    mode = str(value or "upgrade_ladder").strip()
+    return mode if mode in {"upgrade_ladder", "anchor_and_support"} else "upgrade_ladder"
+
+
+def _upgrade_stages(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    stages: list[dict[str, Any]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        role = _optional_role(raw.get("role"))
+        if role is None:
+            continue
+        stages.append({"role": role, "requires": _role_caps(raw.get("requires"))})
+    return stages
 
 
 def _string_list(value: Any) -> list[str]:

@@ -69,6 +69,7 @@ class EncounterEngine:
             tier = _safe_int(flags.get("threat_tier", 1), default=1)
             roll = self._policy.roll(mode=encounter_mode, tier=tier, scouting_skill=scouting_skill)
             runtime = self._travel if encounter_mode == EncounterMode.TRAVEL else self._scouting
+            location_threat = _safe_float(anchor_influence.get("threat", flags.get("threat", 0.0)), default=0.0)
             return await runtime.build(
                 char_id=char_id,
                 loc_id=loc_id,
@@ -77,6 +78,7 @@ class EncounterEngine:
                 difficulty=roll.difficulty,
                 status=roll.status,
                 gear_score=gear_score,
+                location_threat=location_threat,
                 hunting_skill=hunting_skill,
                 integration=encounter_integration,
             )
@@ -85,5 +87,12 @@ class EncounterEngine:
 def _safe_int(value: Any, *, default: int) -> int:
     try:
         return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value: Any, *, default: float) -> float:
+    try:
+        return float(value)
     except (TypeError, ValueError):
         return default

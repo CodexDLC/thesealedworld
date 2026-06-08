@@ -1265,6 +1265,26 @@ async def test_post_exchange_rejects_controlled_actor_before_consuming_feint():
 
 
 @pytest.mark.asyncio
+async def test_post_pass_accepts_controlled_actor_without_consuming_feint():
+    store = ControlledCombatStore()
+    service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())
+
+    await register_combat_move(
+        1,
+        CombatRegisterMoveRequestDTO(action="pass", target_id="2", feint_id="true_strike"),
+        CombatRuntimeOrchestrator(service),
+    )
+
+    assert store.consumed_feints == []
+    assert len(store.exchange_moves) == 1
+    _, actor_id, target_id, move = store.exchange_moves[0]
+    assert actor_id == 1
+    assert target_id == "2"
+    assert move["strategy"] == "exchange"
+    assert move["payload"] == {"target_id": "2", "feint_id": None}
+
+
+@pytest.mark.asyncio
 async def test_post_exchange_rejects_feint_when_concentration_is_too_low():
     store = LowStaminaCombatStore()
     service = CombatSessionService(store=store, system_integrator=FakeCombatSystemIntegrator())

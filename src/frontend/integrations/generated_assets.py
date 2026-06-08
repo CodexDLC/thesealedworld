@@ -24,6 +24,8 @@ class GeneratedAssetObject:
 
 
 class S3ObjectClient(Protocol):
+    meta: Any
+
     def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]: ...  # noqa: N803
 
     def generate_presigned_url(

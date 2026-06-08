@@ -118,7 +118,7 @@ def test_exploration_encounter_uses_visual_generated_image_when_image_field_is_e
                 member_tier=1,
                 image=None,
                 visual={
-                    "generated_image_url": "/static/generated-assets/monsters/generated/members/rat.webp?v=hash",
+                    "image_url": "/static/generated-assets/monsters/generated/members/rat.webp?v=hash",
                 },
             )
         ],

@@ -299,6 +299,7 @@ class CombatExecutor:
                 if not is_secondary and not result.chain_events.preserve_feint:
                     feint_id = getattr(move.payload, "feint_id", None)
                     if feint_id:
+                        assert real_source is not None
                         used_feints[(str(real_source.char_id), str(feint_id))] = real_source
                 if s_id is None or t_id is None:
                     log.warning("ExecutorResultActorIdsMissing")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from src.backend.features.items.resources.base_item.accessories import ACCESSORIES_DB
 from src.backend.features.items.resources.base_item.armor import ARMOR_DB
 from src.backend.features.items.resources.base_item.garment import GARMENT_DB
@@ -13,10 +15,10 @@ for _subcat, _items in WEAPONS_DB.items():
 for _subcat, _items in ARMOR_DB.items():
     SUBCATEGORY_POOLS[f"armor_{_subcat}"] = list(_items.keys())
 
-for _subcat, _items in ACCESSORIES_DB.items():
+for _subcat, _items in cast("Any", ACCESSORIES_DB).items():
     SUBCATEGORY_POOLS[f"accessory_{_subcat}"] = list(_items.keys())
 
-for _subcat, _items in GARMENT_DB.items():
+for _subcat, _items in cast("Any", GARMENT_DB).items():
     SUBCATEGORY_POOLS[f"garment_{_subcat}"] = list(_items.keys())
 
 _ALL_EQUIPMENT_SUBCATEGORIES = tuple(SUBCATEGORY_POOLS)

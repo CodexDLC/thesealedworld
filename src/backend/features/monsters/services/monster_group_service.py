@@ -52,6 +52,7 @@ _ENCOUNTER_DIFFICULTY_ALIASES = {
     "high": "hard",
 }
 _PROFILE_POLICY_KEYS = {
+    "build_mode",
     "budget_multiplier",
     "min_units",
     "max_units",
@@ -60,6 +61,8 @@ _PROFILE_POLICY_KEYS = {
     "required_roles",
     "role_caps",
     "upgrade_order",
+    "upgrade_stages",
+    "support_roles",
     "allow_repeated_members",
     "prefer_distinct_members",
 }
@@ -93,7 +96,6 @@ class MonsterGroupService:
         budget: float,
         preferred_family_id: str | None = None,
         force_single_family: bool = True,
-        threat_mitigation_skill: float = 0.0,
         *,
         scope_id: str | None = None,
         ttl: int = 300,
@@ -120,7 +122,6 @@ class MonsterGroupService:
             tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
-            threat_mitigation_skill=threat_mitigation_skill,
             composition_policy=self._location_composition_policy(location.raw_location, composition_policy),
             scope_id=group_scope_id,
             ttl=ttl,
@@ -159,7 +160,6 @@ class MonsterGroupService:
         zone_id: str | None = None,
         preferred_family_id: str | None = None,
         force_single_family: bool = True,
-        threat_mitigation_skill: float = 0.0,
         composition_policy: dict[str, Any] | None = None,
         group_scope_id: str | None = None,
         ttl: int = 300,
@@ -182,7 +182,6 @@ class MonsterGroupService:
             tags=pool_tags,
             reused_existing_clan=reused_existing_clan,
             force_single_family=force_single_family,
-            threat_mitigation_skill=threat_mitigation_skill,
             composition_policy=composition_policy,
             scope_id=group_scope_id,
             ttl=ttl,
@@ -202,7 +201,6 @@ class MonsterGroupService:
         tags: list[str],
         reused_existing_clan: bool,
         force_single_family: bool,
-        threat_mitigation_skill: float,
         composition_policy: dict[str, Any] | None,
         scope_id: str | None,
         ttl: int,
@@ -223,12 +221,11 @@ class MonsterGroupService:
             tags=tags,
             composition_policy=composition_policy,
         )
-        assembly_danger = _mitigated_danger(danger, threat_mitigation_skill)
         assembly = self.assembler.assemble(
             members,
             budget=budget,
             tier=tier,
-            danger=assembly_danger,
+            danger=danger,
             force_single_family=force_single_family,
             composition_policy=effective_policy,
         )
@@ -352,6 +349,8 @@ class MonsterGroupService:
         composition_policy: dict[str, Any] | None,
     ) -> dict[str, Any] | None:
         raw_policy = dict(composition_policy or {})
+        if _has_explicit_assembly_policy(raw_policy):
+            return raw_policy
         kind = _encounter_kind(raw_policy, tags)
         difficulty = self._encounter_difficulty(raw_policy, members=members, budget=budget, tier=tier)
         profile = get_monster_encounter_profile(clan.family_id, kind, difficulty)
@@ -583,6 +582,11 @@ def _merge_profile_policy(profile_policy: dict[str, Any], explicit_policy: dict[
     return result
 
 
+def _has_explicit_assembly_policy(policy: dict[str, Any]) -> bool:
+    explicit_keys = _PROFILE_POLICY_KEYS - {"budget_multiplier"}
+    return any(key in policy for key in explicit_keys)
+
+
 def _family_expected_gear_score(members: list[GeneratedMonster], *, tier: int) -> float:
     """Raw family baseline for player/party difficulty comparisons.
 
@@ -615,17 +619,3 @@ def _weighted_choice(weights: dict[str, int], rng: random.Random) -> str:
         if roll <= upto:
             return value
     return "normal"
-
-
-def _mitigated_danger(danger: float, skill_value: Any) -> float:
-    return max(0.0, float(danger) - _normalized_skill(skill_value))
-
-
-def _normalized_skill(value: Any) -> float:
-    try:
-        raw = float(value or 0.0)
-    except (TypeError, ValueError):
-        return 0.0
-    if raw > 1.0:
-        raw /= 100.0
-    return max(0.0, min(1.0, raw))

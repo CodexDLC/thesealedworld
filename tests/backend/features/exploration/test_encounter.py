@@ -1,5 +1,4 @@
 # tests/backend/features/exploration/test_encounter.py
-import random
 from unittest.mock import AsyncMock
 
 import pytest
@@ -123,7 +122,7 @@ async def test_encounter_combat_generation():
     assert encounter.enemies[0].intel["vitals"]["hp"] == {"current": 12, "max": 12, "label": "12/12"}
     assert encounter.enemies[0].image == "/static/generated-assets/monsters/generated/members/rat-scout.webp?v=rat-scout-bytes"
     assert integration.prepare_monster_group.await_count == 1
-    assert integration.prepare_monster_group.await_args.kwargs["threat_mitigation_skill"] == 1.0
+    assert "threat_mitigation_skill" not in integration.prepare_monster_group.await_args.kwargs
     assert integration.request_combat_session.await_count == 1
 
 
@@ -191,15 +190,46 @@ async def test_encounter_uses_full_player_gear_score_as_monster_budget_at_high_h
     assert integration.prepare_monster_group.await_args.args[1] == 506
 
 
-def test_monster_budget_rolls_wider_when_hunting_is_low():
-    low_policy = EncounterPolicy(rng=random.Random(1))
-    high_policy = EncounterPolicy(rng=random.Random(1))
+def test_monster_budget_applies_remaining_location_threat_as_gear_score_multiplier():
+    policy = EncounterPolicy()
 
-    low_budget = low_policy.monster_budget(gear_score=506, hunting_skill=0.0)
-    high_budget = high_policy.monster_budget(gear_score=506, hunting_skill=0.8)
+    low_budget = policy.monster_budget(gear_score=506, location_threat=1.0, hunting_skill=0.0)
+    high_budget = policy.monster_budget(gear_score=506, location_threat=1.0, hunting_skill=0.8)
 
-    assert low_budget == pytest.approx(339.49)
-    assert high_budget == pytest.approx(472.7)
+    assert low_budget == pytest.approx(1012)
+    assert high_budget == pytest.approx(607.2)
+
+
+@pytest.mark.asyncio
+async def test_encounter_location_threat_multiplies_monster_budget_after_hunting_mitigation():
+    policy = EncounterPolicy()
+    policy.should_roll = lambda **_: True  # type: ignore[method-assign]
+    policy.roll = lambda **_: type(  # type: ignore[method-assign]
+        "Roll",
+        (),
+        {
+            "discovery_type": "monster",
+            "difficulty": "mid",
+            "status": DetectionStatus.DETECTED,
+        },
+    )()
+    engine = EncounterEngine(policy=policy)
+    integration = FakeEncounterIntegration()
+
+    await engine.try_generate_encounter(
+        char_id=1,
+        location_data={
+            "flags": {"is_safe_zone": False, "threat_tier": 1},
+            "anchor_influence": {"threat": 0.14},
+        },
+        scouting_skill=100.0,
+        loc_id="50_50",
+        gear_score=230,
+        hunting_skill=0.0,
+        encounter_integration=integration,
+    )
+
+    assert integration.prepare_monster_group.await_args.args[1] == pytest.approx(262.2)
 
 
 @pytest.mark.asyncio

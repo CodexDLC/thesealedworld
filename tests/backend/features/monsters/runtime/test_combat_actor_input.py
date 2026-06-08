@@ -114,15 +114,15 @@ def test_monster_combat_actor_input_replaces_stale_family_avatar_with_generated_
         "asset_hash": "rat-image-bytes",
     }
 
-    snapshot = MonsterCombatActorInputBuilder().build_snapshot(
-        _monster(
-            {"snapshot_tier": 1, "combat_snapshot_input": combat_input},
-            actor_document={
-                "base_projection": {"visual": visual},
-                "tier_snapshots": {"tier_1": {"snapshot_tier": 1, "combat_snapshot_input": combat_input}},
-            },
-        )
+    monster = _monster(
+        {"snapshot_tier": 1, "combat_snapshot_input": combat_input},
+        actor_document={
+            "base_projection": {"visual": visual},
+            "tier_snapshots": {"tier_1": {"snapshot_tier": 1, "combat_snapshot_input": combat_input}},
+        },
     )
+    monster.metadata_ = {"visual": visual}
+    snapshot = MonsterCombatActorInputBuilder().build_snapshot(monster)
 
     assert snapshot["meta"]["avatar_url"] == (
         "/static/generated-assets/monsters/generated/members/rat.webp?v=rat-image-bytes"

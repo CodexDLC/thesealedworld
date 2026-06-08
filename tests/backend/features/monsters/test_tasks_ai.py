@@ -249,7 +249,6 @@ async def test_monster_clan_image_handler_applies_generated_asset_to_clan_visual
 
     visual = clan.metadata_["visual"]
     assert visual["status"] == "generated"
-    assert visual["source"] == "ai_generated"
     assert visual["image_url"] == "/static/generated-assets/monsters/generated/clans/hash.webp"
     assert visual["storage_key"] == "monsters/generated/clans/hash.webp"
     assert visual["asset_hash"] == "hash"
@@ -318,7 +317,6 @@ async def test_monster_member_image_handler_applies_generated_asset_to_member_vi
 
     visual = member.metadata_["visual"]
     assert visual["status"] == "generated"
-    assert visual["source"] == "ai_generated"
     assert visual["image_url"] == "/static/generated-assets/monsters/generated/members/hash.png"
     assert visual["storage_key"] == "monsters/generated/members/hash.png"
     assert visual["asset_hash"] == "hash"

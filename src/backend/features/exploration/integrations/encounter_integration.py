@@ -233,7 +233,6 @@ class EncounterIntegration:
         budget: float,
         preferred_family_id: str | None = None,
         force_single_family: bool = True,
-        threat_mitigation_skill: float = 0.0,
         *,
         scope_id: str | None = None,
         ttl: int = 300,
@@ -246,7 +245,6 @@ class EncounterIntegration:
             "loc_id": str(loc_id),
             "budget": _number_payload_value(budget),
             "force_single_family": "true" if force_single_family else "false",
-            "threat_mitigation_skill": _number_payload_value(threat_mitigation_skill),
             "ttl": str(int(ttl)),
         }
         if preferred_family_id:

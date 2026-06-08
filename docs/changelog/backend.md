@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+- Combat runtime and turn manager now support a "pass" strategy action, allowing actors to yield their turn and routing the action through the combat session.
+- Travel/scouting encounter engine and policy now scale monster group threat budgets based on current travel zone threat coefficients.
 - Realtime chat now logs client close codes and message-send receipt metadata
   without exposing message bodies or tokens.
 - Archery feints now include blood-and-tempo sinks for a forced critical shot

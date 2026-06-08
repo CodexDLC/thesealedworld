@@ -14,6 +14,8 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+- Combat gameplay now includes a pass action button and dedicated pass strategy action routing for actors.
+- Travel and scouting encounter generation now scales monster group threat budgets based on region threat configuration.
 - Obsolete archived feint prototypes and local design prototype artifacts were
   removed from the tracked project tree.
 - Project tooling no longer exposes the obsolete root `manage.py` bot scaffold

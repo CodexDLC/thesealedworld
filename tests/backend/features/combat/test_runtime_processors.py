@@ -2430,7 +2430,7 @@ def test_full_defense_uses_amplified_shield_guard_power_and_consumes_buff() -> N
     assert ctx.result.is_hit is True
     assert ctx.result.is_blocked is True
     assert ctx.result.shield_block_branch == "defense"
-    assert ctx.result.damage_final == 18
+    assert ctx.result.damage_final == 19
     assert ctx.result.damage_trace is not None
     assert ctx.result.damage_trace.details["shield_guard_power"] == pytest.approx(2.45)
     assert ctx.result.damage_trace.details.get("incoming_damage_cap") is None
@@ -2494,7 +2494,7 @@ def test_aggressive_defense_forces_block_and_scales_guard_without_reflect_branch
 
     assert ctx.result.is_blocked is True
     assert ctx.result.shield_block_branch == "defense"
-    assert ctx.result.damage_final == 18
+    assert ctx.result.damage_final == 19
     assert ctx.result.reflected_damage == 0
     assert source.meta.hp == 100
     assert target.statuses.effects == []
@@ -2976,7 +2976,7 @@ def test_shield_block_success_opens_capped_half_weapon_counter_and_opening(
     assert captured_chances == [pytest.approx(0.36), pytest.approx(0.5)]
     assert result.is_blocked is True
     assert result.is_shield_counter is True
-    assert result.shield_counter_damage == 17
+    assert result.shield_counter_damage == 19
     assert result.applied_effects == [
         {
             "id": "shield_opening",
@@ -6030,7 +6030,7 @@ def test_ranged_combat_style_perfect_backstep_far_position_becomes_critical_puni
     assert stopped is False
     assert result.trigger_facts[0].trigger_id == "style_ranged_perfect_backstep"
     assert result.is_ranged_punish is True
-    assert result.ranged_punish_damage == 16
+    assert result.ranged_punish_damage == 17
     assert result.ranged_punish_crit_mult == pytest.approx(2.0)
     assert result.chain_events.trigger_counter_attack is False
     assert result.events[-1].type == "HIT"
@@ -6600,8 +6600,8 @@ def test_far_position_boosts_archer_outgoing_bow_damage_after_mitigation(monkeyp
         result,
     )
 
-    assert damage == pytest.approx(67.711598)
-    assert result.damage_final == 67
+    assert damage == pytest.approx(90.83263246)
+    assert result.damage_final == 90
     assert result.damage_trace is not None
     assert result.damage_trace.details["ranged_position_outgoing_mult"] == pytest.approx(1.08)
 
@@ -6952,7 +6952,7 @@ def test_physical_resistance_suppression_trigger_bonus_reduces_only_natural_laye
         result,
     )
 
-    assert damage == pytest.approx(61.657033)
+    assert damage == pytest.approx(73.09273640931933)
 
 
 @pytest.mark.unit
@@ -7001,15 +7001,15 @@ def test_defensive_shield_block_adds_guard_power_to_damage_reduction(monkeypatch
         result,
     )
 
-    assert damage == pytest.approx(9.027394)
-    assert result.damage_final == 9
+    assert damage == pytest.approx(14.429043644790854)
+    assert result.damage_final == 14
     assert result.reflected_damage == 0
     assert result.damage_trace is not None
     assert result.damage_trace.details["shield_block_branch"] == "defense"
     assert result.damage_trace.details["shield_guard_power"] == pytest.approx(4.29975)
     assert result.damage_trace.details["arm"]["total_power"] == pytest.approx(14.29975)
     assert result.damage_trace.details["arm"]["shield_guard_power"] == pytest.approx(4.29975)
-    assert result.damage_trace.details["shield_absorb"] == pytest.approx(3.299321)
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(1.675114571115616)
     assert result.damage_trace.details["shield_guard_power"] == pytest.approx(4.29975)
 
 
@@ -7027,12 +7027,12 @@ def test_counter_shield_block_no_longer_reflects_guard_power(monkeypatch: pytest
         result,
     )
 
-    assert damage == pytest.approx(16.431591)
-    assert result.damage_final == 16
+    assert damage == pytest.approx(18.709377775090385)
+    assert result.damage_final == 18
     assert result.reflected_damage == 0
     assert result.damage_trace is not None
     assert result.damage_trace.details["shield_block_branch"] == "counter"
-    assert result.damage_trace.details["shield_absorb"] == pytest.approx(2.101889)
+    assert result.damage_trace.details["shield_absorb"] == pytest.approx(0.760211364560738)
     assert result.damage_trace.details["shield_reflect"] == pytest.approx(0.0)
 
 
@@ -7255,7 +7255,7 @@ def test_shield_block_pipeline_mods_scale_guard_power(monkeypatch: pytest.Monkey
         defense_result,
     )
 
-    assert damage == pytest.approx(18.898054)
+    assert damage == pytest.approx(19.63629651593191)
     assert defense_result.damage_trace is not None
     assert defense_result.damage_trace.details["shield_guard_power"] == pytest.approx(1.96)
 

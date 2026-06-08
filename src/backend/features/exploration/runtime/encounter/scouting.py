@@ -24,6 +24,7 @@ class TerritoryScoutingRuntime:
         difficulty: str,
         status: Any,
         gear_score: float,
+        location_threat: float = 0.0,
         hunting_skill: float = 0.0,
         integration: EncounterIntegration,
     ) -> EncounterDTO | None:
@@ -35,6 +36,7 @@ class TerritoryScoutingRuntime:
             difficulty=difficulty,
             status=status,
             gear_score=gear_score,
+            location_threat=location_threat,
             hunting_skill=hunting_skill,
             integration=integration,
         )

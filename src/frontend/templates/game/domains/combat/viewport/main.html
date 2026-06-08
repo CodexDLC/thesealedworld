@@ -537,11 +537,11 @@
                                     {% if combat_screen.primary_attack.kind == 'pass' %}
                                         <button type="button"
                                                 class="game-action-button game-action-button--primary combat-primary-action combat-primary-action--waiting"
-                                                hx-get="/game/session/state/combats?char_id={{ char_id }}"
+                                                hx-post="/game/combat/move"
                                                 hx-target="#main-content .shell-constrained"
-                                                hx-select="#main-content > .shell-constrained"
-                                                hx-swap="outerHTML"
+                                                hx-swap="innerHTML"
                                                 hx-disabled-elt="this"
+                                                hx-vals='{"char_id": {{ char_id }}, "action": "pass", "target_id": {{ primary_target_id | tojson }}}'
                                                 data-tippy-content="{{ combat_screen.primary_attack.reason or combat_screen.action_state }}"
                                                 data-tippy-theme="game-hint">
                                             <img src="{{ combat_screen.primary_attack.icon_url }}" alt="">

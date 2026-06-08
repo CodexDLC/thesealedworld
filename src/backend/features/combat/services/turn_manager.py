@@ -364,6 +364,12 @@ class CombatTurnManager:
                 target_id=data.get("target_id", char_id),
                 feint_id=data.get("feint_id"),
             )
+        elif action == "pass":
+            strategy = "exchange"
+            validated_payload = ExchangePayload(
+                target_id=normalize_actor_id(data.get("target_id") or "0"),
+                feint_id=None,
+            )
         elif action in ("leave", "surrender", "flee"):
             strategy = "system"
             validated_payload = {"sys_action": action}

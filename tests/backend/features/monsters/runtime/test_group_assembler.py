@@ -91,7 +91,7 @@ def test_group_assembler_uses_gear_score_as_member_cost() -> None:
     assert result.adjusted_budget == 90
 
 
-def test_group_assembler_applies_danger_budget_bonus() -> None:
+def test_group_assembler_does_not_apply_location_danger_budget_bonus() -> None:
     members = [
         _monster("a", 20, gear_score=20, organization_type="solitary"),
         _monster("b", 50, gear_score=50, organization_type="solitary"),
@@ -106,8 +106,8 @@ def test_group_assembler_applies_danger_budget_bonus() -> None:
         composition_policy=_policy(max_units=1),
     )
 
-    assert result.adjusted_budget == 150
-    assert [member.variant_id for member in result.members] == ["c"]
+    assert result.adjusted_budget == 120
+    assert [member.variant_id for member in result.members] == ["b"]
 
 
 def test_group_assembler_swarm_fills_minions_before_upgrading() -> None:
@@ -373,3 +373,101 @@ def test_group_assembler_composition_policy_applies_profile_budget_and_role_caps
     assert {member.role for member in result.members} <= {"veteran", "elite"}
     assert [member.role for member in result.members].count("elite") <= 1
     assert len(result.members) <= 2
+
+
+def test_group_assembler_ladder_does_not_upgrade_before_base_group_is_full() -> None:
+    members = [
+        _monster("minion", 20, role="minion", gear_score=224),
+        _monster("veteran", 50, role="veteran", gear_score=230),
+        _monster("elite", 90, role="elite", gear_score=235),
+    ]
+
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=235,
+        tier=1,
+        danger=0.0,
+        composition_policy={
+            "build_mode": "upgrade_ladder",
+            "min_units": 1,
+            "max_units": 3,
+            "start_role": "minion",
+            "allowed_roles": ["minion", "veteran", "elite"],
+            "role_caps": {"minion": 3, "veteran": 3, "elite": 1, "boss": 0},
+            "upgrade_stages": [
+                {"role": "veteran", "requires": {"minion": 3}},
+                {"role": "elite", "requires": {"veteran": 3}},
+            ],
+            "allow_repeated_members": True,
+        },
+    )
+
+    assert [member.role for member in result.members] == ["minion"]
+
+
+def test_group_assembler_ladder_requires_veteran_floor_before_elite_upgrade() -> None:
+    members = [
+        _monster("minion", 20, role="minion", gear_score=40),
+        _monster("veteran", 50, role="veteran", gear_score=60),
+        _monster("elite", 90, role="elite", gear_score=70),
+    ]
+    policy = {
+        "build_mode": "upgrade_ladder",
+        "min_units": 1,
+        "max_units": 3,
+        "start_role": "minion",
+        "allowed_roles": ["minion", "veteran", "elite"],
+        "role_caps": {"minion": 3, "veteran": 3, "elite": 1, "boss": 0},
+        "upgrade_stages": [
+            {"role": "veteran", "requires": {"minion": 3}},
+            {"role": "elite", "requires": {"veteran": 3}},
+        ],
+        "allow_repeated_members": True,
+    }
+
+    veteran_floor = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=200,
+        tier=1,
+        danger=0.0,
+        composition_policy=policy,
+    )
+    elite_upgrade = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=206,
+        tier=1,
+        danger=0.0,
+        composition_policy=policy,
+    )
+
+    assert [member.role for member in veteran_floor.members] == ["veteran", "veteran", "veteran"]
+    assert [member.role for member in elite_upgrade.members] == ["veteran", "veteran", "elite"]
+
+
+def test_group_assembler_anchor_and_support_places_leader_before_support() -> None:
+    members = [
+        _monster("minion", 20, role="minion", gear_score=40),
+        _monster("veteran", 50, role="veteran", gear_score=60),
+        _monster("elite", 90, role="elite", gear_score=100),
+    ]
+
+    result = MonsterGroupAssembler(rng=random.Random(1)).assemble(
+        members,
+        budget=180,
+        tier=1,
+        danger=0.0,
+        composition_policy={
+            "build_mode": "anchor_and_support",
+            "min_units": 2,
+            "max_units": 3,
+            "allowed_roles": ["minion", "veteran", "elite"],
+            "required_roles": ["elite"],
+            "role_caps": {"minion": 3, "veteran": 2, "elite": 1, "boss": 0},
+            "support_roles": ["minion", "veteran"],
+            "allow_repeated_members": True,
+        },
+    )
+
+    assert result.members[0].role == "minion"
+    assert [member.role for member in result.members].count("elite") == 1
+    assert len(result.members) == 2

@@ -45,6 +45,7 @@
                     </tbody>
                 </table>
                 <form method="post" action="/admin/content-ops/regenerate-member-image" class="fc-inline-action">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                     <input type="hidden" name="member_id" value="{{ member.monster_id }}">
                     <input type="hidden" name="return_member_detail" value="1">

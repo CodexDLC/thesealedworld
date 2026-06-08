@@ -5,9 +5,11 @@
 <div class="shell-constrained" hx-swap-oob="outerHTML:#main-content .shell-constrained">
     {% include "game/session_content_inner.html" %}
 </div>
-<div id="game-shell-overlays" hx-swap-oob="outerHTML">
-    <div id="game-modal-root"></div>
-    {% include "game/includes/chat_overlay.html" %}
-</div>
+{# The realtime WebSocket lives in #game-shell-overlays (chat_overlay), rendered
+   once by base_game.html. Screen transitions MUST NOT re-render that block —
+   re-rendering tears down the htmx-ws socket and wipes in-memory chat history.
+   The socket is one-per-session and reconnects only on a real transport drop
+   (see static/js/core/realtime_supervisor.js). #game-modal-root is likewise
+   persistent. #}
 <div id="game-footer-shell" hx-swap-oob="outerHTML"></div>
 <span hidden aria-hidden="true"></span>

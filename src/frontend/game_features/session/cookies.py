@@ -17,7 +17,12 @@ def set_active_character_cookie(response: Response, character_id: int) -> None:
 
 
 def clear_active_character_cookie(response: Response) -> None:
-    response.delete_cookie(ACTIVE_CHARACTER_COOKIE, path="/")
+    domain = settings.auth_cookie_domain or None
+    response.delete_cookie(ACTIVE_CHARACTER_COOKIE, path="/", domain=domain)
+    if domain:
+        # Also expire any legacy host-only cookie left from before the
+        # domain-scoped scheme, so a stale duplicate cannot survive the clear.
+        response.delete_cookie(ACTIVE_CHARACTER_COOKIE, path="/")
 
 
 def active_character_id_from_cookie(request: Request) -> int:

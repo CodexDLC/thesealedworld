@@ -134,6 +134,7 @@
 
         <dialog id="generation-dialog" class="fc-modal">
             <form method="post" action="{{ base_url }}/generate-character" class="fc-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div class="fc-page-head">
                     <div>
                         <h2 id="generation-dialog-title">Создать персонажа</h2>

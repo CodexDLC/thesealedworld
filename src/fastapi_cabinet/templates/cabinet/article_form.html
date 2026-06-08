@@ -4,6 +4,7 @@
     <section class="fc-widget fc-widget--article-form fc-widget--wide">
         <h2>{{ form.title }}</h2>
         <form method="post" action="{{ form.action_url }}" class="fc-article-form">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             {% if form.article_id %}
                 <input type="hidden" name="article_id" value="{{ form.article_id }}">
             {% endif %}
@@ -86,6 +87,7 @@
         {% if form.article_id %}
             <div class="fc-article-extra-actions">
                 <form method="post" action="/admin/news/toggle-publish" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <input type="hidden" name="article_id" value="{{ form.article_id }}">
                     <button type="submit" class="fc-action-btn {% if form.is_published %}fc-action-btn--unpublish{% else %}fc-action-btn--approve{% endif %}">
                         {% if form.is_published %}Снять с публикации{% else %}Опубликовать{% endif %}
@@ -93,6 +95,7 @@
                 </form>
                 <form method="post" action="/admin/news/delete" style="display:inline"
                       onsubmit="return confirm('Удалить статью? Это действие необратимо.')">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <input type="hidden" name="article_id" value="{{ form.article_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--deny">Удалить</button>
                 </form>

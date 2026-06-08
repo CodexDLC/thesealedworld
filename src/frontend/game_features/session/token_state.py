@@ -53,8 +53,13 @@ def set_game_token_cookies(response: Response, *, access_token: str, refresh_tok
 
 def clear_game_token_cookies(response: Response) -> None:
     domain = settings.auth_cookie_domain or None
-    response.delete_cookie(GAME_ACCESS_COOKIE_NAME, path="/", domain=domain)
-    response.delete_cookie(GAME_REFRESH_COOKIE_NAME, path="/", domain=domain)
+    for name in (GAME_ACCESS_COOKIE_NAME, GAME_REFRESH_COOKIE_NAME):
+        response.delete_cookie(name, path="/", domain=domain)
+        if domain:
+            # Also expire any legacy host-only cookie left from before the
+            # domain-scoped scheme. Without this the stale duplicate keeps being
+            # read on the next request and the refresh-reject loop never breaks.
+            response.delete_cookie(name, path="/")
 
 
 def attach_game_tokens_from_backend_response(response: Response, backend_response: Any) -> None:

@@ -4,6 +4,12 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+## [v0.5.1] - Alpha 0.5.1
+
+- Removed legacy combat chat events and channel managers, routing combat messages to world/zone channels and combat notices directly to the player.
+- WebSocket connection now replays recent message history ONLY for private (DM) threads, making channel connection cheaper.
+- Replaced placeholder developer description text with final localization strings across all D4 static map location resources.
+
 ## [v0.5.0] - Alpha 0.5.0
 
 - Combat runtime and turn manager now support a "pass" strategy action, allowing actors to yield their turn and routing the action through the combat session.

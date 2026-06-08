@@ -23,6 +23,7 @@
                         <td class="fc-table-actions">
                             {% for act in widget.actions %}
                             <form method="post" action="{{ widget.action_url }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                 <input type="hidden" name="request_id" value="{{ row.get(widget.id_key, '') }}">
                                 <input type="hidden" name="action" value="{{ act.action }}">
                                 {% if act.select_name and act.select_options_key %}

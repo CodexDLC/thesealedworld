@@ -7,6 +7,7 @@
             <form id="fc-reset-{{ widget.key }}-{{ loop.index }}"
                   method="post"
                   action="{{ widget.reset_url }}">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="namespace" value="{{ widget.namespace }}">
                 <input type="hidden" name="key" value="{{ entry.key }}">
                 <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
@@ -18,6 +19,7 @@
             <form id="fc-reset-ns-{{ widget.key }}"
                   method="post"
                   action="{{ widget.reset_namespace_url }}">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="namespace" value="{{ widget.namespace }}">
                 <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
             </form>
@@ -25,6 +27,7 @@
 
         {# Main save form #}
         <form method="post" action="{{ widget.update_url }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="namespace" value="{{ widget.namespace }}">
             <input type="hidden" name="redirect_to" value="{{ widget.redirect_to }}">
             <table class="fc-table fc-table--config">

@@ -50,10 +50,12 @@
                     </tbody>
                 </table>
                 <form method="post" action="/admin/content-ops/regenerate-clan-flavor" class="fc-inline-action">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--approve">Перезаказать описания</button>
                 </form>
                 <form method="post" action="/admin/content-ops/regenerate-clan-member-images" class="fc-inline-action">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                     <button type="submit" class="fc-action-btn fc-action-btn--approve">Перезаказать картинки участников</button>
                 </form>
@@ -113,6 +115,7 @@
                             <td>{{ member.affixes|join(", ") if member.affixes else "—" }}</td>
                             <td>
                                 <form method="post" action="/admin/content-ops/regenerate-member-image">
+                                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                     <input type="hidden" name="clan_id" value="{{ clan.clan_id }}">
                                     <input type="hidden" name="member_id" value="{{ member.monster_id }}">
                                     <button type="submit" class="fc-action-btn">Перегенерировать</button>

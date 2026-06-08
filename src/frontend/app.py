@@ -320,8 +320,13 @@ def _redirect_and_clear_expired_state(
     clear_game_token_cookies(response)
     if location.startswith("/login"):
         cookie_domain = settings.auth_cookie_domain or None
-        response.delete_cookie(ACCESS_COOKIE_NAME, domain=cookie_domain)
-        response.delete_cookie(REFRESH_COOKIE_NAME, domain=cookie_domain)
+        for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
+            response.delete_cookie(name, domain=cookie_domain)
+            if cookie_domain:
+                # Also expire any legacy host-only cookie left from before the
+                # domain-scoped scheme, otherwise the stale duplicate keeps
+                # resolving a dead session and the login loop persists.
+                response.delete_cookie(name)
     if "HX-Request" in request.headers:
         response.headers["HX-Redirect"] = location
     return response

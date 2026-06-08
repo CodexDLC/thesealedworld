@@ -21,7 +21,10 @@ class NewsCoverPreset:
 
     @property
     def available(self) -> bool:
-        return (_STATIC_BASE / self.filename).exists()
+        # Пресеты гарантированно поставляются с релизом фронтенда, поэтому всегда
+        # возвращаем True. Локальная проверка пути может давать ложноотрицательный
+        # результат в Docker-контейнерах, где статика отдается внешним Nginx.
+        return True
 
 
 NEWS_COVER_PRESETS: tuple[NewsCoverPreset, ...] = (

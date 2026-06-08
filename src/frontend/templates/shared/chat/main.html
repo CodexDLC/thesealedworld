@@ -15,7 +15,6 @@
          unreadTabs: {},
          mobileSelectOpen: false,
          _dynamicTabKey(msg) {
-             if ((msg.tab && msg.tab.kind === 'combat') || msg.channel === 'combat') return 'combat_' + (msg.scope_id || 'unknown');
              if (msg.tab && msg.tab.key) return msg.tab.key;
              if (msg.channel === 'dm') return 'dm_' + (msg.scope_id || 'unknown');
              return null;
@@ -25,16 +24,12 @@
                  const sid = msg.scope_id || key.replace(/^dm_/, '');
                  return { kind: 'dm', key: key, title: '@' + sid.slice(0, 8), open_policy: 'request_consent', closeable: true, accent: 'private' };
              }
-             if (msg.channel === 'combat') {
-                 return { kind: 'combat', key: key, title: 'БОЙ', open_policy: 'force_open', closeable: true, accent: 'combat' };
-             }
              return null;
          },
          _ensureDynamicTab(msg) {
              const key = this._dynamicTabKey(msg);
              if (!key) return null;
              const tab = msg.tab || this._defaultTab(msg, key);
-             if (key.startsWith('combat_') && this._isClosedDynamicTab(key) && (!tab || tab.open_policy !== 'force_open')) return null;
              if (!this.channels.dynamic[key]) {
                  this.channels.dynamic[key] = {
                      tab: tab,
@@ -60,18 +55,6 @@
          },
          _hiddenStorageKey(key) {
              return 'tbmmorpg:chat:hidden:{{ char_id }}:' + key;
-         },
-         _closedStorageKey(key) {
-             return 'tbmmorpg:chat:closed:{{ char_id }}:' + key;
-         },
-         _isClosedDynamicTab(key) {
-             try { return window.localStorage.getItem(this._closedStorageKey(key)) === '1'; } catch (_) { return false; }
-         },
-         _rememberClosedDynamicTab(key) {
-             try { window.localStorage.setItem(this._closedStorageKey(key), '1'); } catch (_) {}
-         },
-         _forgetClosedDynamicTab(key) {
-             try { window.localStorage.removeItem(this._closedStorageKey(key)); } catch (_) {}
          },
          _messageCursor(msg) {
              if (!msg) return '';
@@ -190,13 +173,12 @@
                      if (window.console && console.warn) console.warn('realtime: ignoring envelope type', envelope.type);
                      return;
                  }
-                 const raw = envelope.payload || {};
+                 const raw = this._extractChatPayload(envelope);
                  const msg = this._normalizeMessage(raw);
                  const ch  = msg.channel || 'system';
                  const dynamicKey = this._ensureDynamicTab(msg);
                  let routedKey = dynamicKey;
                  if (dynamicKey) {
-                     this._forgetClosedDynamicTab(dynamicKey);
                      this.channels.dynamic[dynamicKey].messages.push(msg);
                      const policy = (this.channels.dynamic[dynamicKey].tab || {}).open_policy;
                      if (policy === 'force_open') {
@@ -217,6 +199,15 @@
                  });
                  window.dispatchEvent(new CustomEvent('chat-unread'));
              } catch (_) {}
+         },
+         _extractChatPayload(envelope) {
+             if (!envelope || typeof envelope !== 'object') return {};
+             const payload = envelope.payload;
+             if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                 return payload;
+             }
+             const { type, payload: _payload, presentation: _presentation, ...legacyPayload } = envelope;
+             return legacyPayload;
          },
          _noticeTemplates: {
              'combat.started': 'На часах {time}. Из засады начался бой: {participants}.',
@@ -286,7 +277,6 @@
          _channelLabel(key) {
              const channelKey = key || 'global';
              if (channelKey.startsWith('dm_')) return 'личное';
-             if (channelKey.startsWith('combat_')) return 'бой';
              return { global: 'мир', zone: 'зона', system: 'система', trade: 'торговля', party: 'группа' }[channelKey] || channelKey;
          },
          _tabSelectLabel(key) {
@@ -306,7 +296,6 @@
              if (chatTab === 'zone') return 'zone';
              if (chatTab === 'system') return 'system';
              if (chatTab.startsWith('dm_')) return 'private';
-             if (chatTab.startsWith('combat_')) return 'combat';
              return 'world';
          },
          _activeTabCanSend() {
@@ -738,7 +727,6 @@
          _closeDynamicTab(key) {
              const entry = this.channels.dynamic[key];
              if (!entry || !entry.tab || !entry.tab.closeable) return;
-             this._rememberClosedDynamicTab(key);
              delete this.channels.dynamic[key];
              this.unreadTabs[key] = false;
              if (chatTab === key) chatTab = 'global';
@@ -767,7 +755,7 @@
          },
          _rosterTitle() {
              const dynamicTab = this._activeDynamicTab();
-             if (dynamicTab) return (dynamicTab.tab.kind === 'combat') ? 'БОЕВОЙ КАНАЛ' : 'ЛИЧНЫЙ ЧАТ';
+             if (dynamicTab) return 'ЛИЧНЫЙ ЧАТ';
              return { global: 'ОНЛАЙН ОБЩИЙ', zone: 'ОНЛАЙН В ЗОНЕ', system: 'СИСТЕМА', trade: 'ТОРГОВЛЯ', party: 'ГРУППА' }[chatTab] || 'ЧАТ';
          },
          _rosterHeading() {
@@ -777,7 +765,6 @@
              if (chatTab === 'zone') return 'В зоне пока никто не говорил.';
              if (chatTab === 'global') return 'В мировом канале пока тихо.';
              if (chatTab === 'system') return 'Системный канал без агентов.';
-             if (chatTab.startsWith('combat_')) return 'Боевые события появятся здесь.';
              return 'Список пуст.';
          },
          _rosterItems() {
@@ -804,7 +791,7 @@
          which listens for htmx:wsClose / htmx:wsError on this element and
          calls ``/game/keepalive`` before allowing more retries. -->
     <div hx-ext="ws"
-         ws-connect="{{ realtime_ws_endpoint }}?char_id={{ char_id }}{% if combat_chat_session_id %}&combat_session_id={{ combat_chat_session_id }}{% endif %}"
+         ws-connect="{{ realtime_ws_endpoint }}?char_id={{ char_id }}"
          data-realtime-supervisor
          style="display:contents;">
 
@@ -819,7 +806,7 @@
             <template x-for="(entry, key) in channels.dynamic" :key="key">
                 <div class="chat-tab"
                      :data-channel="entry.tab.accent || entry.tab.kind"
-                     :class="{ 'active': chatTab === key, 'unread': _isUnread(key), 'is-private': entry.tab.kind === 'dm', 'is-combat': entry.tab.kind === 'combat' }"
+                     :class="{ 'active': chatTab === key, 'unread': _isUnread(key), 'is-private': entry.tab.kind === 'dm' }"
                      @click="_activateTab(key)">
                     <span x-text="'[' + entry.tab.title + ']'"></span>
                     <button x-show="entry.tab.closeable"
@@ -855,7 +842,7 @@
                 </div>
                 <template x-for="(entry, key) in channels.dynamic" :key="key">
                     <div class="chat-tab-select-option"
-                         :class="{ 'active': chatTab === key, 'is-private': entry.tab.kind === 'dm', 'is-combat': entry.tab.kind === 'combat' }"
+                         :class="{ 'active': chatTab === key, 'is-private': entry.tab.kind === 'dm' }"
                          @click="_activateTab(key); mobileSelectOpen = false">
                         <span :class="'dot-' + (entry.tab.accent || entry.tab.kind)"></span>
                         <span x-text="entry.tab.title.toUpperCase()"></span>
@@ -1037,7 +1024,7 @@
                 </div>
             </template>
 
-            <!-- Dynamic tabs: combat sessions and private chats -->
+            <!-- Dynamic tabs: private chats (and future group/party channels) -->
             <template x-for="(entry, key) in channels.dynamic" :key="key">
                 <template x-if="chatTab === key">
                     <div style="padding: 10px;">
@@ -1045,7 +1032,7 @@
                             <div class="msg sys"><span class="tag-m" x-text="entry.tab.title"></span><span>Нет сообщений.</span></div>
                         </template>
                         <template x-for="m in _visibleMessagesForTab(key)" :key="m.id">
-                            <div class="msg" :class="entry.tab.kind === 'combat' ? 'combat' : 'player'">
+                            <div class="msg player">
                                 <span class="tag-m" x-text="m.sender_name || entry.tab.title"></span>
                                 <span class="chat-message-view">
                                     <img class="chat-message-icon" x-show="_messageIcon(m)" :src="_messageIcon(m)" alt="">

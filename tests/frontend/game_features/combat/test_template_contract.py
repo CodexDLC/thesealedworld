@@ -73,8 +73,11 @@ def test_combat_shell_renders_standard_header_without_footer_chat():
     assert 'domain != \'combats\'' not in session_oob
     assert 'include "game/includes/chat_footer.html"' not in base
     assert 'include "game/includes/chat_footer.html"' not in session_oob
+    # Chat overlay (and its realtime socket) is rendered once by base_game.html
+    # and persists across screen transitions; the transition fragment must not
+    # re-render it, otherwise the WebSocket reconnects on every screen change.
     assert 'include "game/includes/chat_overlay.html"' in base
-    assert 'include "game/includes/chat_overlay.html"' in session_oob
+    assert 'include "game/includes/chat_overlay.html"' not in session_oob
     assert "{% if domain == 'combats' %}" not in header
     assert "combat-header-state" not in header
     assert "combat-header-actions" not in header

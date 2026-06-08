@@ -89,7 +89,6 @@ async def realtime_ws(
     ws: WebSocket,
     token: str | None = Query(default=None),
     char_id: int | None = Query(default=None),
-    combat_session_id: str | None = Query(default=None),
 ) -> None:
     # 1. Anti-CSWSH: reject BEFORE accept. We must not give a hostile origin a
     #    live socket — even one immediately closed — so this rejection path is
@@ -170,8 +169,6 @@ async def realtime_ws(
         topics.append(f"chat:zone:{location_id}")
     if party_id:
         topics.append(f"chat:party:{party_id}")
-    if combat_session_id:
-        topics.append(f"chat:combat:{combat_session_id}")
     for sid in dm_sessions:
         topics.append(f"chat:dm:{sid}")
 
@@ -185,9 +182,18 @@ async def realtime_ws(
         chat_manager=chat_manager,
     )
 
-    # 7. Replay hot tail for each subscribed channel through the envelope
-    #    adapter so every chat payload arrives wrapped as `chat.message`.
+    # 7. Replay recent history ONLY for private (DM) threads, through the
+    #    envelope adapter so every chat payload arrives wrapped as
+    #    `chat.message`. Public channels (global, zone, trade, party, system)
+    #    start from the moment of connection: a joining player sees live
+    #    traffic only, never backlog from before they logged in. This matches
+    #    the per-session chat model players expect from other games and keeps
+    #    join cheap. The buffer is still written by MessageService (the
+    #    archiver consumes it); we simply do not push it on connect.
+    #    DM tabs keep a short tail so a reconnect does not drop the open thread.
     for topic in topics:
+        if not topic.startswith("chat:dm:"):
+            continue
         stream_key = f"chat:buffer:{topic}"
         try:
             entries = await redis.xrevrange(stream_key, count=_TAIL_COUNT)

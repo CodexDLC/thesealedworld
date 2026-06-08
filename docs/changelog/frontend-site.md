@@ -4,8 +4,12 @@ Detailed milestone history for the `src/frontend` site-web layer.
 
 ## [Unreleased]
 
-- Site static surfaces now share the refreshed realtime bootstrap and local
-  Nginx test routing for the split site/play hosts.
+## [v0.5.1] - Alpha 0.5.1
+
+- Site static surfaces now share the refreshed realtime bootstrap and local Nginx test routing for the split site/play hosts.
+- Updated news cover preset check to always return `True`, preventing false negatives in Docker container rollouts.
+- Cleaned up cookie deletion to expire legacy host-only cookies (without domain) along with domain-scoped cookies, resolving login/refresh loops.
+- Standardized cabinet details, widgets, table, and account details templates for news/cover rendering.
 
 ## [v0.4.0] - Alpha 0.4.0
 

@@ -14,18 +14,18 @@ Full layer changelogs live in:
 
 ## [Unreleased]
 
+## [v0.5.0] - Alpha 0.5.0
+
+### Product And Gameplay
 - Combat gameplay now includes a pass action button and dedicated pass strategy action routing for actors.
 - Travel and scouting encounter generation now scales monster group threat budgets based on region threat configuration.
-- Obsolete archived feint prototypes and local design prototype artifacts were
-  removed from the tracked project tree.
-- Project tooling no longer exposes the obsolete root `manage.py` bot scaffold
-  entrypoint; tg-bot runs through its package launcher.
+- Gameplay combat now carries refreshed blood/gift abilities, preparation exclusivity, richer post-combat loot notices, and realtime/session recovery hooks for the play surface.
 - Death respawn now survives player-corpse Redis TTL persistence.
-- Gameplay combat now carries refreshed blood/gift abilities, preparation
-  exclusivity, richer post-combat loot notices, and realtime/session recovery
-  hooks for the play surface.
-- Local Nginx test routing now proxies play realtime websockets with the
-  configured play host URL.
+
+### Tooling And Infrastructure
+- Project tooling no longer exposes the obsolete root `manage.py` bot scaffold entrypoint; tg-bot runs through its package launcher.
+- Local Nginx test routing now proxies play realtime websockets with the configured play host URL.
+- Obsolete archived feint prototypes and local design prototype artifacts were removed from the tracked project tree.
 
 ## [v0.4.0] - Alpha 0.4.0
 

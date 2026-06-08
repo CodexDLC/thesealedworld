@@ -4,6 +4,8 @@ Detailed milestone history for the `src/backend` game runtime layer.
 
 ## [Unreleased]
 
+## [v0.5.0] - Alpha 0.5.0
+
 - Combat runtime and turn manager now support a "pass" strategy action, allowing actors to yield their turn and routing the action through the combat session.
 - Travel/scouting encounter engine and policy now scale monster group threat budgets based on current travel zone threat coefficients.
 - Realtime chat now logs client close codes and message-send receipt metadata
